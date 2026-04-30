@@ -31,6 +31,7 @@ const formSchema = z.object({
   description: z.string().optional(),
   status: z.enum(['planning', 'in_progress', 'on_hold', 'completed', 'cancelled']),
   budget: z.coerce.number().optional(),
+  end_date: z.string().optional().nullable(),
   lead_id: z.string().optional(),
   member_ids: z.array(z.string()).default([]),
 })
@@ -60,6 +61,7 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
       description: project?.description || "",
       status: (project?.status as any) || "planning",
       budget: project?.budget || 0,
+      end_date: project?.end_date || "",
       lead_id: project?.lead?.id || "",
       member_ids: defaultMemberIds,
     },
@@ -154,6 +156,20 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="end_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Target Deadline</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -170,7 +186,7 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {members.map(member => (
+                    {members.filter(m => !m.status || m.status === 'active').map(member => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.full_name}
                       </SelectItem>
@@ -192,7 +208,7 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 <FormLabel className="text-base">Team Members</FormLabel>
               </div>
               <div className="grid grid-cols-2 gap-2 border rounded-lg p-4 max-h-[150px] overflow-y-auto">
-                {members.map((member) => (
+                {members.filter(m => !m.status || m.status === 'active').map((member) => (
                   <FormField
                     key={member.id}
                     control={form.control}

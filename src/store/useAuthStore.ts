@@ -29,7 +29,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   fetchProfile: async () => {
     const { user } = get()
-    if (!user) return
+    if (!user || !user.id) {
+      set({ isLoading: false })
+      return
+    }
     
     try {
       const { data, error } = await supabase

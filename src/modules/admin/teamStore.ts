@@ -6,6 +6,7 @@ interface Profile {
   full_name: string | null
   avatar_url: string | null
   role: 'admin' | 'manager' | 'employee' | 'client'
+  status: 'pending' | 'active' | 'denied'
   email: string | null
   created_at: string
 }
@@ -15,6 +16,7 @@ interface TeamState {
   isLoading: boolean
   fetchMembers: () => Promise<void>
   updateMemberRole: (id: string, role: Profile['role']) => Promise<void>
+  updateMemberStatus: (id: string, status: Profile['status']) => Promise<void>
   revokeAccess: (id: string) => Promise<void>
 }
 
@@ -52,6 +54,23 @@ export const useTeamStore = create<TeamState>((set, get) => ({
       })
     } catch (error) {
       console.error('Error updating member role:', error)
+      throw error
+    }
+  },
+
+  updateMemberStatus: async (id, status) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('id', id)
+
+      if (error) throw error
+      set({
+        members: get().members.map((m) => (m.id === id ? { ...m, status } : m)),
+      })
+    } catch (error) {
+      console.error('Error updating member status:', error)
       throw error
     }
   },

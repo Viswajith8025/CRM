@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
 import type { Task } from './types'
 import { useNotificationsStore } from '@/modules/notifications/notificationsStore'
+import { useActivityStore } from '@/modules/reports/activityStore'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const getTaskCacheKey = (projectId?: string) => projectId ?? 'all'
@@ -71,6 +72,14 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       if (error) throw error
 
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: 'created task',
+        target_type: 'task',
+        target_name: data.title,
+        target_id: data.id
+      })
+
       if (data.assigned_to) {
         useNotificationsStore.getState().addNotification({
           user_id: data.assigned_to,
@@ -108,6 +117,15 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       if (error) throw error
 
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: `updated task status to ${updates.status || 'modified'}`,
+        target_type: 'task',
+        target_name: data.title,
+        target_id: data.id,
+        metadata: updates
+      })
+
       if (updates.assigned_to) {
         useNotificationsStore.getState().addNotification({
           user_id: updates.assigned_to,
@@ -115,8 +133,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
           description: `You have been assigned to: ${data.title}`,
           type: 'assignment'
         })
-      } else if (updates.status === 'done') {
-        // Notify project owner/lead?
       }
 
       set((state) => ({
@@ -145,6 +161,16 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     try {
       const { error } = await supabase.from('tasks').delete().eq('id', id)
       if (error) throw error
+
+      if (deletedTask) {
+        useActivityStore.getState().logActivity({
+          action: 'deleted task',
+          target_type: 'task',
+          target_name: deletedTask.title,
+          target_id: id
+        })
+      }
+
       set((state) => ({
         error: null,
         lastFetchedAtByKey: {

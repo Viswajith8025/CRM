@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
+import { useActivityStore } from '@/modules/reports/activityStore'
 import type { Invoice, Payment } from './types'
 
 interface BillingState {
@@ -50,6 +51,15 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .single()
 
       if (error) throw error
+      
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: 'issued invoice',
+        target_type: 'invoice',
+        target_name: data.invoice_number,
+        target_id: data.id
+      })
+
       set({ invoices: [data as Invoice, ...get().invoices] })
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to add invoice.")
@@ -122,6 +132,14 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       // Update invoice status to paid automatically if payment matches
       if (payment.invoice_id) {
         await get().updateInvoiceStatus(payment.invoice_id, 'paid')
+        
+        // Log Activity
+        useActivityStore.getState().logActivity({
+          action: 'recorded payment',
+          target_type: 'billing',
+          target_name: `Payment of $${payment.amount}`,
+          target_id: payment.invoice_id
+        })
       }
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to record payment.")

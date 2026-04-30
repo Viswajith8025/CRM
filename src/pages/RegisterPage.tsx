@@ -35,6 +35,7 @@ export default function RegisterPage() {
         options: {
           data: {
             full_name: fullName,
+            role: 'employee', // Always default to employee on registration
           },
         },
       })

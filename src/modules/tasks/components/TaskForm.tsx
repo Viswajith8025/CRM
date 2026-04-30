@@ -177,7 +177,7 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="none">Unassigned</SelectItem>
-                    {members.map(member => (
+                    {members.filter(m => !m.status || m.status === 'active').map(member => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.full_name}
                       </SelectItem>

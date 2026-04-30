@@ -210,6 +210,14 @@ export default function SettingsPage() {
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" /> Company</TabsTrigger>
           <TabsTrigger value="team" className="gap-2"><UserPlus className="h-4 w-4" /> Team</TabsTrigger>
+          <TabsTrigger value="approvals" className="relative gap-2">
+            <Shield className="h-4 w-4" /> Approvals
+            {members.filter(m => m.status === 'pending').length > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-black text-white">
+                {members.filter(m => m.status === 'pending').length}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security" className="gap-2"><Lock className="h-4 w-4" /> Security</TabsTrigger>
         </TabsList>
@@ -309,12 +317,12 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {members.length === 0 ? (
+                {members.filter(m => !m.status || m.status === 'active').length === 0 ? (
                   <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground font-medium">
-                    No team members found.
+                    No active team members found.
                   </div>
                 ) : (
-                  members.map((member) => (
+                  members.filter(m => !m.status || m.status === 'active').map((member) => (
                     <div key={member.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30 transition-all hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border-2 border-background">
@@ -335,13 +343,13 @@ export default function SettingsPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'admin')} className="font-medium">
+                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'admin')} className="font-medium">
                               Make Admin
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'manager')} className="font-medium">
+                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'manager')} className="font-medium">
                               Make Manager
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'employee')} className="font-medium">
+                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'employee')} className="font-medium">
                               Make Employee
                             </DropdownMenuItem>
                             <Separator className="my-1" />
@@ -353,6 +361,59 @@ export default function SettingsPage() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* User Approvals */}
+        <TabsContent value="approvals" className="space-y-6">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle>Pending Approvals</CardTitle>
+              <CardDescription>Review and approve new user registrations for your workspace.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {members.filter(m => m.status === 'pending').length === 0 ? (
+                  <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-muted/20 text-muted-foreground">
+                    <Shield className="h-8 w-8 opacity-20" />
+                    <p className="text-sm font-bold tracking-tight">No pending registrations</p>
+                  </div>
+                ) : (
+                  members.filter(m => m.status === 'pending').map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-card shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="h-12 w-12 border-2 border-primary/10">
+                          <AvatarImage src={member.avatar_url || ""} />
+                          <AvatarFallback className="font-black text-lg">{member.full_name?.charAt(0) || member.email?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-base font-black tracking-tighter">{member.full_name || "New User"}</p>
+                          <p className="text-xs text-muted-foreground font-medium">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="font-bold text-rose-500 border-rose-500/20 hover:bg-rose-50 hover:text-rose-600"
+                          onClick={() => useTeamStore.getState().updateMemberStatus(member.id, 'denied')}
+                        >
+                          Deny
+                        </Button>
+                        <Button 
+                          className="font-bold bg-emerald-500 hover:bg-emerald-600 text-white"
+                          onClick={() => {
+                            useTeamStore.getState().updateMemberStatus(member.id, 'active')
+                            toast.success(`${member.full_name || member.email} has been approved!`)
+                          }}
+                        >
+                          Approve Access
+                        </Button>
                       </div>
                     </div>
                   ))

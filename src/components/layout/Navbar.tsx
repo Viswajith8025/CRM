@@ -25,7 +25,7 @@ import { Sidebar } from "./Sidebar"
 export function Navbar() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-  const { user, signOut } = useAuthStore()
+  const { user, profile, signOut } = useAuthStore()
 
   return (
     <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
@@ -123,7 +123,7 @@ export function Navbar() {
                 </DropdownMenuItem>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => navigate("/notifications")}
                 className="justify-center text-xs font-bold text-primary cursor-pointer hover:bg-primary/5"
               >
@@ -141,12 +141,18 @@ export function Navbar() {
               <Button variant="ghost" className="-m-1.5 flex items-center p-1.5">
                 <span className="sr-only">Open user menu</span>
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback>{user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                  <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
+                  <AvatarFallback>{profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
                 </Avatar>
                 <span className="hidden lg:flex lg:items-center">
-                  <span className="ml-4 text-sm font-semibold leading-6 text-foreground" aria-hidden="true">
-                    {user?.email || "Guest"}
+                  <span className="ml-4 text-sm font-black leading-6 tracking-tight text-foreground uppercase" aria-hidden="true">
+                    {profile?.role === 'admin' ? (
+                      <span className="text-primary">ROOT ADMIN</span>
+                    ) : profile?.role === 'manager' ? (
+                      'Manager'
+                    ) : (
+                      profile?.full_name || user?.email?.split('@')[0] || 'Guest'
+                    )}
                   </span>
                 </span>
               </Button>

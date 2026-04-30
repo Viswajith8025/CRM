@@ -3,6 +3,7 @@ import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Plus, LayoutGrid, List as ListIcon, Filter, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { KanbanBoard } from "../components/KanbanBoard"
+import { TaskList } from "../components/TaskList"
 import { useTasksStore } from "../tasksStore"
 import {
   Dialog,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select"
 
 export default function TasksPage() {
-  const { fetchTasks, subscribeToTasks } = useTasksStore()
+  const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
@@ -179,12 +180,26 @@ export default function TasksPage() {
           searchQuery={searchQuery}
         />
       ) : (
-        <div className="flex h-[400px] flex-col items-center justify-center rounded-lg border border-dashed text-center">
-          <div className="max-w-[250px] space-y-2">
-            <p className="text-sm font-medium">Task List View</p>
-            <p className="text-xs text-muted-foreground">The flat list view is being optimized for large datasets. Use the Kanban board for current task management.</p>
-          </div>
-        </div>
+        <TaskList 
+          tasks={tasks.filter(task => {
+            let matchesStatus = statusFilter === "all" || task.status === statusFilter
+            
+            if (statusFilter === "overdue") {
+              matchesStatus = task.status !== 'done' && 
+                              task.due_date !== null && 
+                              new Date(task.due_date) < new Date()
+            }
+
+            const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
+            
+            const query = searchQuery.toLowerCase()
+            const matchesSearch = query === "" || 
+                                  task.title.toLowerCase().includes(query) || 
+                                  (task.description && task.description.toLowerCase().includes(query))
+
+            return matchesStatus && matchesPriority && matchesSearch
+          })}
+        />
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

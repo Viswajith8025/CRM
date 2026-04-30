@@ -5,6 +5,7 @@ import { useProjectsStore } from "@/modules/projects/projectsStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import { useCRMStore } from "@/modules/crm/crmStore"
 import { useTimeStore } from "@/modules/time-tracking/timeStore"
+import { useActivityStore } from "../activityStore"
 import { 
   format, 
   subMonths, 
@@ -13,7 +14,8 @@ import {
   startOfDay, 
   endOfDay,
   eachMonthOfInterval,
-  isSameMonth
+  isSameMonth,
+  formatDistanceToNow
 } from "date-fns"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -21,6 +23,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { 
   Dialog, 
   DialogContent, 
@@ -41,9 +45,13 @@ import {
   Briefcase, 
   Download, 
   Filter,
-  CheckCircle2
+  Activity,
+  Zap,
+  History,
+  MousePointer2
 } from "lucide-react"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export default function ReportsPage() {
   const { tasks, fetchTasks } = useTasksStore()
@@ -52,6 +60,7 @@ export default function ReportsPage() {
   const { members, fetchMembers } = useTeamStore()
   const { leads, fetchLeads } = useCRMStore()
   const { logs, fetchLogs } = useTimeStore()
+  const { activities, fetchActivities, subscribeToActivities, isLoading: isActivityLoading } = useActivityStore()
   
   const [dateRange, setDateRange] = useState({
     start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
@@ -65,6 +74,10 @@ export default function ReportsPage() {
     fetchMembers()
     fetchLeads()
     fetchLogs()
+    fetchActivities()
+    
+    const unsubscribe = subscribeToActivities()
+    return () => unsubscribe()
   }, [])
 
   const isInRange = (dateStr: string | null) => {
@@ -138,8 +151,8 @@ export default function ReportsPage() {
 
   return (
     <PageWrapper 
-      title="Business Intelligence" 
-      description="Real-time analytics and performance reports derived from workspace data."
+      title="Intelligence & Audit" 
+      description="Real-time analytics and chronological workspace activity stream."
       actions={
         <div className="flex gap-2">
           <Dialog>
@@ -185,12 +198,84 @@ export default function ReportsPage() {
         <MetricCard title="Team Size" value={totals.members.toString()} icon={Users} label="Active contributors" />
       </div>
 
-      <Tabs defaultValue="financial" className="space-y-6">
+      <Tabs defaultValue="activity" className="space-y-6">
         <TabsList className="bg-muted/50 p-1">
+          <TabsTrigger value="activity" className="gap-2">
+            <Zap className="h-3.5 w-3.5" /> System Activity
+          </TabsTrigger>
           <TabsTrigger value="financial">Financial Performance</TabsTrigger>
           <TabsTrigger value="operations">Workspace Operations</TabsTrigger>
           <TabsTrigger value="team">Productivity Matrix</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="activity" className="space-y-6">
+          <Card className="border-border/50 bg-card/30">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Real-Time Activity Feed</CardTitle>
+                  <CardDescription>Chronological log of all workspace changes and actions.</CardDescription>
+                </div>
+                <Badge variant="outline" className="gap-1.5 animate-pulse text-emerald-500 border-emerald-500/30 bg-emerald-500/5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Live Audit
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8 relative before:absolute before:inset-0 before:left-[19px] before:w-px before:bg-border/50 before:h-full">
+                {isActivityLoading && activities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground animate-pulse">
+                    <History className="h-12 w-12 mb-4 opacity-20" />
+                    <p>Syncing audit trail...</p>
+                  </div>
+                ) : activities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-2xl">
+                    <Activity className="h-12 w-12 mb-4 opacity-20" />
+                    <p className="font-bold">No activity recorded yet</p>
+                    <p className="text-sm">Start making changes to see the logs here.</p>
+                  </div>
+                ) : (
+                  activities.map((activity, idx) => (
+                    <div key={activity.id} className="relative flex gap-6 group">
+                      <div className="z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-transform group-hover:scale-110">
+                        <ActivityIcon type={activity.target_type} />
+                      </div>
+                      <div className="flex-1 space-y-1.5 pb-8">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={activity.user?.avatar_url} />
+                              <AvatarFallback className="text-[10px]">{activity.user?.full_name?.charAt(0) || 'U'}</AvatarFallback>
+                            </Avatar>
+                            <p className="text-sm font-bold tracking-tight">
+                              {activity.user?.full_name || 'System User'}{' '}
+                              <span className="font-medium text-muted-foreground">{activity.action}</span>{' '}
+                              <span className="text-primary font-black uppercase text-[10px] tracking-widest">{activity.target_name}</span>
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">
+                            {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-tighter h-4 px-1.5">
+                            {activity.target_type}
+                          </Badge>
+                          {activity.metadata && Object.keys(activity.metadata).length > 0 && (
+                             <div className="text-[10px] text-muted-foreground italic truncate">
+                               Changes: {Object.keys(activity.metadata).join(', ')}
+                             </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="financial" className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-3">
@@ -329,7 +414,7 @@ export default function ReportsPage() {
 
 function MetricCard({ title, value, icon: Icon, label }: any) {
   return (
-    <Card className="border-border/50 bg-card/50">
+    <Card className="border-border/50 bg-card/50 shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="text-xs font-bold text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
           <Icon className="h-3.5 w-3.5 text-primary" /> {title}
@@ -342,3 +427,15 @@ function MetricCard({ title, value, icon: Icon, label }: any) {
     </Card>
   )
 }
+
+function ActivityIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'task': return <MousePointer2 className="h-4 w-4 text-blue-500" />
+    case 'project': return <Briefcase className="h-4 w-4 text-purple-500" />
+    case 'invoice':
+    case 'billing': return <DollarSign className="h-4 w-4 text-emerald-500" />
+    case 'milestone': return <Zap className="h-4 w-4 text-amber-500" />
+    default: return <Activity className="h-4 w-4 text-muted-foreground" />
+  }
+}
+

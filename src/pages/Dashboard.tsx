@@ -1,9 +1,9 @@
-import { 
-  Briefcase, 
-  AlertCircle, 
-  DollarSign, 
-  Users, 
-  ArrowUpRight, 
+import {
+  Briefcase,
+  AlertCircle,
+  DollarSign,
+  Users,
+  ArrowUpRight,
   ArrowDownRight,
   MoreVertical,
   Plus,
@@ -13,11 +13,11 @@ import { cn } from "@/lib/utils"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   AreaChart,
   Area
@@ -57,14 +57,14 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const activeProjects = projects.filter(p => p.status === 'in_progress').length
     const overdueTasks = tasks.filter(t => t.status !== 'done' && t.due_date && new Date(t.due_date) < new Date()).length
-    
+
     // Revenue for current month
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const monthlyRevenue = invoices
       .filter(inv => inv.status === 'paid' && new Date(inv.issued_at) >= monthStart)
       .reduce((sum, inv) => sum + Number(inv.amount), 0)
-    
+
     // Utilization: Real logged hours vs capacity (40h/week per member)
     const sevenDaysAgo = subDays(new Date(), 7)
     const weekLogs = logs.filter(log => new Date(log.start_time) >= sevenDaysAgo)
@@ -72,43 +72,43 @@ export default function Dashboard() {
     const memberCount = members.length || 1
     const totalCapacityMinutes = memberCount * 40 * 60
     const utilization = Math.min(Math.round((totalMinutes / totalCapacityMinutes) * 100), 100)
-    
+
     return [
-      { 
-        name: 'Active Projects', 
-        value: activeProjects.toString(), 
-        change: `${projects.filter(p => p.status === 'completed').length} completed`, 
-        changeType: 'neutral', 
+      {
+        name: 'Active Projects',
+        value: activeProjects.toString(),
+        change: `${projects.filter(p => p.status === 'completed').length} completed`,
+        changeType: 'neutral',
         icon: Briefcase,
         color: 'text-blue-500',
         bg: 'bg-blue-500/10',
         path: '/projects'
       },
-      { 
-        name: 'Overdue Tasks', 
-        value: overdueTasks.toString(), 
-        change: overdueTasks > 0 ? 'Action required' : 'All clear', 
-        changeType: overdueTasks > 0 ? 'decrease' : 'increase', 
+      {
+        name: 'Overdue Tasks',
+        value: overdueTasks.toString(),
+        change: overdueTasks > 0 ? 'Action required' : 'All clear',
+        changeType: overdueTasks > 0 ? 'decrease' : 'increase',
         icon: AlertCircle,
         color: 'text-rose-500',
         bg: 'bg-rose-500/10',
         path: '/tasks'
       },
-      { 
-        name: 'Revenue (MTD)', 
-        value: `$${monthlyRevenue.toLocaleString()}`, 
-        change: 'Paid invoices only', 
-        changeType: 'increase', 
+      {
+        name: 'Revenue (MTD)',
+        value: `$${monthlyRevenue.toLocaleString()}`,
+        change: 'Paid invoices only',
+        changeType: 'increase',
         icon: DollarSign,
         color: 'text-emerald-500',
         bg: 'bg-emerald-500/10',
         path: '/billing'
       },
-      { 
-        name: 'Resource Load', 
-        value: `${utilization}%`, 
-        change: `${Math.round(totalMinutes/60)}h logged / 7d`, 
-        changeType: utilization > 70 ? 'increase' : 'neutral', 
+      {
+        name: 'Resource Load',
+        value: `${utilization}%`,
+        change: `${Math.round(totalMinutes / 60)}h logged / 7d`,
+        changeType: utilization > 70 ? 'increase' : 'neutral',
         icon: Clock,
         color: 'text-amber-500',
         bg: 'bg-amber-500/10',
@@ -130,12 +130,12 @@ export default function Dashboard() {
       const dailyRev = invoices
         .filter(inv => {
           const invDate = new Date(inv.issued_at)
-          return inv.status === 'paid' && 
-                 invDate.getDate() === day.date.getDate() && 
-                 invDate.getMonth() === day.date.getMonth()
+          return inv.status === 'paid' &&
+            invDate.getDate() === day.date.getDate() &&
+            invDate.getMonth() === day.date.getMonth()
         })
         .reduce((sum, inv) => sum + Number(inv.amount), 0)
-      
+
       return {
         name: day.name,
         revenue: dailyRev
@@ -192,8 +192,8 @@ export default function Dashboard() {
   }, [tasks])
 
   return (
-    <PageWrapper 
-      title="Dashboard" 
+    <PageWrapper
+      title="Dashboard"
       description="Operational command center with real-time resource and financial tracking."
     >
       {/* Decorative Background */}
@@ -209,8 +209,8 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card 
-            key={stat.name} 
+          <Card
+            key={stat.name}
             className="group overflow-hidden transition-all duration-300 hover:shadow-premium-hover hover:-translate-y-1 border-border/50 bg-card/50 cursor-pointer active:scale-95"
             onClick={() => window.location.href = stat.path}
           >
@@ -221,8 +221,8 @@ export default function Dashboard() {
                 </div>
                 <div className={cn(
                   "text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter",
-                  stat.changeType === 'increase' ? 'bg-emerald-500/10 text-emerald-500' : 
-                  stat.changeType === 'decrease' ? 'bg-rose-500/10 text-rose-500' : 'bg-muted text-muted-foreground'
+                  stat.changeType === 'increase' ? 'bg-emerald-500/10 text-emerald-500' :
+                    stat.changeType === 'decrease' ? 'bg-rose-500/10 text-rose-500' : 'bg-muted text-muted-foreground'
                 )}>
                   {stat.change}
                 </div>
@@ -249,38 +249,38 @@ export default function Dashboard() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 600}}
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 600 }}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{fill: 'hsl(var(--muted-foreground))', fontSize: 11}}
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                     tickFormatter={(v) => `$${v}`}
                   />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
                       borderColor: 'hsl(var(--border))',
                       borderRadius: '12px',
                       boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                    }} 
+                    }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="hsl(var(--primary))" 
+                  <Area
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="hsl(var(--primary))"
                     strokeWidth={3}
-                    fillOpacity={1} 
-                    fill="url(#colorRevenue)" 
+                    fillOpacity={1}
+                    fill="url(#colorRevenue)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -293,10 +293,10 @@ export default function Dashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Workspace Activity</CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-xs font-bold uppercase tracking-tight" 
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs font-bold uppercase tracking-tight"
                 onClick={() => window.location.href = '/reports'}
               >
                 Full Reports
@@ -340,8 +340,8 @@ export default function Dashboard() {
                 </div>
               ) : (
                 upcomingDeadlines.map((item) => (
-                  <div 
-                    key={item.id} 
+                  <div
+                    key={item.id}
                     className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer group"
                     onClick={() => window.location.href = `/projects/${item.id}`} // Or task detail if implemented
                   >
@@ -351,9 +351,9 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-4">
                       <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">{item.date}</p>
-                      <div className={cn("h-2 w-2 rounded-full", 
-                        item.status === 'high' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' : 
-                        item.status === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
+                      <div className={cn("h-2 w-2 rounded-full",
+                        item.status === 'high' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' :
+                          item.status === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
                       )} />
                     </div>
                   </div>

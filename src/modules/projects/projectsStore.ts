@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
 import { useTasksStore } from '@/modules/tasks/tasksStore'
+import { useActivityStore } from '@/modules/reports/activityStore'
 import type { Project, Milestone } from './types'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -114,6 +115,23 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         await supabase.from('project_members').insert(memberInserts)
       }
 
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: 'created project',
+        target_type: 'project',
+        target_name: data.name,
+        target_id: data.id
+      })
+
+      if (lead_id) {
+        useActivityStore.getState().logActivity({
+          action: 'assigned project lead',
+          target_type: 'project',
+          target_name: data.name,
+          target_id: data.id
+        })
+      }
+
       get().fetchProjects(true)
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to add project.")
@@ -153,7 +171,25 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         if (memberInserts.length > 0) {
           await supabase.from('project_members').insert(memberInserts)
         }
+
+        if (lead_id) {
+          useActivityStore.getState().logActivity({
+            action: 'updated project lead',
+            target_type: 'project',
+            target_name: data.name,
+            target_id: data.id
+          })
+        }
       }
+
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: 'updated project details',
+        target_type: 'project',
+        target_name: data.name,
+        target_id: data.id,
+        metadata: updates
+      })
 
       get().fetchProjects(true)
     } catch (err) {
@@ -188,6 +224,16 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     try {
       const { error } = await supabase.from('projects').delete().eq('id', id)
       if (error) throw error
+
+      if (deletedProject) {
+        useActivityStore.getState().logActivity({
+          action: 'deleted project',
+          target_type: 'project',
+          target_name: deletedProject.name,
+          target_id: id
+        })
+      }
+
       set({ error: null, lastFetchedAt: Date.now() })
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to delete project.")
@@ -266,6 +312,14 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('project_milestones')
         .insert(milestone)
       if (error) throw error
+
+      // Log Activity
+      useActivityStore.getState().logActivity({
+        action: 'added milestone',
+        target_type: 'milestone',
+        target_name: milestone.title || 'New Milestone',
+        target_id: milestone.project_id || ''
+      })
     } catch (err) {
       throw toFriendlyError(err, "Failed to add milestone.")
     }
