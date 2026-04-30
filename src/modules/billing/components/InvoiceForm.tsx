@@ -16,10 +16,14 @@ import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
 import { useBillingStore } from "../billingStore"
 import { useProjectsStore } from "@/modules/projects/projectsStore"
 import { toast } from "sonner"
@@ -56,10 +60,11 @@ export function InvoiceForm({ invoice, onSuccess }: InvoiceFormProps) {
       ])
 
       const allContacts = [
-        ...(clientsRes.data || []),
+        ...(clientsRes.data || []).map(c => ({ ...c, type: 'client' })),
         ...(leadsRes.data || []).map(l => ({
           id: l.id,
-          name: l.company || `${l.first_name} ${l.last_name || ''}`.trim()
+          name: l.company || `${l.first_name} ${l.last_name || ''}`.trim(),
+          type: 'lead'
         }))
       ]
       
@@ -89,7 +94,7 @@ export function InvoiceForm({ invoice, onSuccess }: InvoiceFormProps) {
       
       let finalClientId = values.client_id
 
-      if (!existingClient && selectedContact) {
+      if (!existingClient && selectedContact && selectedContact.type === 'lead') {
         // This is likely a lead ID. Try to fetch lead details to create a client
         const { data: leadData } = await supabase.from('leads').select('*').eq('id', values.client_id).single()
         
@@ -165,25 +170,45 @@ export function InvoiceForm({ invoice, onSuccess }: InvoiceFormProps) {
           name="client_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Client</FormLabel>
+              <FormLabel>Bill To</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a client" />
+                  <SelectTrigger className="h-12 border-border/50 bg-background/50 focus:bg-background transition-colors">
+                    <SelectValue placeholder="Select client or lead..." />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {clients.map(client => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-4 pb-2">Active Clients</SelectLabel>
+                    {clients.filter(c => c.type === 'client').map(client => (
+                      <SelectItem key={client.id} value={client.id} className="py-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold">{client.name}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase tracking-tight">Verified Client</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  <SelectSeparator className="my-2" />
+                  <SelectGroup>
+                    <SelectLabel className="text-[10px] font-black uppercase tracking-widest text-blue-500 pt-2 pb-2">Prospective Leads</SelectLabel>
+                    {clients.filter(c => c.type === 'lead').map(lead => (
+                      <SelectItem key={lead.id} value={lead.id} className="py-3">
+                        <div className="flex flex-col">
+                          <span className="font-bold">{lead.name}</span>
+                          <span className="text-[10px] text-blue-400 uppercase tracking-tight">Unconverted Lead</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               {selectedContact && (
-                <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border/50">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Contact Info</p>
-                  <p className="text-sm font-bold">{selectedContact.name}</p>
+                <div className="flex items-center gap-2 mt-2 px-1">
+                  <div className={cn("h-1.5 w-1.5 rounded-full animate-pulse", selectedContact.type === 'lead' ? 'bg-blue-500' : 'bg-emerald-500')} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Selected: {selectedContact.type === 'lead' ? 'Lead (will be converted)' : 'Verified Client'}
+                  </span>
                 </div>
               )}
               <FormMessage />

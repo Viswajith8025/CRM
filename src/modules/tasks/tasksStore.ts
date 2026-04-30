@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
 import type { Task } from './types'
+import { useNotificationsStore } from '@/modules/notifications/notificationsStore'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const getTaskCacheKey = (projectId?: string) => projectId ?? 'all'
@@ -69,6 +70,16 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .single()
 
       if (error) throw error
+
+      if (data.assigned_to) {
+        useNotificationsStore.getState().addNotification({
+          user_id: data.assigned_to,
+          title: "New Task Assigned",
+          description: `You have been assigned to: ${data.title}`,
+          type: 'assignment'
+        })
+      }
+
       set((state) => ({
         tasks: [data as Task, ...state.tasks],
         error: null,
@@ -96,6 +107,18 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .single()
 
       if (error) throw error
+
+      if (updates.assigned_to) {
+        useNotificationsStore.getState().addNotification({
+          user_id: updates.assigned_to,
+          title: "Task Reassigned",
+          description: `You have been assigned to: ${data.title}`,
+          type: 'assignment'
+        })
+      } else if (updates.status === 'done') {
+        // Notify project owner/lead?
+      }
+
       set((state) => ({
         tasks: state.tasks.map((t) => (t.id === id ? (data as Task) : t)),
         error: null,

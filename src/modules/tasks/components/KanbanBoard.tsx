@@ -52,7 +52,14 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
   )
 
   const filteredTasks = tasks.filter(task => {
-    const matchesStatus = filterStatus === "all" || task.status === filterStatus
+    let matchesStatus = filterStatus === "all" || task.status === filterStatus
+    
+    if (filterStatus === "overdue") {
+      matchesStatus = task.status !== 'done' && 
+                      task.due_date !== null && 
+                      new Date(task.due_date) < new Date()
+    }
+
     const matchesPriority = filterPriority === "all" || task.priority === filterPriority
     
     // Case-insensitive search on title and description
@@ -119,7 +126,7 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-6 h-full overflow-x-auto pb-4">
-        {COLUMNS.filter(col => filterStatus === "all" || col.id === filterStatus).map((col) => (
+        {COLUMNS.filter(col => filterStatus === "all" || filterStatus === "overdue" || col.id === filterStatus).map((col) => (
           <KanbanColumn
             key={col.id}
             id={col.id}

@@ -152,12 +152,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
           <div className="flex items-center justify-between pt-2 border-t border-border/50">
             <div className="flex items-center -space-x-2">
-              {project.team && project.team.length > 0 ? (
-                project.team.slice(0, 3).map((member) => (
-                  <Avatar key={member.id} className="h-7 w-7 border-2 border-background ring-1 ring-border/50">
-                    <AvatarImage src={member.avatar_url} />
+              {project.members && project.members.length > 0 ? (
+                project.members.filter(m => m.role === 'member').slice(0, 3).map((member) => (
+                  <Avatar key={member.user_id} className="h-7 w-7 border-2 border-background ring-1 ring-border/50">
                     <AvatarFallback className="bg-muted text-[10px] font-bold">
-                      {member.full_name.charAt(0)}
+                      {member.profiles.full_name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 ))
@@ -166,15 +165,15 @@ export function ProjectCard({ project }: ProjectCardProps) {
                   <span className="text-[10px] text-muted-foreground">?</span>
                 </div>
               )}
-              {project.team && project.team.length > 3 && (
+              {project.members && project.members.filter(m => m.role === 'member').length > 3 && (
                 <div className="h-7 w-7 rounded-full bg-accent border-2 border-background flex items-center justify-center text-[8px] font-black">
-                  +{project.team.length - 3}
+                  +{project.members.filter(m => m.role === 'member').length - 3}
                 </div>
               )}
             </div>
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">
-              <span className="opacity-50 font-normal block text-[8px]">Project Lead</span>
-              {project.owner?.full_name || "Unassigned"}
+              <span className="opacity-50 font-normal block text-[8px]">Team Lead</span>
+              {project.lead?.full_name || "Unassigned"}
             </div>
           </div>
         </CardContent>

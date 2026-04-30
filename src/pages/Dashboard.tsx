@@ -81,7 +81,8 @@ export default function Dashboard() {
         changeType: 'neutral', 
         icon: Briefcase,
         color: 'text-blue-500',
-        bg: 'bg-blue-500/10'
+        bg: 'bg-blue-500/10',
+        path: '/projects'
       },
       { 
         name: 'Overdue Tasks', 
@@ -90,7 +91,8 @@ export default function Dashboard() {
         changeType: overdueTasks > 0 ? 'decrease' : 'increase', 
         icon: AlertCircle,
         color: 'text-rose-500',
-        bg: 'bg-rose-500/10'
+        bg: 'bg-rose-500/10',
+        path: '/tasks'
       },
       { 
         name: 'Revenue (MTD)', 
@@ -99,7 +101,8 @@ export default function Dashboard() {
         changeType: 'increase', 
         icon: DollarSign,
         color: 'text-emerald-500',
-        bg: 'bg-emerald-500/10'
+        bg: 'bg-emerald-500/10',
+        path: '/billing'
       },
       { 
         name: 'Resource Load', 
@@ -108,7 +111,8 @@ export default function Dashboard() {
         changeType: utilization > 70 ? 'increase' : 'neutral', 
         icon: Clock,
         color: 'text-amber-500',
-        bg: 'bg-amber-500/10'
+        bg: 'bg-amber-500/10',
+        path: '/team'
       },
     ]
   }, [projects, tasks, invoices, members, logs])
@@ -205,7 +209,11 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
-          <Card key={stat.name} className="group overflow-hidden transition-all duration-300 hover:shadow-premium-hover hover:-translate-y-1 border-border/50 bg-card/50">
+          <Card 
+            key={stat.name} 
+            className="group overflow-hidden transition-all duration-300 hover:shadow-premium-hover hover:-translate-y-1 border-border/50 bg-card/50 cursor-pointer active:scale-95"
+            onClick={() => window.location.href = stat.path}
+          >
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div className={cn(stat.bg, "p-3 rounded-xl transition-transform group-hover:scale-110")}>
@@ -332,7 +340,11 @@ export default function Dashboard() {
                 </div>
               ) : (
                 upcomingDeadlines.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-all">
+                  <div 
+                    key={item.id} 
+                    className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer group"
+                    onClick={() => window.location.href = `/projects/${item.id}`} // Or task detail if implemented
+                  >
                     <div className="space-y-0.5">
                       <p className="text-sm font-bold tracking-tight">{item.task}</p>
                       <p className="text-xs text-muted-foreground font-medium">{item.project}</p>

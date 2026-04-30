@@ -28,6 +28,7 @@ import { toast } from "sonner"
 import { useTasksStore } from "@/modules/tasks/tasksStore"
 import { useProjectsStore } from "../projectsStore"
 import { Progress } from "@/components/ui/progress"
+import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -43,6 +44,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import type { Project, Milestone } from "../types"
+import { MilestoneForm } from "../components/MilestoneForm"
 import { Skeleton } from "@/components/ui/skeleton"
 
 function LoadingState() {
@@ -65,7 +67,7 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
-  const { getProjectById, fetchMilestones, updateProject, deleteProject } = useProjectsStore()
+  const { getProjectById, fetchMilestones, updateProject, deleteProject, updateMilestone } = useProjectsStore()
   const [project, setProject] = useState<Project | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
@@ -108,6 +110,16 @@ export default function ProjectDetailPage() {
       navigate('/projects')
     } catch (error) {
       toast.error("Failed to delete project")
+    }
+  }
+
+  const handleToggleMilestone = async (m: Milestone) => {
+    try {
+      await updateMilestone(m.id, { is_completed: !m.is_completed })
+      loadData()
+      toast.success("Milestone updated")
+    } catch (error) {
+      toast.error("Failed to update milestone")
     }
   }
 
@@ -200,26 +212,52 @@ export default function ProjectDetailPage() {
               <TabsTrigger value="team">Team</TabsTrigger>
             </TabsList>
             <TabsContent value="milestones" className="space-y-4 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Milestones</h4>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="h-8">Add Milestone</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Milestone</DialogTitle>
+                    </DialogHeader>
+                    <MilestoneForm 
+                      projectId={project.id} 
+                      onSuccess={() => loadData()} 
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
               {milestones.length === 0 ? (
                 <div className="text-center py-10 border rounded-lg border-dashed">
                   No milestones defined yet.
                 </div>
               ) : (
-                milestones.map(m => (
-                  <div key={m.id} className="flex items-center justify-between p-4 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      {m.is_completed ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground" />
+                <div className="space-y-3">
+                  {milestones.map(m => (
+                    <div 
+                      key={m.id} 
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer hover:bg-muted/50",
+                        m.is_completed && "bg-muted/30 border-muted"
                       )}
-                      <div>
-                        <p className="font-medium">{m.title}</p>
-                        <p className="text-xs text-muted-foreground">{m.due_date}</p>
+                      onClick={() => handleToggleMilestone(m)}
+                    >
+                      <div className="flex items-center gap-3">
+                        {m.is_completed ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className={cn("font-medium", m.is_completed && "line-through text-muted-foreground")}>{m.title}</p>
+                          <p className="text-xs text-muted-foreground">Due: {m.due_date ? format(new Date(m.due_date), 'MMM d, yyyy') : 'No date'}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </TabsContent>
             <TabsContent value="tasks" className="space-y-4 pt-4">

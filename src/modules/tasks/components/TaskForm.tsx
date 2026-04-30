@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select"
 import { useTasksStore } from "../tasksStore"
 import { useProjectsStore } from "@/modules/projects/projectsStore"
+import { useTeamStore } from "@/modules/admin/teamStore"
 import { toast } from "sonner"
 import type { Task } from "../types"
 
@@ -32,6 +33,8 @@ const formSchema = z.object({
   status: z.enum(['todo', 'in_progress', 'review', 'done']),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   project_id: z.string().min(1, "Project is required").refine(val => val !== "none", "Please select a project"),
+  assigned_to: z.string().optional(),
+  due_date: z.string().optional(),
 })
 
 interface TaskFormProps {
@@ -42,10 +45,12 @@ interface TaskFormProps {
 export function TaskForm({ task, onSuccess }: TaskFormProps) {
   const { addTask, updateTask } = useTasksStore()
   const { projects, fetchProjects } = useProjectsStore()
+  const { members, fetchMembers } = useTeamStore()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     fetchProjects()
+    fetchMembers()
   }, [])
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,6 +61,8 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
       status: (task?.status as any) || "todo",
       priority: (task?.priority as any) || "medium",
       project_id: task?.project_id || "",
+      assigned_to: task?.assigned_to || "none",
+      due_date: task?.due_date || "",
     },
   })
 
@@ -65,9 +72,10 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
       const submitData = {
         ...values,
         project_id: values.project_id === "none" ? null : values.project_id,
+        assigned_to: values.assigned_to === "none" ? null : values.assigned_to,
       }
 
-      if (task) {
+      if (task?.id) {
         await updateTask(task.id, submitData)
         toast.success("Task updated successfully")
       } else {
@@ -85,19 +93,35 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Task Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Design new logo..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Task Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="Design new logo..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="due_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Due Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         
         <FormField
           control={form.control}
@@ -113,30 +137,58 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="project_id"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Project</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {projects.map(project => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="project_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Project</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a project" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {projects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="assigned_to"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assignee</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Assign to..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {members.map(member => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField
@@ -190,7 +242,7 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
         
         <Button type="submit" className="w-full mt-6 gap-2" disabled={isLoading}>
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isLoading ? "Saving..." : task ? "Update Task" : "Create Task"}
+          {isLoading ? "Saving..." : task?.id ? "Update Task" : "Create Task"}
         </Button>
       </form>
     </Form>

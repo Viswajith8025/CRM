@@ -18,6 +18,9 @@ interface ProjectsState {
   deleteProject: (id: string) => Promise<void>
   getProjectById: (id: string) => Promise<Project | null>
   fetchMilestones: (projectId: string) => Promise<Milestone[]>
+  addMilestone: (milestone: Partial<Milestone>) => Promise<void>
+  updateMilestone: (id: string, updates: Partial<Milestone>) => Promise<void>
+  deleteMilestone: (id: string) => Promise<void>
   subscribeToProjects: () => () => void
 }
 
@@ -254,6 +257,41 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       return data as Milestone[]
     } catch (err) {
       return []
+    }
+  },
+
+  addMilestone: async (milestone) => {
+    try {
+      const { error } = await supabase
+        .from('project_milestones')
+        .insert(milestone)
+      if (error) throw error
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to add milestone.")
+    }
+  },
+
+  updateMilestone: async (id, updates) => {
+    try {
+      const { error } = await supabase
+        .from('project_milestones')
+        .update(updates)
+        .eq('id', id)
+      if (error) throw error
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to update milestone.")
+    }
+  },
+
+  deleteMilestone: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('project_milestones')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to delete milestone.")
     }
   },
 

@@ -96,6 +96,20 @@ export default function TasksPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20">
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-bold tracking-tight">Overdue Only</Label>
+                    <p className="text-[10px] text-muted-foreground">Show only tasks past their deadline</p>
+                  </div>
+                  <Button 
+                    variant={statusFilter === "overdue" ? "default" : "outline"}
+                    size="sm"
+                    className="font-black text-[10px]"
+                    onClick={() => setStatusFilter(statusFilter === "overdue" ? "all" : "overdue")}
+                  >
+                    {statusFilter === "overdue" ? "ACTIVE" : "ENABLE"}
+                  </Button>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button className="flex-1 font-bold" onClick={clearFilters} variant="outline">Clear All</Button>
