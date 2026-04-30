@@ -1,36 +1,115 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, Link } from "react-router-dom"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Calendar, DollarSign, User, CheckCircle2, Circle } from "lucide-react"
+import { 
+  ArrowLeft, 
+  Calendar, 
+  DollarSign, 
+  User, 
+  CheckCircle2, 
+  Circle, 
+  ChevronRight,
+  Archive,
+  Trash2
+} from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
+import { useTasksStore } from "@/modules/tasks/tasksStore"
 import { useProjectsStore } from "../projectsStore"
-import { Project, Milestone } from "../types"
-import { LoadingState } from "@/components/shared/LoadingState"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { ProjectForm } from "../components/ProjectForm"
+import { TaskForm } from "@/modules/tasks/components/TaskForm"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
+import type { Project, Milestone } from "../types"
+import { Skeleton } from "@/components/ui/skeleton"
+
+function LoadingState() {
+  return (
+    <PageWrapper title="Loading Project..." description="Fetching latest workspace data">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-[200px] w-full rounded-xl" />
+          <Skeleton className="h-[400px] w-full rounded-xl" />
+        </div>
+        <div className="space-y-6">
+          <Skeleton className="h-[300px] w-full rounded-xl" />
+        </div>
+      </div>
+    </PageWrapper>
+  )
+}
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getProjectById, fetchMilestones } = useProjectsStore()
+  const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
+  const { getProjectById, fetchMilestones, updateProject, deleteProject } = useProjectsStore()
   const [project, setProject] = useState<Project | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+
+  const loadData = async () => {
+    if (!id) return
+    const [projData, mileData] = await Promise.all([
+      getProjectById(id),
+      fetchMilestones(id),
+      fetchTasks(id, true)
+    ])
+    setProject(projData)
+    setMilestones(mileData)
+    setLoading(false)
+  }
 
   useEffect(() => {
-    async function loadData() {
-      if (!id) return
-      const [projData, mileData] = await Promise.all([
-        getProjectById(id),
-        fetchMilestones(id)
-      ])
-      setProject(projData)
-      setMilestones(mileData)
-      setLoading(false)
-    }
     loadData()
+    const unsubscribe = subscribeToTasks(id)
+    return () => unsubscribe()
   }, [id])
+
+  const handleArchive = async () => {
+    if (!project) return
+    try {
+      await updateProject(project.id, { status: 'on_hold' })
+      toast.success("Project archived")
+      loadData()
+    } catch (error) {
+      toast.error("Failed to archive project")
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!project) return
+    try {
+      await deleteProject(project.id)
+      toast.success("Project deleted")
+      navigate('/projects')
+    } catch (error) {
+      toast.error("Failed to delete project")
+    }
+  }
 
   if (loading) return <LoadingState />
   if (!project) return <div>Project not found</div>
@@ -40,13 +119,67 @@ export default function ProjectDetailPage() {
       title={project.name} 
       description={project.client?.name}
       className="max-w-6xl mx-auto"
+      breadcrumbs={
+        <div className="flex items-center gap-1 font-medium">
+          <Link to="/projects" className="hover:text-foreground transition-colors">Projects</Link>
+          <ChevronRight className="h-4 w-4" />
+          <span className="text-foreground">{project.name}</span>
+        </div>
+      }
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate('/projects')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Button>Edit Project</Button>
+
+          <Button variant="outline" className="gap-2" onClick={handleArchive}>
+            <Archive className="h-4 w-4" />
+            Archive
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" className="gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50">
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete the project
+                  and all associated tasks and milestones.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="bg-rose-500 hover:bg-rose-600 text-white">
+                  Delete Project
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>Edit Project</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Project</DialogTitle>
+                <DialogDescription>Update project details and budget.</DialogDescription>
+              </DialogHeader>
+              <ProjectForm 
+                project={project} 
+                onSuccess={() => {
+                  setIsEditDialogOpen(false)
+                  loadData()
+                }} 
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       }
     >
@@ -89,7 +222,110 @@ export default function ProjectDetailPage() {
                 ))
               )}
             </TabsContent>
-            {/* Other tabs content */}
+            <TabsContent value="tasks" className="space-y-4 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Tasks</h4>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="h-8">Add Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Task</DialogTitle>
+                    </DialogHeader>
+                    <TaskForm 
+                      task={{ project_id: project.id } as any} 
+                      onSuccess={() => loadData()} 
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              {tasks.length === 0 ? (
+                <div className="text-center py-10 border rounded-lg border-dashed">
+                  No tasks created for this project.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {tasks.map(task => (
+                    <div key={task.id} className="flex items-center justify-between p-4 rounded-lg border bg-card/50 hover:bg-card transition-colors">
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline" className={cn(
+                          "text-[10px] uppercase font-bold",
+                          task.status === 'done' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        )}>
+                          {task.status.replace('_', ' ')}
+                        </Badge>
+                        <div>
+                          <p className="font-bold text-sm">{task.title}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-[9px] h-4">
+                              {task.priority}
+                            </Badge>
+                            {task.due_date && (
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {task.due_date}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {task.assignee && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium">{task.assignee.full_name}</span>
+                          <Avatar className="h-7 w-7">
+                            <AvatarImage src={task.assignee.avatar_url} />
+                            <AvatarFallback>{task.assignee.full_name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="team" className="space-y-4 pt-4">
+              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Project Team</h4>
+              
+              {project.lead && (
+                <div className="mb-6">
+                  <h5 className="text-xs font-bold text-primary uppercase mb-2">Team Lead</h5>
+                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
+                    <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                      <AvatarFallback className="bg-primary text-primary-foreground">{project.lead.full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-bold text-sm">{project.lead.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{project.lead.email}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Team Members</h5>
+                {(!project.members || project.members.filter(m => m.role === 'member').length === 0) ? (
+                  <div className="text-center py-6 border rounded-lg border-dashed">
+                    No additional team members assigned.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    {project.members.filter(m => m.role === 'member').map(member => (
+                      <div key={member.user_id} className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
+                        <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                          <AvatarFallback>{member.profiles.full_name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-bold text-sm">{member.profiles.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{member.profiles.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
 
@@ -120,9 +356,19 @@ export default function ProjectDetailPage() {
             <div className="pt-4 space-y-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Overall Progress</span>
-                <span>65%</span>
+                <span>{(() => {
+                  if (tasks.length === 0) return "0%"
+                  const completed = tasks.filter(t => t.status === 'done').length
+                  return `${Math.round((completed / tasks.length) * 100)}%`
+                })()}</span>
               </div>
-              <Progress value={65} className="h-2" />
+              <Progress 
+                value={tasks.length === 0 ? 0 : (tasks.filter(t => t.status === 'done').length / tasks.length) * 100} 
+                className="h-2" 
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {tasks.filter(t => t.status === 'done').length} of {tasks.length} tasks completed
+              </p>
             </div>
           </div>
         </div>

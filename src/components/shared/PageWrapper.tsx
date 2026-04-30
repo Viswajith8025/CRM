@@ -1,16 +1,18 @@
 import { ReactNode } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { DynamicBreadcrumbs } from "./DynamicBreadcrumbs"
 
 interface PageWrapperProps {
   children: ReactNode
   title: string
   description?: string
   actions?: ReactNode
+  breadcrumbs?: ReactNode
   className?: string
 }
 
-export function PageWrapper({ children, title, description, actions, className }: PageWrapperProps) {
+export function PageWrapper({ children, title, description, actions, breadcrumbs, className }: PageWrapperProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -21,6 +23,9 @@ export function PageWrapper({ children, title, description, actions, className }
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
+          <div className="mb-2">
+            {breadcrumbs || <DynamicBreadcrumbs />}
+          </div>
           <motion.h1 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}

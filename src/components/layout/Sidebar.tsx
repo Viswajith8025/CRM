@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
+import { useAuthStore } from "@/store/useAuthStore"
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -20,10 +21,17 @@ const navigation = [
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Time Tracking', href: '/time-tracking', icon: Clock },
   { name: 'Billing', href: '/billing', icon: FileText },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
 ]
 
 export function Sidebar() {
+  const { profile } = useAuthStore()
+
+  const filteredNavigation = navigation.filter(item => {
+    if (!item.roles) return true
+    return profile && item.roles.includes(profile.role)
+  })
+
   return (
     <div className="flex h-full flex-col gap-y-5 overflow-y-auto border-r border-border/50 bg-card/50 backdrop-blur-xl px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center gap-2">
@@ -38,7 +46,7 @@ export function Sidebar() {
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
             <ul role="list" className="-mx-2 space-y-1.5">
-              {navigation.map((item) => (
+              {filteredNavigation.map((item) => (
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
@@ -59,7 +67,7 @@ export function Sidebar() {
                         {isActive && (
                           <motion.div 
                             layoutId="active-nav"
-                            className="absolute left-0 w-1 h-6 bg-primary rounded-r-full"
+                            className="absolute left-0 w-1 h-6 bg-primary rounded-r-full top-1/2 -translate-y-1/2"
                           />
                         )}
                       </>
@@ -70,14 +78,19 @@ export function Sidebar() {
             </ul>
           </li>
           <li className="mt-auto">
-            <NavLink
-              to="/settings"
-              className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+            {profile?.role === 'admin' && (
+              <NavLink
+                to="/settings"
+                className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+              >
+                <Settings className="h-5 w-5 shrink-0 group-hover:text-foreground" aria-hidden="true" />
+                Settings
+              </NavLink>
+            )}
+            <div 
+              onClick={() => window.open('mailto:support@erppro.com', '_blank')}
+              className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all"
             >
-              <Settings className="h-5 w-5 shrink-0 group-hover:text-foreground" aria-hidden="true" />
-              Settings
-            </NavLink>
-            <div className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all">
               <HelpCircle className="h-5 w-5 shrink-0 group-hover:text-foreground" aria-hidden="true" />
               Support
             </div>

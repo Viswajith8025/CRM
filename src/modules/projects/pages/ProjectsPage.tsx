@@ -12,27 +12,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { ProjectForm } from "../components/ProjectForm"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export default function ProjectsPage() {
-  const { projects, fetchProjects, isLoading } = useProjectsStore()
+  const { projects, fetchProjects, subscribeToProjects, isLoading } = useProjectsStore()
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     fetchProjects()
+    const unsubscribe = subscribeToProjects()
+    return () => unsubscribe()
   }, [])
 
-  const filteredProjects = projects.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.client?.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredProjects = projects.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
+                         p.client?.name.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus = statusFilter === "all" || p.status === statusFilter
+    return matchesSearch && matchesStatus
+  })
 
   return (
     <PageWrapper 
       title="Projects" 
       description="Manage and track all your active client projects."
       actions={
-        <Button className="gap-2">
+        <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4" />
           New Project
         </Button>
@@ -49,7 +65,7 @@ export default function ProjectsPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select defaultValue="all">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -57,7 +73,9 @@ export default function ProjectsPage() {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="planning">Planning</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="on_hold">On Hold / Archived</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -89,22 +107,40 @@ export default function ProjectsPage() {
           ))}
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
           <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
             <Plus className="h-10 w-10 text-muted-foreground" />
           </div>
           <h3 className="text-xl font-bold">No projects found</h3>
           <p className="text-muted-foreground max-w-xs mx-auto">
-            Get started by creating your first project and assigning it to a client.
+            {search || statusFilter !== "all" 
+              ? "Try adjusting your filters to find what you're looking for." 
+              : "Get started by creating your first project and assigning it to a client."}
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={cn(
+          view === 'grid' 
+            ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3" 
+            : "flex flex-col gap-4"
+        )}>
           {filteredProjects.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
         </div>
       )}
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Add a new project to your workspace to start tracking tasks and milestones.
+            </DialogDescription>
+          </DialogHeader>
+          <ProjectForm onSuccess={() => setIsFormOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </PageWrapper>
   )
 }

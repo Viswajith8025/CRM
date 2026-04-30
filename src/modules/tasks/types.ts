@@ -3,6 +3,7 @@ export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {
   id: string
+  user_id: string
   project_id: string | null
   title: string
   description: string | null
@@ -14,6 +15,7 @@ export interface Task {
   updated_at: string
   project?: { name: string }
   assignee?: { full_name: string, avatar_url: string }
+  comments?: { count: number }[]
 }
 
 export interface Subtask {

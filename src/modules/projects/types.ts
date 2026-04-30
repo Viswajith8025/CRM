@@ -2,6 +2,7 @@ export type ProjectStatus = 'planning' | 'in_progress' | 'on_hold' | 'completed'
 
 export interface Project {
   id: string
+  user_id: string
   name: string
   description: string | null
   client_id: string | null
@@ -12,6 +13,19 @@ export interface Project {
   created_at: string
   updated_at: string
   client?: { name: string } // Joined data
+  task_stats?: {
+    total: number
+    completed: number
+  }
+  owner?: { full_name: string, avatar_url: string }
+  lead?: { id: string, full_name: string, email: string }
+  members?: { user_id: string, role: 'lead' | 'member', profiles: { full_name: string, email: string } }[]
+}
+
+export interface ProjectMember {
+  project_id: string
+  user_id: string
+  role: 'lead' | 'member'
 }
 
 export interface Milestone {

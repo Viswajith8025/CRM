@@ -2,6 +2,7 @@ export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
 export interface Invoice {
   id: string
+  user_id: string
   client_id: string
   project_id: string | null
   invoice_number: string
@@ -17,6 +18,7 @@ export interface Invoice {
 
 export interface Payment {
   id: string
+  user_id: string
   invoice_id: string
   amount: number
   payment_method: string

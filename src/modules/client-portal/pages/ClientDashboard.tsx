@@ -1,6 +1,7 @@
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Briefcase, FileText, CheckCircle2, Clock } from "lucide-react"
+import Grainient from "@/components/ui/Grainient"
 
 export default function ClientDashboard() {
   return (
@@ -8,6 +9,15 @@ export default function ClientDashboard() {
       title="Welcome back!" 
       description="Track your project progress and view recent invoices."
     >
+      {/* Decorative Background */}
+      <div className="absolute top-0 right-0 w-[400px] h-[300px] -mr-20 -mt-20 opacity-20 pointer-events-none blur-3xl">
+        <Grainient
+          color1="#10b981"
+          color2="#3b82f6"
+          color3="#111111"
+          timeSpeed={0.1}
+        />
+      </div>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/50 bg-primary/5">
           <CardHeader className="flex flex-row items-center justify-between pb-2">

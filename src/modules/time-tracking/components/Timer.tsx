@@ -5,6 +5,12 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTimeStore } from '../timeStore'
 import { formatDistanceStrict } from 'date-fns'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export function Timer() {
   const { activeTimer, startTimer, stopTimer } = useTimeStore()
@@ -72,14 +78,27 @@ export function Timer() {
                 Stop
               </Button>
             ) : (
-              <Button 
-                className="gap-2 px-6 shadow-lg shadow-primary/20"
-                onClick={handleStart}
-                disabled={!description}
-              >
-                <Play className="h-4 w-4 fill-current" />
-                Start
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="inline-block">
+                      <Button 
+                        className="gap-2 px-6 shadow-lg shadow-primary/20"
+                        onClick={handleStart}
+                        disabled={!description}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                        Start
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!description && (
+                    <TooltipContent>
+                      <p>Please enter a description to start the timer</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>

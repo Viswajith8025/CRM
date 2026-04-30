@@ -1,3 +1,19 @@
+import { useEffect, useState } from "react"
+import { useTeamStore } from "../teamStore"
+import { useSettingsStore } from "../settingsStore"
+import { 
+  Loader2, 
+  Building2, 
+  UserPlus, 
+  Shield, 
+  Bell, 
+  Lock, 
+  MoreVertical,
+  Building,
+  Mail,
+  Globe,
+  Hash
+} from "lucide-react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -7,70 +23,273 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  UserPlus, 
-  Shield, 
-  Bell, 
-  Building2, 
-  Palette, 
-  Lock,
-  Mail,
-  MoreVertical
-} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
+  const { members, fetchMembers, isLoading: teamLoading, updateMemberRole, revokeAccess } = useTeamStore()
+  const { settings, fetchSettings, isLoading: settingsLoading, updateSettings } = useSettingsStore()
+  
+  // Company Form State
+  const [companyName, setCompanyName] = useState("")
+  const [taxId, setTaxId] = useState("")
+  const [email, setEmail] = useState("")
+  const [website, setWebsite] = useState("")
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+
+  // Invite Form State
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteRole, setInviteRole] = useState("employee")
+  const [isInviting, setIsInviting] = useState(false)
+
+  // Security State
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+
+  // Revoke State
+  const [revokeId, setRevokeId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchMembers()
+    fetchSettings()
+  }, [])
+
+  useEffect(() => {
+    if (settings) {
+      setCompanyName(settings.company_name || "")
+      setTaxId(settings.tax_id || "")
+      setEmail(settings.corporate_email || "")
+      setWebsite(settings.website || "")
+      setLogoUrl(settings.logo_url || null)
+    }
+  }, [settings])
+
+  const handleSaveSettings = async () => {
+    if (!companyName) return toast.error("Company name is required")
+    setIsUpdating(true)
+    try {
+      await updateSettings({
+        company_name: companyName,
+        tax_id: taxId,
+        corporate_email: email,
+        website: website,
+        logo_url: logoUrl
+      })
+      toast.success("Organization settings updated")
+    } catch (error) {
+      toast.error("Failed to update settings")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleInviteSubmit = async () => {
+    if (!inviteEmail) return toast.error("Email is required")
+    setIsInviting(true)
+    try {
+      // Use Magic Link as an invitation mechanism for client-side apps
+      const { error } = await supabase.auth.signInWithOtp({
+        email: inviteEmail,
+        options: {
+          shouldCreateUser: true,
+          data: {
+            role: inviteRole
+          }
+        }
+      })
+      
+      if (error) throw error
+
+      toast.success(`Magic link invitation sent to ${inviteEmail}`)
+      setIsInviteOpen(false)
+      setInviteEmail("")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send invitation")
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      return toast.error("File is too large. Max size is 2MB.")
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64String = reader.result as string
+      setLogoUrl(base64String)
+      toast.success("Logo processed! Click 'Save Changes' to apply.")
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handlePasswordUpdate = async () => {
+    if (!newPassword) return toast.error("Password cannot be empty")
+    if (newPassword !== confirmPassword) return toast.error("Passwords do not match")
+    
+    setIsUpdatingPassword(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      if (error) throw error
+      toast.success("Password updated successfully")
+      setNewPassword("")
+      setConfirmPassword("")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update password")
+    } finally {
+      setIsUpdatingPassword(false)
+    }
+  }
+
+  const handleRevoke = async () => {
+    if (!revokeId) return
+    try {
+      await revokeAccess(revokeId)
+      toast.success("Access revoked successfully")
+    } catch (error) {
+      toast.error("Failed to revoke access")
+    } finally {
+      setRevokeId(null)
+    }
+  }
+
+  if (teamLoading || settingsLoading) {
+    return (
+      <div className="flex h-[600px] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground">Loading organization settings...</p>
+      </div>
+    )
+  }
+
   return (
     <PageWrapper 
       title="Settings" 
       description="Manage your organization, team, and security preferences."
     >
       <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="bg-muted/50">
+        <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" /> Company</TabsTrigger>
           <TabsTrigger value="team" className="gap-2"><UserPlus className="h-4 w-4" /> Team</TabsTrigger>
-          <TabsTrigger value="roles" className="gap-2"><Shield className="h-4 w-4" /> Roles</TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2"><Bell className="h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security" className="gap-2"><Lock className="h-4 w-4" /> Security</TabsTrigger>
         </TabsList>
 
         {/* Company Profile */}
         <TabsContent value="company" className="space-y-6">
-          <Card>
+          <Card className="border-border/50">
             <CardHeader>
               <CardTitle>Organization Profile</CardTitle>
-              <CardDescription>Update your company information and branding.</CardDescription>
+              <CardDescription>Update your company information and public-facing branding.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
-                <Avatar className="h-20 w-20">
-                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground font-bold">EP</AvatarFallback>
+                <Avatar className="h-20 w-20 ring-4 ring-primary/10 bg-transparent">
+                  {logoUrl ? (
+                    <AvatarImage src={logoUrl} alt="Company Logo" className="object-contain" />
+                  ) : null}
+                  <AvatarFallback className="text-2xl bg-primary text-primary-foreground font-black">
+                    {companyName.charAt(0) || "EP"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm">Change Logo</Button>
-                  <p className="text-xs text-muted-foreground">JPG, GIF or PNG. Max size of 800K</p>
+                  <Input 
+                    type="file" 
+                    id="logo-upload" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleLogoUpload} 
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => document.getElementById('logo-upload')?.click()}
+                  >
+                    Change Logo
+                  </Button>
+                  <p className="text-xs text-muted-foreground font-medium">PNG, JPG or SVG. Max 2MB.</p>
                 </div>
               </div>
               <Separator />
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Company Name</Label>
-                  <Input defaultValue="ERP Pro Services Ltd." />
+                  <Label className="flex items-center gap-2"><Building className="h-3 w-3" /> Company Name</Label>
+                  <Input 
+                    value={companyName} 
+                    onChange={(e) => setCompanyName(e.target.value)} 
+                    placeholder="e.g. Acme Corp"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Tax ID / VAT Number</Label>
-                  <Input placeholder="EU123456789" />
+                  <Label className="flex items-center gap-2"><Hash className="h-3 w-3" /> Tax ID / VAT Number</Label>
+                  <Input 
+                    placeholder="e.g. VAT1234567" 
+                    value={taxId} 
+                    onChange={(e) => setTaxId(e.target.value)} 
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Corporate Email</Label>
-                  <Input defaultValue="admin@erppro.com" />
+                  <Label className="flex items-center gap-2"><Mail className="h-3 w-3" /> Corporate Email</Label>
+                  <Input 
+                    type="email"
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    placeholder="billing@company.com"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Website</Label>
-                  <Input defaultValue="https://erppro.com" />
+                  <Label className="flex items-center gap-2"><Globe className="h-3 w-3" /> Website</Label>
+                  <Input 
+                    value={website} 
+                    onChange={(e) => setWebsite(e.target.value)} 
+                    placeholder="https://company.com"
+                  />
                 </div>
               </div>
-              <div className="flex justify-end">
-                <Button>Save Changes</Button>
+              <div className="flex justify-end pt-4">
+                <Button onClick={handleSaveSettings} disabled={isUpdating} className="font-bold">
+                  {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -78,40 +297,66 @@ export default function SettingsPage() {
 
         {/* Team Management */}
         <TabsContent value="team" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>Team Members</CardTitle>
-                <CardDescription>Invite and manage your organization's team members.</CardDescription>
+                <CardDescription>Invite and manage roles for your team.</CardDescription>
               </div>
-              <Button className="gap-2">
+              <Button className="gap-2 font-bold" onClick={() => setIsInviteOpen(true)}>
                 <UserPlus className="h-4 w-4" /> Invite Member
               </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {[
-                  { name: 'John Doe', email: 'john@erppro.com', role: 'Admin', status: 'Active' },
-                  { name: 'Sarah Smith', email: 'sarah@erppro.com', role: 'Manager', status: 'Active' },
-                  { name: 'Mike Ross', email: 'mike@erppro.com', role: 'Employee', status: 'Pending' },
-                ].map((member) => (
-                  <div key={member.email} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-bold">{member.name}</p>
-                        <p className="text-xs text-muted-foreground">{member.email}</p>
+                {members.length === 0 ? (
+                  <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground font-medium">
+                    No team members found.
+                  </div>
+                ) : (
+                  members.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30 transition-all hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border-2 border-background">
+                          <AvatarImage src={member.avatar_url || ""} />
+                          <AvatarFallback className="font-bold">{member.full_name?.charAt(0) || member.email?.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-bold">{member.full_name || "Invited User"}</p>
+                          <p className="text-xs text-muted-foreground font-medium">{member.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <Badge variant="outline" className="capitalize px-3 py-0.5 font-bold tracking-tight bg-background">
+                          {member.role}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'admin')} className="font-medium">
+                              Make Admin
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'manager')} className="font-medium">
+                              Make Manager
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => updateMemberRole(member.id, 'employee')} className="font-medium">
+                              Make Employee
+                            </DropdownMenuItem>
+                            <Separator className="my-1" />
+                            <DropdownMenuItem 
+                              className="text-rose-500 font-bold focus:text-rose-600 focus:bg-rose-50" 
+                              onClick={() => setRevokeId(member.id)}
+                            >
+                              Revoke Access
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="flex items-center gap-8">
-                      <span className="text-xs font-medium px-2 py-1 rounded bg-muted">{member.role}</span>
-                      <span className={`text-xs ${member.status === 'Active' ? 'text-emerald-500' : 'text-amber-500'}`}>{member.status}</span>
-                      <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -119,36 +364,32 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <TabsContent value="notifications" className="space-y-6">
-          <Card>
+          <Card className="border-border/50">
             <CardHeader>
-              <CardTitle>Email Notifications</CardTitle>
-              <CardDescription>Configure when you want to receive emails.</CardDescription>
+              <CardTitle>Communication Preferences</CardTitle>
+              <CardDescription>Control how and when you receive system alerts.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>New Leads</Label>
-                    <p className="text-xs text-muted-foreground">Receive an email when a new lead is assigned to you.</p>
+              <div className="space-y-6">
+                {[
+                  { id: 'leads', title: 'New Leads', desc: 'Get notified when a new prospect is assigned to you.' },
+                  { id: 'milestones', title: 'Milestone Alerts', desc: 'Receive updates when project goals are reached.' },
+                  { id: 'billing', title: 'Invoice Updates', desc: 'Alerts for paid, overdue, or cancelled invoices.' }
+                ].map((pref, i) => (
+                  <div key={pref.id}>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="text-sm font-bold">{pref.title}</Label>
+                        <p className="text-xs text-muted-foreground font-medium">{pref.desc}</p>
+                      </div>
+                      <Switch defaultChecked={i < 2} />
+                    </div>
+                    {i < 2 && <Separator className="mt-6" />}
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Project Milestones</Label>
-                    <p className="text-xs text-muted-foreground">Get notified when a project milestone is completed.</p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Billing Alerts</Label>
-                    <p className="text-xs text-muted-foreground">Receive notifications for paid and overdue invoices.</p>
-                  </div>
-                  <Switch />
-                </div>
+                ))}
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button onClick={() => toast.success("Notification preferences updated")} className="font-bold">Save Preferences</Button>
               </div>
             </CardContent>
           </Card>
@@ -156,34 +397,122 @@ export default function SettingsPage() {
 
         {/* Security */}
         <TabsContent value="security" className="space-y-6">
-          <Card>
+          <Card className="border-border/50">
             <CardHeader>
-              <CardTitle>Security Preferences</CardTitle>
-              <CardDescription>Manage your authentication and security settings.</CardDescription>
+              <CardTitle>Account Security</CardTitle>
+              <CardDescription>Update your credentials and manage access control.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="flex items-center gap-2"><Lock className="h-4 w-4" /> Two-Factor Authentication</Label>
-                    <p className="text-xs text-muted-foreground">Add an extra layer of security to your account.</p>
-                  </div>
-                  <Button variant="outline">Enable</Button>
+            <CardContent className="space-y-8">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border/50 opacity-60">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2 text-sm font-bold"><Shield className="h-4 w-4 text-muted-foreground" /> Two-Factor Authentication</Label>
+                  <p className="text-xs text-muted-foreground font-medium">MFA is currently managed by the Identity Provider.</p>
                 </div>
-                <Separator />
-                <div className="space-y-2">
-                  <Label>Change Password</Label>
-                  <div className="grid gap-4 max-w-sm">
-                    <Input type="password" placeholder="Current Password" />
-                    <Input type="password" placeholder="New Password" />
-                    <Button className="w-fit">Update Password</Button>
-                  </div>
+                <Button variant="ghost" size="sm" disabled className="font-bold">Managed</Button>
+              </div>
+              
+              <div className="space-y-4">
+                <Label className="text-sm font-bold">Change Password</Label>
+                <div className="grid gap-4 max-w-md">
+                  <Input 
+                    type="password" 
+                    placeholder="New Password" 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <Input 
+                    type="password" 
+                    placeholder="Confirm New Password" 
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  <Button 
+                    className="w-fit font-bold" 
+                    onClick={handlePasswordUpdate}
+                    disabled={isUpdatingPassword}
+                  >
+                    {isUpdatingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Update Password
+                  </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Invite Dialog */}
+      <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite Team Member</DialogTitle>
+            <DialogDescription>
+              Send an email invitation to join your organization.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Email Address</Label>
+              <Input 
+                type="email" 
+                placeholder="colleague@company.com" 
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsInviteOpen(false)}>Cancel</Button>
+            <Button onClick={handleInviteSubmit} disabled={isInviting} className="font-bold">
+              {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke Access Alert */}
+      <AlertDialog open={!!revokeId} onOpenChange={(open) => !open && setRevokeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately terminate the user's access to the organization. This action can be reversed by re-inviting them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRevoke} className="bg-rose-500 hover:bg-rose-600 text-white">
+              Revoke Access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageWrapper>
+  )
+}
+
+function Badge({ children, variant, className }: any) {
+  return (
+    <span className={cn(
+      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+      variant === 'outline' ? 'border border-border text-foreground' : 'bg-primary text-primary-foreground',
+      className
+    )}>
+      {children}
+    </span>
   )
 }

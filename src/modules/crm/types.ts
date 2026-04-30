@@ -2,6 +2,7 @@ export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negot
 
 export interface Contact {
   id: string
+  user_id: string
   first_name: string
   last_name: string | null
   email: string | null

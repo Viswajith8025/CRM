@@ -4,17 +4,27 @@ import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Printer, Download, ArrowLeft, Mail } from "lucide-react"
 import { useBillingStore } from "../billingStore"
-import { Invoice } from "../types"
+import type { Invoice } from "../types"
 import { LoadingState } from "@/components/shared/LoadingState"
 import { format } from "date-fns"
 import { Separator } from "@/components/ui/separator"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { toast } from "sonner"
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getInvoiceById } = useBillingStore()
+  const { getInvoiceById, updateInvoiceStatus } = useBillingStore()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -33,6 +43,20 @@ export default function InvoiceDetail() {
     window.print()
   }
 
+  const handleSendToClient = async () => {
+    if (!invoice.id) return;
+    setIsSending(true);
+    try {
+      await updateInvoiceStatus(invoice.id, 'sent');
+      setInvoice({ ...invoice, status: 'sent' });
+      toast.success("Invoice sent to client successfully!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send invoice.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   return (
     <PageWrapper 
       title={`Invoice ${invoice.invoice_number}`} 
@@ -48,9 +72,12 @@ export default function InvoiceDetail() {
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
-          <Button>
+          <Button 
+            onClick={handleSendToClient} 
+            disabled={isSending || invoice.status === 'sent' || invoice.status === 'paid'}
+          >
             <Mail className="h-4 w-4 mr-2" />
-            Send to Client
+            {isSending ? "Sending..." : invoice.status === 'sent' ? "Already Sent" : "Send to Client"}
           </Button>
         </div>
       }

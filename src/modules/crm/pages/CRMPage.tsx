@@ -10,9 +10,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Contact as Lead } from "../types"
+import type { Contact as Lead } from "../types"
 
 export default function CRMPage() {
   const { fetchLeads } = useCRMStore()
@@ -44,31 +44,17 @@ export default function CRMPage() {
         </Button>
       }
     >
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Leads</TabsTrigger>
-          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-          <TabsTrigger value="reminders">Reminders</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all" className="space-y-4">
-          <LeadList onEdit={handleEdit} />
-        </TabsContent>
-        <TabsContent value="pipeline">
-          <div className="flex h-[400px] items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-            Kanban Pipeline View coming soon
-          </div>
-        </TabsContent>
-        <TabsContent value="reminders">
-          <div className="flex h-[400px] items-center justify-center rounded-lg border border-dashed text-muted-foreground">
-            Follow-up Reminders coming soon
-          </div>
-        </TabsContent>
-      </Tabs>
+      <div className="mt-6">
+        <LeadList onEdit={handleEdit} />
+      </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{selectedLead ? "Edit Lead" : "Add New Lead"}</DialogTitle>
+            <DialogDescription>
+              {selectedLead ? "Update the information for this lead." : "Fill in the details to add a new lead to your CRM."}
+            </DialogDescription>
           </DialogHeader>
           <LeadForm 
             lead={selectedLead} 

@@ -1,6 +1,8 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, Link } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
+import { getFriendlySupabaseError } from "@/lib/supabaseError"
+import { useAuthStore } from "@/store/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +15,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+
+  useEffect(() => {
+    if (user) {
+      navigate("/")
+    }
+  }, [user, navigate])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -28,8 +37,8 @@ export default function LoginPage() {
 
       toast.success("Welcome back!")
       navigate("/")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to sign in")
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, "Failed to sign in. Check your email and password."))
     } finally {
       setIsLoading(false)
     }
@@ -78,7 +87,21 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Button variant="link" className="px-0 font-bold text-xs" type="button">
+                  <Button 
+                    variant="link" 
+                    className="px-0 font-bold text-xs" 
+                    type="button"
+                    onClick={async () => {
+                      if (!email) return toast.error("Please enter your email address first.")
+                      try {
+                        const { error } = await supabase.auth.resetPasswordForEmail(email)
+                        if (error) throw error
+                        toast.success("Password reset link sent to your email.")
+                      } catch (error: any) {
+                        toast.error(error.message || "Failed to send reset link.")
+                      }
+                    }}
+                  >
                     Forgot password?
                   </Button>
                 </div>
@@ -99,7 +122,10 @@ export default function LoginPage() {
             <div className="mt-6">
               <Separator />
               <p className="text-center text-xs text-muted-foreground mt-6">
-                Don't have an account? <span className="text-primary font-bold cursor-pointer">Contact your admin</span>
+                Don't have an account?{" "}
+                <Link to="/register" className="text-primary font-bold hover:underline">
+                  Create one now
+                </Link>
               </p>
             </div>
           </CardContent>

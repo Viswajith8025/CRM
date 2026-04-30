@@ -2,6 +2,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
+import { useState } from "react"
 import {
   Form,
   FormControl,
@@ -18,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Contact as Lead, LeadStatus } from "../types"
+import type { Contact as Lead, LeadStatus } from "../types"
 import { useCRMStore } from "../crmStore"
 import { toast } from "sonner"
 
@@ -29,6 +31,7 @@ const formSchema = z.object({
   company: z.string().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost']),
   value: z.coerce.number().optional(),
+  source: z.string().optional(),
 })
 
 interface LeadFormProps {
@@ -38,6 +41,7 @@ interface LeadFormProps {
 
 export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   const { addLead, updateLead } = useCRMStore()
+  const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,10 +52,12 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       company: lead?.company || "",
       status: (lead?.status as LeadStatus) || "new",
       value: lead?.value || 0,
+      source: lead?.source || "",
     },
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true)
     try {
       if (lead) {
         await updateLead(lead.id, values)
@@ -63,6 +69,8 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       onSuccess()
     } catch (error) {
       toast.error("Failed to save lead")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -164,8 +172,22 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
             )}
           />
         </div>
-        <Button type="submit" className="w-full">
-          {lead ? "Update Lead" : "Add Lead"}
+        <FormField
+          control={form.control}
+          name="source"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Lead Source</FormLabel>
+              <FormControl>
+                <Input placeholder="Referral, Website, LinkedIn, etc." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full gap-2" disabled={isLoading}>
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isLoading ? "Saving..." : lead ? "Update Lead" : "Add Lead"}
         </Button>
       </form>
     </Form>

@@ -7,9 +7,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
   arrayMove,
@@ -17,7 +17,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Task, TaskStatus } from './types'
+import type { Task, TaskStatus } from '../types'
 import { KanbanColumn } from './KanbanColumn'
 import { TaskCard } from './TaskCard'
 import { useTasksStore } from '../tasksStore'
@@ -29,9 +29,16 @@ const COLUMNS: { id: TaskStatus; title: string }[] = [
   { id: 'done', title: 'Done' },
 ]
 
-export function KanbanBoard() {
+interface KanbanBoardProps {
+  filterStatus?: string
+  filterPriority?: string
+  searchQuery?: string
+}
+
+export function KanbanBoard({ filterStatus = "all", filterPriority = "all", searchQuery = "" }: KanbanBoardProps) {
   const { tasks, updateTask } = useTasksStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
+  const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -44,6 +51,19 @@ export function KanbanBoard() {
     })
   )
 
+  const filteredTasks = tasks.filter(task => {
+    const matchesStatus = filterStatus === "all" || task.status === filterStatus
+    const matchesPriority = filterPriority === "all" || task.priority === filterPriority
+    
+    // Case-insensitive search on title and description
+    const query = searchQuery.toLowerCase()
+    const matchesSearch = query === "" || 
+                          task.title.toLowerCase().includes(query) || 
+                          (task.description && task.description.toLowerCase().includes(query))
+
+    return matchesStatus && matchesPriority && matchesSearch
+  })
+
   function handleDragStart(event: DragStartEvent) {
     const { active } = event
     const task = tasks.find((t) => t.id === active.id)
@@ -51,33 +71,43 @@ export function KanbanBoard() {
   }
 
   function handleDragOver(event: DragOverEvent) {
+    // dnd-kit handles drag over visually
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
+    setActiveTask(null)
+
     if (!over) return
 
     const activeId = active.id
     const overId = over.id
 
-    if (activeId === overId) return
-
     const activeTask = tasks.find((t) => t.id === activeId)
-    const overTask = tasks.find((t) => t.id === overId)
-
     if (!activeTask) return
 
-    // If dragging over a task in a different column
-    if (overTask && activeTask.status !== overTask.status) {
-      updateTask(activeTask.id, { status: overTask.status })
-    }
-    
     // If dragging over a column
-    const isOverAColumn = COLUMNS.some(col => col.id === overId)
-    if (isOverAColumn && activeTask.status !== overId) {
-      updateTask(activeTask.id, { status: overId as TaskStatus })
+    const overColumn = COLUMNS.find(col => col.id === overId)
+    if (overColumn && activeTask.status !== overColumn.id) {
+      try {
+        setSyncingTaskId(activeId as string)
+        await updateTask(activeId as string, { status: overColumn.id })
+      } finally {
+        setSyncingTaskId(null)
+      }
+      return
     }
-  }
 
-  function handleDragEnd(event: DragEndEvent) {
-    setActiveTask(null)
+    // If dragging over another task
+    const overTask = tasks.find(t => t.id === overId)
+    if (overTask && activeTask.status !== overTask.status) {
+      try {
+        setSyncingTaskId(activeId as string)
+        await updateTask(activeId as string, { status: overTask.status })
+      } finally {
+        setSyncingTaskId(null)
+      }
+    }
   }
 
   return (
@@ -89,12 +119,13 @@ export function KanbanBoard() {
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-6 h-full overflow-x-auto pb-4">
-        {COLUMNS.map((col) => (
+        {COLUMNS.filter(col => filterStatus === "all" || col.id === filterStatus).map((col) => (
           <KanbanColumn
             key={col.id}
             id={col.id}
             title={col.title}
-            tasks={tasks.filter((t) => t.status === col.id)}
+            tasks={filteredTasks.filter((t) => t.status === col.id)}
+            syncingTaskId={syncingTaskId}
           />
         ))}
       </div>

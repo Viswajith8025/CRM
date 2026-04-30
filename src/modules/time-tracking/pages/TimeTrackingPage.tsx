@@ -4,10 +4,21 @@ import { Timer } from "../components/Timer"
 import { TimeLogList } from "../components/TimeLogList"
 import { useTimeStore } from "../timeStore"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3, TrendingUp, DollarSign } from "lucide-react"
+import { BarChart3, TrendingUp, DollarSign, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { TimeLogForm } from "../components/TimeLogForm"
 
 export default function TimeTrackingPage() {
   const { fetchLogs, logs } = useTimeStore()
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     fetchLogs()
@@ -26,6 +37,12 @@ export default function TimeTrackingPage() {
     <PageWrapper 
       title="Time Tracking" 
       description="Monitor productivity and billable hours across your team."
+      actions={
+        <Button className="gap-2" onClick={() => setIsFormOpen(true)}>
+          <Plus className="h-4 w-4" />
+          Log Manual Time
+        </Button>
+      }
     >
       <div className="space-y-8">
         <Timer />
@@ -66,6 +83,18 @@ export default function TimeTrackingPage() {
           <TimeLogList />
         </div>
       </div>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Log Manual Time</DialogTitle>
+            <DialogDescription>
+              Enter historical time records for work already completed.
+            </DialogDescription>
+          </DialogHeader>
+          <TimeLogForm onSuccess={() => setIsFormOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </PageWrapper>
   )
 }

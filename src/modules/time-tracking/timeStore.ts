@@ -1,14 +1,15 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
-import { TimeLog, ActiveTimer } from './types'
+import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
+import type { TimeLog, ActiveTimer } from './types'
 import { differenceInMinutes } from 'date-fns'
 
 interface TimeState {
   logs: TimeLog[]
   activeTimer: ActiveTimer | null
   isLoading: boolean
-  error: string | null
-  fetchLogs: () => Promise<void>
+  hasFetched: boolean
+  fetchLogs: (force?: boolean) => Promise<void>
   startTimer: (timer: ActiveTimer) => void
   stopTimer: () => Promise<void>
   addManualLog: (log: Partial<TimeLog>) => Promise<void>
@@ -20,19 +21,21 @@ export const useTimeStore = create<TimeState>((set, get) => ({
   activeTimer: null,
   isLoading: false,
   error: null,
-
-  fetchLogs: async () => {
+  hasFetched: false,
+  
+  fetchLogs: async (force = false) => {
+    if (!force && get().hasFetched) return;
     set({ isLoading: true })
     try {
       const { data, error } = await supabase
         .from('time_logs')
         .select('*, task:tasks(title, project:projects(name))')
         .order('start_time', { ascending: false })
-      
+
       if (error) throw error
-      set({ logs: data as TimeLog[], error: null })
-    } catch (err: any) {
-      set({ error: err.message })
+      set({ logs: data as TimeLog[], error: null, hasFetched: true })
+    } catch (err) {
+      set({ error: getFriendlySupabaseError(err, "Failed to load time logs.") })
     } finally {
       set({ isLoading: false })
     }
@@ -54,25 +57,26 @@ export const useTimeStore = create<TimeState>((set, get) => ({
       const { data, error } = await supabase
         .from('time_logs')
         .insert({
-          task_id: activeTimer.task_id,
+          task_id: activeTimer.task_id || null, // Ensure empty strings become null
           description: activeTimer.description,
           start_time: activeTimer.start_time,
           end_time,
-          duration_minutes,
-          is_billable: activeTimer.is_billable
+          duration_minutes
+          // Removed is_billable as it's not in the current time_logs schema
         })
         .select('*, task:tasks(title, project:projects(name))')
         .single()
 
       if (error) throw error
-      set({ 
+      set({
         logs: [data as TimeLog, ...get().logs],
-        activeTimer: null 
+        activeTimer: null
       })
       localStorage.removeItem('active_timer')
-    } catch (err: any) {
-      set({ error: err.message })
-      throw err
+    } catch (err) {
+      const friendlyError = toFriendlyError(err, "Failed to stop timer.")
+      set({ error: friendlyError.message })
+      throw friendlyError
     }
   },
 
@@ -80,26 +84,36 @@ export const useTimeStore = create<TimeState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('time_logs')
-        .insert(log)
+        .insert({
+          ...log,
+          task_id: log.task_id || null, // Ensure empty string becomes null
+          is_billable: undefined // Strip unsupported property before sending to DB
+        })
         .select('*, task:tasks(title, project:projects(name))')
         .single()
-      
+
       if (error) throw error
       set({ logs: [data as TimeLog, ...get().logs] })
-    } catch (err: any) {
-      set({ error: err.message })
-      throw err
+    } catch (err) {
+      const friendlyError = toFriendlyError(err, "Failed to log time.")
+      set({ error: friendlyError.message })
+      throw friendlyError
     }
   },
 
   deleteLog: async (id) => {
+    const previousLogs = get().logs
+    // Optimistic UI update
+    set({ logs: previousLogs.filter(l => l.id !== id) })
+
     try {
       const { error } = await supabase.from('time_logs').delete().eq('id', id)
       if (error) throw error
-      set({ logs: get().logs.filter(l => l.id !== id) })
     } catch (err: any) {
-      set({ error: err.message })
-      throw err
+      // Rollback
+      const friendlyError = toFriendlyError(err, "Failed to delete time log.")
+      set({ logs: previousLogs, error: friendlyError.message })
+      throw friendlyError
     }
   }
 }))
