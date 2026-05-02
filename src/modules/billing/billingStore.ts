@@ -9,6 +9,8 @@ interface BillingState {
   isLoading: boolean
   error: string | null
   hasFetched: boolean
+  lastFetchedAt: number | null
+  
   fetchInvoices: (force?: boolean) => Promise<void>
   addInvoice: (invoice: Partial<Invoice>) => Promise<void>
   updateInvoiceStatus: (id: string, status: Invoice['status']) => Promise<void>
@@ -16,6 +18,11 @@ interface BillingState {
   deleteInvoice: (id: string) => Promise<void>
   recordPayment: (payment: Partial<Payment>) => Promise<void>
   getInvoiceById: (id: string) => Promise<Invoice | null>
+  
+  // New CEO Features
+  fetchSubscriptions: () => Promise<void>
+  addSubscription: (subscription: any) => Promise<void>
+  convertProposalToInvoice: (proposalId: string) => Promise<void>
 }
 
 export const useBillingStore = create<BillingState>((set, get) => ({
@@ -23,6 +30,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   isLoading: false,
   error: null,
   hasFetched: false,
+  lastFetchedAt: null,
 
   fetchInvoices: async (force = false) => {
     if (!force && get().hasFetched) return;
@@ -44,9 +52,12 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
   addInvoice: async (invoice) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const invoiceWithOrg = { ...invoice, organization_id: profile?.organization_id }
+
       const { data, error } = await supabase
         .from('invoices')
-        .insert(invoice)
+        .insert(invoiceWithOrg)
         .select('*, client:clients(name), project:projects(name)')
         .single()
 
@@ -126,7 +137,10 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
   recordPayment: async (payment) => {
     try {
-      const { error } = await supabase.from('payments').insert(payment)
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const paymentWithOrg = { ...payment, organization_id: profile?.organization_id }
+      
+      const { error } = await supabase.from('payments').insert(paymentWithOrg)
       if (error) throw error
 
       // Update invoice status to paid automatically if payment matches
@@ -160,5 +174,72 @@ export const useBillingStore = create<BillingState>((set, get) => ({
     } catch (err) {
       return null
     }
+  },
+
+  fetchSubscriptions: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*, client:clients(name)')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      // Use state if needed or just return
+    } catch (err) {
+      console.error("Error fetching subscriptions:", err)
+    }
+  },
+
+  addSubscription: async (subscription) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const payload = { ...subscription, organization_id: profile?.organization_id }
+      const { error } = await supabase.from('subscriptions').insert(payload)
+      if (error) throw error
+    } catch (err) {
+      console.error("Error adding subscription:", err)
+      throw err
+    }
+  },
+
+  convertProposalToInvoice: async (proposalId) => {
+    try {
+      // 1. Fetch proposal
+      const { data: proposal, error: pError } = await supabase
+        .from('proposals')
+        .select('*')
+        .eq('id', proposalId)
+        .single()
+      
+      if (pError) throw pError
+
+      // 2. Create invoice
+      const invoiceNumber = `INV-${Math.floor(1000 + Math.random() * 9000)}`
+      const newInvoice: Partial<Invoice> = {
+        client_id: proposal.client_id || (await get().fetchClientByLead(proposal.lead_id)),
+        proposal_id: proposal.id,
+        amount: proposal.amount,
+        status: 'sent',
+        invoice_number: invoiceNumber,
+        issued_at: new Date().toISOString(),
+        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
+      }
+
+      await get().addInvoice(newInvoice)
+      
+      // 3. Update proposal status
+      const { useCRMStore } = await import('@/modules/crm/crmStore')
+      await useCRMStore.getState().updateProposal(proposalId, { status: 'accepted' })
+      
+      return true
+    } catch (err) {
+      console.error("Error converting proposal:", err)
+      throw err
+    }
+  },
+
+  fetchClientByLead: async (leadId) => {
+    // Helper to find client by lead
+    const { data } = await supabase.from('clients').select('id').eq('lead_id', leadId).single()
+    return data?.id
   }
 }))

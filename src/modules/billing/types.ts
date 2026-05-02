@@ -5,8 +5,13 @@ export interface Invoice {
   user_id: string
   client_id: string
   project_id: string | null
+  proposal_id: string | null
   invoice_number: string
   amount: number
+  tax_rate: number
+  tax_amount: number
+  is_recurring: boolean
+  frequency: 'monthly' | 'quarterly' | 'yearly' | null
   status: InvoiceStatus
   due_date: string
   issued_at: string
@@ -22,6 +27,18 @@ export interface Payment {
   invoice_id: string
   amount: number
   payment_method: string
+  milestone_name: string | null
   transaction_id: string | null
   paid_at: string
+}
+
+export interface Subscription {
+  id: string
+  client_id: string
+  service_name: string
+  amount: number
+  frequency: 'monthly' | 'quarterly' | 'yearly'
+  next_billing_date: string
+  status: 'active' | 'paused' | 'cancelled'
+  created_at: string
 }

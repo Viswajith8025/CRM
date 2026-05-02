@@ -23,6 +23,8 @@ export interface Subtask {
   task_id: string
   title: string
   is_completed: boolean
+  organization_id?: string
+  created_at?: string
 }
 
 export interface TaskComment {
@@ -30,6 +32,8 @@ export interface TaskComment {
   task_id: string
   user_id: string
   content: string
+  attachment_url?: string | null
+  organization_id?: string
   created_at: string
   user?: { full_name: string, avatar_url: string }
 }

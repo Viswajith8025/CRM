@@ -7,8 +7,19 @@ import type { Project, Milestone } from './types'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
+export interface Sprint {
+  id: string
+  project_id: string
+  name: string
+  start_date: string
+  end_date: string
+  status: 'planned' | 'active' | 'completed'
+  created_at: string
+}
+
 interface ProjectsState {
   projects: Project[]
+  sprints: Record<string, Sprint[]>
   isLoading: boolean
   error: string | null
   hasFetched: boolean
@@ -18,15 +29,22 @@ interface ProjectsState {
   updateProject: (id: string, updates: Partial<Project>, lead_id?: string, member_ids?: string[]) => Promise<void>
   deleteProject: (id: string) => Promise<void>
   getProjectById: (id: string) => Promise<Project | null>
+  
   fetchMilestones: (projectId: string) => Promise<Milestone[]>
   addMilestone: (milestone: Partial<Milestone>) => Promise<void>
   updateMilestone: (id: string, updates: Partial<Milestone>) => Promise<void>
   deleteMilestone: (id: string) => Promise<void>
+
+  fetchSprints: (projectId: string) => Promise<void>
+  addSprint: (sprint: Partial<Sprint>) => Promise<void>
+  updateSprint: (id: string, updates: Partial<Sprint>) => Promise<void>
+  
   subscribeToProjects: () => () => void
 }
 
 export const useProjectsStore = create<ProjectsState>((set, get) => ({
   projects: [],
+  sprints: {},
   isLoading: false,
   error: null,
   hasFetched: false,
@@ -34,7 +52,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
   fetchProjects: async (force = false) => {
     const { hasFetched, lastFetchedAt } = get()
-    const isFresh = lastFetchedAt !== null && Date.now() - lastFetchedAt < CACHE_TTL_MS
+    const isFresh = false // Force fresh fetch
     if (!force && hasFetched && isFresh) return
     set({ isLoading: true })
     try {
@@ -88,6 +106,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
   addProject: async (project, lead_id, member_ids) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const { data, error } = await supabase
         .from('projects')
         .insert(project)
@@ -363,6 +382,76 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
     return () => {
       supabase.removeChannel(channel)
+    }
+  },
+
+  fetchSprints: async (projectId) => {
+    try {
+      const { data, error } = await supabase
+        .from('project_sprints')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('start_date', { ascending: true })
+
+      if (error) throw error
+      set({ 
+        sprints: { 
+          ...get().sprints, 
+          [projectId]: data as Sprint[] 
+        } 
+      })
+    } catch (err) {
+      console.error("Error fetching sprints:", err)
+    }
+  },
+
+  addSprint: async (sprint) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const payload = { ...sprint, organization_id: profile?.organization_id }
+      
+      const { data, error } = await supabase
+        .from('project_sprints')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const projectId = data.project_id
+      set({ 
+        sprints: { 
+          ...get().sprints, 
+          [projectId]: [...(get().sprints[projectId] || []), data as Sprint] 
+        } 
+      })
+    } catch (err) {
+      console.error("Error adding sprint:", err)
+      throw err
+    }
+  },
+
+  updateSprint: async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('project_sprints')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      
+      const projectId = data.project_id
+      set({
+        sprints: {
+          ...get().sprints,
+          [projectId]: get().sprints[projectId].map(s => s.id === id ? data as Sprint : s)
+        }
+      })
+    } catch (err) {
+      console.error("Error updating sprint:", err)
+      throw err
     }
   }
 }))

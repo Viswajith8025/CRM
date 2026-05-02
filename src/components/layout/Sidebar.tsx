@@ -1,36 +1,47 @@
-import { NavLink } from "react-router-dom"
+import { NavLink } from "react-router-dom" // Sidebar
 import { 
   LayoutDashboard, 
   Users, 
+  Target,
   Briefcase, 
   CheckSquare, 
-  Clock, 
   FileText, 
   BarChart3, 
   Settings,
-  HelpCircle
+  Building2,
+  LifeBuoy
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { useAuthStore } from "@/store/useAuthStore"
 
-const navigation = [
+const topNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'CRM Leads', href: '/crm', icon: Users },
+  { name: 'CRM Leads', href: '/crm', icon: Target },
+  { name: 'Active Clients', href: '/clients', icon: Building2 },
   { name: 'Projects', href: '/projects', icon: Briefcase },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Time Tracking', href: '/time-tracking', icon: Clock },
+  { name: 'Teams', href: '/teams', icon: Users },
   { name: 'Billing', href: '/billing', icon: FileText },
+  { name: 'HR & Payroll', href: '/hr', icon: Users },
   { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
+]
+
+const bottomNavigation = [
+  { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
+  { name: 'Support', href: '/support', icon: LifeBuoy },
 ]
 
 export function Sidebar() {
   const { profile } = useAuthStore()
 
-  const filteredNavigation = navigation.filter(item => {
+  const filterNav = (items: typeof topNavigation) => items.filter(item => {
     if (!item.roles) return true
     return profile && item.roles.includes(profile.role)
   })
+
+  const filteredTop = filterNav(topNavigation)
+  const filteredBottom = filterNav(bottomNavigation)
 
   return (
     <div className="flex h-full flex-col gap-y-5 overflow-y-auto border-r border-border/50 bg-card/50 backdrop-blur-xl px-6 pb-4">
@@ -46,7 +57,7 @@ export function Sidebar() {
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
             <ul role="list" className="-mx-2 space-y-1.5">
-              {filteredNavigation.map((item) => (
+              {filteredTop.map((item) => (
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
@@ -77,23 +88,39 @@ export function Sidebar() {
               ))}
             </ul>
           </li>
+          
           <li className="mt-auto">
-            {profile?.role === 'admin' && (
-              <NavLink
-                to="/settings"
-                className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
-              >
-                <Settings className="h-5 w-5 shrink-0 group-hover:text-foreground" aria-hidden="true" />
-                Settings
-              </NavLink>
-            )}
-            <div 
-              onClick={() => window.open('mailto:support@erppro.com', '_blank')}
-              className="group -mx-2 flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all"
-            >
-              <HelpCircle className="h-5 w-5 shrink-0 group-hover:text-foreground" aria-hidden="true" />
-              Support
-            </div>
+            <ul role="list" className="-mx-2 space-y-1.5">
+              {filteredBottom.map((item) => (
+                <li key={item.name}>
+                  <NavLink
+                    to={item.href}
+                    className={({ isActive }) => cn(
+                      isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      'group relative flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 transition-all duration-200'
+                    )}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <item.icon className={cn(
+                          "h-5 w-5 shrink-0 transition-colors",
+                          isActive ? "text-primary" : "group-hover:text-foreground"
+                        )} aria-hidden="true" />
+                        {item.name}
+                        {isActive && (
+                          <motion.div 
+                            layoutId="active-nav"
+                            className="absolute left-0 w-1 h-6 bg-primary rounded-r-full top-1/2 -translate-y-1/2"
+                          />
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
           </li>
         </ul>
       </nav>

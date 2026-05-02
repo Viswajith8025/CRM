@@ -2,7 +2,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, User, Building, Target, Mail, Phone } from "lucide-react"
 import { useState } from "react"
 import {
   Form,
@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { Contact as Lead, LeadStatus } from "../types"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import type { Contact as Lead } from "../types"
 import { useCRMStore } from "../crmStore"
 import { toast } from "sonner"
 
@@ -29,8 +30,9 @@ const formSchema = z.object({
   last_name: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   company: z.string().optional(),
+  phone: z.string().optional(),
+  job_title: z.string().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost']),
-  value: z.coerce.number().optional(),
   source: z.string().optional(),
 })
 
@@ -49,10 +51,11 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       first_name: lead?.first_name || "",
       last_name: lead?.last_name || "",
       email: lead?.email || "",
+      phone: lead?.phone || "",
       company: lead?.company || "",
-      status: (lead?.status as LeadStatus) || "new",
-      value: lead?.value || 0,
-      source: lead?.source || "",
+      job_title: lead?.job_title || "",
+      source: lead?.source || "website",
+      status: lead?.status || "new",
     },
   })
 
@@ -64,11 +67,11 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
         toast.success("Lead updated successfully")
       } else {
         await addLead(values)
-        toast.success("Lead added successfully")
+        toast.success("Lead created successfully")
       }
       onSuccess()
     } catch (error) {
-      toast.error("Failed to save lead")
+      toast.error("An error occurred")
     } finally {
       setIsLoading(false)
     }
@@ -76,119 +79,197 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="first_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>First Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="John" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="last_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Last Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-[calc(100vh-140px)]">
+        <ScrollArea className="flex-1 pr-4 -mr-4">
+          <div className="space-y-8 pb-8">
+            {/* SECTION 1: CONTACT INFO */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                <div className="p-1.5 rounded-md bg-primary/10 text-primary">
+                  <User className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Contact Information</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">First Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Last Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Doe" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Email Address</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input placeholder="john@example.com" {...field} className="pl-9 bg-muted/20" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* SECTION 2: COMPANY INFO */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500">
+                  <Building className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Company Details</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Company Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Acme Inc" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="job_title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Job Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="CEO" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Phone Number</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input placeholder="+1 (555) 000-0000" {...field} className="pl-9 bg-muted/20" />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* SECTION 3: PIPELINE STRATEGY */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                <div className="p-1.5 rounded-md bg-amber-500/10 text-amber-500">
+                  <Target className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Pipeline Strategy</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="new">New Lead</SelectItem>
+                          <SelectItem value="contacted">Contacted</SelectItem>
+                          <SelectItem value="qualified">Qualified</SelectItem>
+                          <SelectItem value="proposal">Proposal Sent</SelectItem>
+                          <SelectItem value="negotiation">Negotiation</SelectItem>
+                          <SelectItem value="closed_won">Closed Won</SelectItem>
+                          <SelectItem value="closed_lost">Closed Lost</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="source"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Acquisition Source</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="Select source" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="website">Website</SelectItem>
+                          <SelectItem value="referral">Referral</SelectItem>
+                          <SelectItem value="linkedin">LinkedIn</SelectItem>
+                          <SelectItem value="cold_call">Cold Call</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
+
+        <div className="flex gap-4 pt-6 border-t mt-auto">
+          <Button type="submit" className="flex-1 font-black uppercase tracking-[0.2em]" disabled={isLoading}>
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {lead ? "Update Lead" : "Create Lead"}
+          </Button>
         </div>
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="john@example.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="company"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Company</FormLabel>
-              <FormControl>
-                <Input placeholder="Acme Inc." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="new">New</SelectItem>
-                    <SelectItem value="contacted">Contacted</SelectItem>
-                    <SelectItem value="qualified">Qualified</SelectItem>
-                    <SelectItem value="proposal">Proposal</SelectItem>
-                    <SelectItem value="negotiation">Negotiation</SelectItem>
-                    <SelectItem value="closed_won">Closed Won</SelectItem>
-                    <SelectItem value="closed_lost">Closed Lost</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="value"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Lead Value ($)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <FormField
-          control={form.control}
-          name="source"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Lead Source</FormLabel>
-              <FormControl>
-                <Input placeholder="Referral, Website, LinkedIn, etc." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full gap-2" disabled={isLoading}>
-          {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isLoading ? "Saving..." : lead ? "Update Lead" : "Add Lead"}
-        </Button>
       </form>
     </Form>
   )

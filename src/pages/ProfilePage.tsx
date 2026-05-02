@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Mail, User, Shield, Calendar, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 export default function ProfilePage() {
@@ -137,12 +138,27 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 border-dashed bg-transparent">
+          <Card className={cn("border-border/50 border-dashed bg-transparent transition-opacity", role === 'manager' && "opacity-75")}>
             <CardHeader>
-              <CardTitle className="text-sm">Account Settings</CardTitle>
+              <CardTitle className="text-sm flex items-center gap-2">
+                Account Settings
+                {role === 'manager' && <Shield className="h-3 w-3 text-amber-500" />}
+              </CardTitle>
               <CardDescription className="text-xs">
                 To manage security, passwords, or two-factor authentication, please visit the 
-                <Button variant="link" className="h-auto p-0 px-1 text-xs font-bold" onClick={() => window.location.href='/settings'}>Workspace Settings</Button> 
+                <Button 
+                  variant="link" 
+                  className="h-auto p-0 px-1 text-xs font-bold" 
+                  onClick={() => {
+                    if (role === 'manager') {
+                      toast.error("Access Restricted: You don't have permission to manage workspace settings.")
+                    } else {
+                      window.location.href='/settings'
+                    }
+                  }}
+                >
+                  Workspace Settings
+                </Button> 
                 tab.
               </CardDescription>
             </CardHeader>

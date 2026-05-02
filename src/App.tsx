@@ -12,6 +12,7 @@ import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
 
 import CRMPage from '@/modules/crm/pages/CRMPage'
+import ClientsPage from '@/modules/crm/pages/ClientsPage'
 import ProjectsPage from '@/modules/projects/pages/ProjectsPage'
 import ProjectDetailPage from '@/modules/projects/pages/ProjectDetailPage'
 import TasksPage from '@/modules/tasks/pages/TasksPage'
@@ -24,7 +25,12 @@ import ClientProjects from '@/modules/client-portal/pages/ClientProjects'
 import ClientInvoices from '@/modules/client-portal/pages/ClientInvoices'
 import ReportsPage from '@/modules/reports/pages/ReportsPage'
 import SettingsPage from '@/modules/admin/pages/SettingsPage'
+import TeamPage from '@/modules/admin/pages/TeamPage'
 import NotificationsPage from '@/modules/notifications/pages/NotificationsPage'
+import HRDashboard from '@/modules/hr/pages/HRDashboard'
+import SupportDashboard from '@/modules/support/pages/SupportDashboard'
+import TicketDetailPage from '@/modules/support/pages/TicketDetailPage'
+
 
 function App() {
   const { setSession, setUser } = useAuthStore()
@@ -55,8 +61,13 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout children={<Outlet />} />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/teams" element={<TeamPage />} />
+              <Route path="/hr" element={<HRDashboard />} />
+              <Route path="/support" element={<SupportDashboard />} />
+              <Route path="/support/tickets/:id" element={<TicketDetailPage />} />
               <Route path="/tasks" element={<TasksPage />} />
               <Route path="/crm" element={<CRMPage />} />
+              <Route path="/clients" element={<ClientsPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
               <Route path="/time-tracking" element={<TimeTrackingPage />} />

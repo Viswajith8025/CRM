@@ -3,41 +3,75 @@
 -- 1. EXTENSIONS & ENUMS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-CREATE TYPE user_role AS ENUM ('admin', 'manager', 'employee', 'client');
-CREATE TYPE lead_status AS ENUM ('new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost');
-CREATE TYPE project_status AS ENUM ('planning', 'in_progress', 'on_hold', 'completed', 'cancelled');
-CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'review', 'done');
-CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'urgent');
-CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'overdue', 'cancelled');
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('admin', 'manager', 'employee', 'client');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE lead_status AS ENUM ('new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE project_status AS ENUM ('planning', 'in_progress', 'on_hold', 'completed', 'cancelled');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_status AS ENUM ('todo', 'in_progress', 'review', 'done');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'urgent');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE invoice_status AS ENUM ('draft', 'sent', 'paid', 'overdue', 'cancelled');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- 2. TABLES
 
 -- PROFILES
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   avatar_url TEXT,
   role user_role DEFAULT 'employee',
+  status TEXT DEFAULT 'pending',
   email TEXT UNIQUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- CLIENTS
-CREATE TABLE clients (
+CREATE TABLE IF NOT EXISTS clients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
+  lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
   email TEXT,
   phone TEXT,
   address TEXT,
   website TEXT,
+  service TEXT,
+  contract_value DECIMAL(12, 2),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- LEADS
-CREATE TABLE leads (
+CREATE TABLE IF NOT EXISTS leads (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   first_name TEXT NOT NULL,
@@ -51,9 +85,10 @@ CREATE TABLE leads (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- PROJECTS
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -66,9 +101,10 @@ CREATE TABLE projects (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- TASKS
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
@@ -81,9 +117,10 @@ CREATE TABLE tasks (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- TASK COMMENTS
-CREATE TABLE task_comments (
+CREATE TABLE IF NOT EXISTS task_comments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
@@ -92,7 +129,7 @@ CREATE TABLE task_comments (
 );
 
 -- TIME LOGS
-CREATE TABLE time_logs (
+CREATE TABLE IF NOT EXISTS time_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
@@ -104,7 +141,7 @@ CREATE TABLE time_logs (
 );
 
 -- INVOICES
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
@@ -117,9 +154,10 @@ CREATE TABLE invoices (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE;
 
 -- PAYMENTS
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL DEFAULT auth.uid() REFERENCES profiles(id) ON DELETE CASCADE,
   invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE,
@@ -129,12 +167,24 @@ CREATE TABLE payments (
   paid_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- NOTIFICATIONS
+CREATE TABLE IF NOT EXISTS notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  is_read BOOLEAN DEFAULT false,
   link TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure user_id and is_read exists if table was already created
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false;
+
 -- ORGANIZATION SETTINGS
-CREATE TABLE organization_settings (
+CREATE TABLE IF NOT EXISTS organization_settings (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   company_name TEXT DEFAULT 'ERP Pro',
   tax_id TEXT,
@@ -146,12 +196,14 @@ CREATE TABLE organization_settings (
 
 ALTER TABLE organization_settings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view organization settings" ON organization_settings;
 CREATE POLICY "Users can view organization settings"
   ON organization_settings
   FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "Admins can update organization settings" ON organization_settings;
 CREATE POLICY "Admins can update organization settings"
   ON organization_settings
   FOR UPDATE
@@ -170,31 +222,32 @@ VALUES ('00000000-0000-0000-0000-000000000000', 'ERP Pro')
 ON CONFLICT (id) DO NOTHING;
 
 -- 3. INDEXES
-CREATE INDEX idx_leads_assigned_to ON leads(assigned_to);
-CREATE INDEX idx_clients_user_id ON clients(user_id);
-CREATE INDEX idx_leads_user_id ON leads(user_id);
-CREATE INDEX idx_projects_user_id ON projects(user_id);
-CREATE INDEX idx_projects_client_id ON projects(client_id);
-CREATE INDEX idx_tasks_user_id ON tasks(user_id);
-CREATE INDEX idx_tasks_project_id ON tasks(project_id);
-CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to);
-CREATE INDEX idx_time_logs_user_id ON time_logs(user_id);
-CREATE INDEX idx_invoices_user_id ON invoices(user_id);
-CREATE INDEX idx_invoices_client_id ON invoices(client_id);
-CREATE INDEX idx_payments_user_id ON payments(user_id);
-CREATE INDEX idx_notifications_user_id ON notifications(user_id) WHERE NOT is_read;
+CREATE INDEX IF NOT EXISTS idx_leads_assigned_to ON leads(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_clients_user_id ON clients(user_id);
+CREATE INDEX IF NOT EXISTS idx_leads_user_id ON leads(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_time_logs_user_id ON time_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id) WHERE NOT is_read;
 
 -- 4. TRIGGER FOR PROFILES
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email, avatar_url, role)
+  INSERT INTO public.profiles (id, full_name, email, avatar_url, role, status)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'full_name',
     NEW.email,
     NEW.raw_user_meta_data->>'avatar_url',
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'employee')
+    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'employee'),
+    'pending'
   );
   RETURN NEW;
 END;
@@ -216,6 +269,7 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage their own profile" ON profiles;
 CREATE POLICY "Users can manage their own profile"
   ON profiles
   FOR ALL
@@ -223,180 +277,71 @@ CREATE POLICY "Users can manage their own profile"
   USING (id = auth.uid())
   WITH CHECK (id = auth.uid());
 
-CREATE POLICY "Users can manage their own clients"
+DROP POLICY IF EXISTS "Authenticated users can manage clients" ON clients;
+CREATE POLICY "Authenticated users can manage clients"
   ON clients
   FOR ALL
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own leads"
+DROP POLICY IF EXISTS "Authenticated users can manage leads" ON leads;
+CREATE POLICY "Authenticated users can manage leads"
   ON leads
   FOR ALL
   TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own projects"
+DROP POLICY IF EXISTS "Authenticated users can manage projects" ON projects;
+CREATE POLICY "Authenticated users can manage projects"
   ON projects
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND (
-      client_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM clients
-        WHERE clients.id = projects.client_id
-        AND clients.user_id = auth.uid()
-      )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND (
-      client_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM clients
-        WHERE clients.id = projects.client_id
-        AND clients.user_id = auth.uid()
-      )
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own tasks"
+DROP POLICY IF EXISTS "Authenticated users can manage tasks" ON tasks;
+CREATE POLICY "Authenticated users can manage tasks"
   ON tasks
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND (
-      project_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM projects
-        WHERE projects.id = tasks.project_id
-        AND projects.user_id = auth.uid()
-      )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND (
-      project_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM projects
-        WHERE projects.id = tasks.project_id
-        AND projects.user_id = auth.uid()
-      )
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage comments on their own tasks"
+DROP POLICY IF EXISTS "Authenticated users can manage comments" ON task_comments;
+CREATE POLICY "Authenticated users can manage comments"
   ON task_comments
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM tasks
-      WHERE tasks.id = task_comments.task_id
-      AND tasks.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM tasks
-      WHERE tasks.id = task_comments.task_id
-      AND tasks.user_id = auth.uid()
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own time logs"
+DROP POLICY IF EXISTS "Authenticated users can manage time logs" ON time_logs;
+CREATE POLICY "Authenticated users can manage time logs"
   ON time_logs
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND (
-      task_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM tasks
-        WHERE tasks.id = time_logs.task_id
-        AND tasks.user_id = auth.uid()
-      )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND (
-      task_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM tasks
-        WHERE tasks.id = time_logs.task_id
-        AND tasks.user_id = auth.uid()
-      )
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own invoices"
+DROP POLICY IF EXISTS "Authenticated users can manage invoices" ON invoices;
+CREATE POLICY "Authenticated users can manage invoices"
   ON invoices
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM clients
-      WHERE clients.id = invoices.client_id
-      AND clients.user_id = auth.uid()
-    )
-    AND (
-      project_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM projects
-        WHERE projects.id = invoices.project_id
-        AND projects.user_id = auth.uid()
-      )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM clients
-      WHERE clients.id = invoices.client_id
-      AND clients.user_id = auth.uid()
-    )
-    AND (
-      project_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM projects
-        WHERE projects.id = invoices.project_id
-        AND projects.user_id = auth.uid()
-      )
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
-CREATE POLICY "Users can manage their own payments"
+DROP POLICY IF EXISTS "Authenticated users can manage payments" ON payments;
+CREATE POLICY "Authenticated users can manage payments"
   ON payments
   FOR ALL
   TO authenticated
-  USING (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM invoices
-      WHERE invoices.id = payments.invoice_id
-      AND invoices.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM invoices
-      WHERE invoices.id = payments.invoice_id
-      AND invoices.user_id = auth.uid()
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications"
   ON notifications
   FOR ALL
@@ -408,7 +353,7 @@ CREATE POLICY "Users can manage their own notifications"
 -- Note: Must be enabled via Supabase UI or ALTER PUBLICATION supabase_realtime ADD TABLE ...
 
 -- 7. PROJECT MILESTONES (Added later)
-CREATE TABLE project_milestones (
+CREATE TABLE IF NOT EXISTS project_milestones (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -421,22 +366,45 @@ CREATE TABLE project_milestones (
 
 ALTER TABLE project_milestones ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage milestones on their own projects"
+DROP POLICY IF EXISTS "Authenticated users can manage milestones" ON project_milestones;
+CREATE POLICY "Authenticated users can manage milestones"
   ON project_milestones
   FOR ALL
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM projects
-      WHERE projects.id = project_milestones.project_id
-      AND projects.user_id = auth.uid()
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM projects
-      WHERE projects.id = project_milestones.project_id
-      AND projects.user_id = auth.uid()
-    )
-  );
+  USING (true)
+  WITH CHECK (true);
+
+-- 8. ACTIVITIES
+CREATE TABLE IF NOT EXISTS activities (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  target_type TEXT NOT NULL,
+  target_name TEXT,
+  target_id TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ensure user_id exists if table was already created
+ALTER TABLE activities ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES profiles(id) ON DELETE CASCADE;
+
+ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view all activities" ON activities;
+CREATE POLICY "Users can view all activities"
+  ON activities
+  FOR SELECT
+  TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Users can log their own activities" ON activities;
+CREATE POLICY "Users can log their own activities"
+  ON activities
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE INDEX IF NOT EXISTS idx_activities_user_id ON activities(user_id);
+CREATE INDEX IF NOT EXISTS idx_activities_created_at ON activities(created_at DESC);
 

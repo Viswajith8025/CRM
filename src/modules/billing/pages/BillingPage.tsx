@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+import { useSearchParams } from "react-router-dom"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Plus, Download, TrendingUp, Calendar as CalendarIcon, X } from "lucide-react"
@@ -32,9 +33,15 @@ export default function BillingPage() {
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
 
+  const [searchParams] = useSearchParams()
+  const initialClient = searchParams.get('client')
+
   useEffect(() => {
     fetchInvoices()
-  }, [])
+    if (initialClient) {
+      setIsFormOpen(true)
+    }
+  }, [initialClient])
 
   const exportToCSV = () => {
     if (invoices.length === 0) {
@@ -196,7 +203,10 @@ export default function BillingPage() {
               Fill out the details to generate a new invoice for a client.
             </DialogDescription>
           </DialogHeader>
-          <InvoiceForm onSuccess={() => setIsFormOpen(false)} />
+          <InvoiceForm 
+            onSuccess={() => setIsFormOpen(false)} 
+            defaultClientId={initialClient || undefined}
+          />
         </DialogContent>
       </Dialog>
     </PageWrapper>

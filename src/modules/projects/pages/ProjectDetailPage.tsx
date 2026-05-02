@@ -11,7 +11,10 @@ import {
   Circle, 
   ChevronRight,
   Archive,
-  Trash2
+  Trash2,
+  Plus,
+  Clock,
+  FileText
 } from "lucide-react"
 import {
   AlertDialog,
@@ -67,18 +70,20 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
-  const { getProjectById, fetchMilestones, updateProject, deleteProject, updateMilestone } = useProjectsStore()
+  const { getProjectById, fetchMilestones, updateProject, deleteProject, updateMilestone, fetchSprints, sprints } = useProjectsStore()
   const [project, setProject] = useState<Project | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const projectSprints = id ? sprints[id] || [] : []
 
   const loadData = async () => {
     if (!id) return
     const [projData, mileData] = await Promise.all([
       getProjectById(id),
       fetchMilestones(id),
-      fetchTasks(id, true)
+      fetchTasks(id, true),
+      fetchSprints(id)
     ])
     setProject(projData)
     setMilestones(mileData)
@@ -206,17 +211,22 @@ export default function ProjectDetailPage() {
           </div>
 
           <Tabs defaultValue="milestones">
-            <TabsList>
-              <TabsTrigger value="milestones">Milestones</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="team">Team</TabsTrigger>
+            <TabsList className="grid grid-cols-4 w-full">
+              <TabsTrigger value="milestones">Roadmap</TabsTrigger>
+              <TabsTrigger value="sprints">Sprints</TabsTrigger>
+              <TabsTrigger value="tasks">Backlog</TabsTrigger>
+              <TabsTrigger value="team">Resource</TabsTrigger>
             </TabsList>
+            
             <TabsContent value="milestones" className="space-y-4 pt-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Milestones</h4>
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Roadmap</h4>
                 <Dialog>
                   <DialogTrigger asChild>
-                    <Button size="sm" className="h-8">Add Milestone</Button>
+                    <Button size="sm" className="h-8 gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Add Milestone
+                    </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
@@ -230,8 +240,8 @@ export default function ProjectDetailPage() {
                 </Dialog>
               </div>
               {milestones.length === 0 ? (
-                <div className="text-center py-10 border rounded-lg border-dashed">
-                  No milestones defined yet.
+                <div className="text-center py-10 border rounded-lg border-dashed bg-muted/10">
+                  <p className="text-sm text-muted-foreground italic">No milestones defined for the roadmap yet.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -240,20 +250,65 @@ export default function ProjectDetailPage() {
                       key={m.id} 
                       className={cn(
                         "flex items-center justify-between p-4 rounded-lg border transition-all cursor-pointer hover:bg-muted/50",
-                        m.is_completed && "bg-muted/30 border-muted"
+                        m.status === 'completed' && "bg-emerald-500/5 border-emerald-500/20"
                       )}
                       onClick={() => handleToggleMilestone(m)}
                     >
                       <div className="flex items-center gap-3">
-                        {m.is_completed ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                        {m.status === 'completed' ? (
+                          <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                            <CheckCircle2 className="h-4 w-4 text-white" />
+                          </div>
                         ) : (
-                          <Circle className="h-5 w-5 text-muted-foreground" />
+                          <div className="h-6 w-6 rounded-full border-2 border-muted" />
                         )}
                         <div>
-                          <p className={cn("font-medium", m.is_completed && "line-through text-muted-foreground")}>{m.title}</p>
-                          <p className="text-xs text-muted-foreground">Due: {m.due_date ? format(new Date(m.due_date), 'MMM d, yyyy') : 'No date'}</p>
+                          <p className={cn("font-bold text-sm", m.status === 'completed' && "line-through text-muted-foreground")}>{m.title}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5">
+                            <Calendar className="h-3 w-3" />
+                            Target: {m.due_date ? format(new Date(m.due_date), 'PPP') : 'No date'}
+                          </p>
                         </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sprints" className="space-y-4 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Active & Planned Sprints</h4>
+                <Button size="sm" className="h-8 gap-2" variant="outline">
+                  <Plus className="h-3.5 w-3.5" />
+                  New Sprint
+                </Button>
+              </div>
+              {projectSprints.length === 0 ? (
+                <div className="text-center py-10 border rounded-lg border-dashed bg-muted/10">
+                  <p className="text-sm text-muted-foreground italic">No sprints planned. Start an Agile sprint to track velocity.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {projectSprints.map(sprint => (
+                    <div key={sprint.id} className="p-4 rounded-xl border bg-card hover:border-primary/30 transition-colors">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h5 className="font-bold">{sprint.name}</h5>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(sprint.start_date), 'MMM d')} - {format(new Date(sprint.end_date), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                        <Badge variant={sprint.status === 'active' ? 'default' : 'secondary'} className="uppercase text-[10px]">
+                          {sprint.status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
+                          <span>Sprint Progress</span>
+                          <span>{sprint.status === 'completed' ? '100%' : '0%'}</span>
+                        </div>
+                        <Progress value={sprint.status === 'completed' ? 100 : 0} className="h-1.5" />
                       </div>
                     </div>
                   ))}
@@ -374,23 +429,40 @@ export default function ProjectDetailPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2">
-                  <Calendar className="h-4 w-4" /> Deadline
+                  <Badge variant="outline" className="text-[10px]">{project.type}</Badge>
                 </span>
-                <span className="font-medium">{project.end_date || 'N/A'}</span>
+                <span className="font-bold text-primary">{project.status.replace('_', ' ')}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Calendar className="h-4 w-4" /> Start Date
+                </span>
+                <span className="font-medium">{project.start_date ? format(new Date(project.start_date), 'MMM d, yyyy') : 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-4 w-4" /> Deadline
+                </span>
+                <span className="font-medium">{project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'N/A'}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2">
                   <DollarSign className="h-4 w-4" /> Budget
                 </span>
-                <span className="font-medium">${project.budget?.toLocaleString() || '0'}</span>
+                <span className="font-bold text-emerald-500">${project.budget?.toLocaleString() || '0'}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2">
-                  <User className="h-4 w-4" /> Manager
+                  <User className="h-4 w-4" /> Lead
                 </span>
-                <span className="font-medium">Unassigned</span>
+                <span className="font-medium">{project.lead?.full_name || 'Unassigned'}</span>
               </div>
             </div>
+            
+            <Button variant="secondary" className="w-full gap-2 text-xs h-8">
+              <FileText className="h-3 w-3" />
+              View Gantt Timeline
+            </Button>
             <div className="pt-4 space-y-2">
               <div className="flex justify-between text-xs font-medium">
                 <span>Overall Progress</span>

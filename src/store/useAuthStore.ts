@@ -1,13 +1,26 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 
+import type { User, Session } from '@supabase/supabase-js'
+
+export interface UserProfile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
+  role: 'admin' | 'manager' | 'employee' | 'client'
+  status: 'pending' | 'active' | 'denied'
+  organization_id: string | null
+  email: string | null
+  created_at: string
+}
+
 interface AuthState {
-  user: any | null
-  profile: any | null
-  session: any | null
+  user: User | null
+  profile: UserProfile | null
+  session: Session | null
   isLoading: boolean
-  setUser: (user: any) => void
-  setSession: (session: any) => void
+  setUser: (user: User | null) => void
+  setSession: (session: Session | null) => void
   fetchProfile: () => Promise<void>
   signOut: () => Promise<void>
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<void>

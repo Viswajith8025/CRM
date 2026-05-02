@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react" // Force refresh
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { LeadList } from "../components/LeadList"
 import { LeadForm } from "../components/LeadForm"
 import { useCRMStore } from "../crmStore"
+import { Users } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -12,40 +13,82 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import type { Contact as Lead } from "../types"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import type { Contact as Lead, Client } from "../types"
+import { LeadDetails } from "../components/LeadDetails"
+
+import { LayoutGrid, List } from "lucide-react"
+import { LeadKanban } from "../components/LeadKanban"
 
 export default function CRMPage() {
   const { fetchLeads } = useCRMStore()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | undefined>()
+  const [detailedLead, setDetailedLead] = useState<Lead | undefined>()
+  const [view, setView] = useState<'list' | 'kanban'>('kanban')
 
   useEffect(() => {
     fetchLeads()
-  }, [])
+  }, [fetchLeads])
 
-  const handleEdit = (lead: Lead) => {
+  const handleEditLead = (lead: Lead) => {
     setSelectedLead(lead)
     setIsFormOpen(true)
   }
 
-  const handleAdd = () => {
+  const handleViewDetails = (lead: Lead) => {
+    setDetailedLead(lead)
+    setIsDetailsOpen(true)
+  }
+
+  const handleAddLead = () => {
     setSelectedLead(undefined)
     setIsFormOpen(true)
   }
 
   return (
     <PageWrapper 
-      title="CRM" 
-      description="Manage your leads, pipeline, and customer relationships."
+      title="Lead Management" 
+      description="Manage your pipeline, and customer relationships with drag-and-drop simplicity."
       actions={
-        <Button className="gap-2" onClick={handleAdd}>
-          <Plus className="h-4 w-4" />
-          Add Lead
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+            <Button 
+              variant={view === 'list' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              onClick={() => setView('list')}
+              className="h-8 w-8 p-0"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant={view === 'kanban' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              onClick={() => setView('kanban')}
+              className="h-8 w-8 p-0"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button className="gap-2 font-bold" onClick={handleAddLead}>
+            <Plus className="h-4 w-4" />
+            Add Lead
+          </Button>
+        </div>
       }
     >
       <div className="mt-6">
-        <LeadList onEdit={handleEdit} />
+        {view === 'list' ? (
+          <LeadList onEdit={handleEditLead} onViewDetails={handleViewDetails} />
+        ) : (
+          <LeadKanban />
+        )}
       </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
@@ -62,6 +105,20 @@ export default function CRMPage() {
           />
         </DialogContent>
       </Dialog>
+
+      <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <SheetContent className="sm:max-w-[600px] w-full">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="text-muted-foreground uppercase tracking-[0.2em] text-[10px] font-black">Lead Details & History</SheetTitle>
+          </SheetHeader>
+          {detailedLead && (
+            <LeadDetails 
+              lead={detailedLead} 
+              onClose={() => setIsDetailsOpen(false)} 
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </PageWrapper>
   )
 }

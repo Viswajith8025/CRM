@@ -14,6 +14,7 @@ interface TimeState {
   stopTimer: () => Promise<void>
   addManualLog: (log: Partial<TimeLog>) => Promise<void>
   deleteLog: (id: string) => Promise<void>
+  markLogsAsBilled: (logIds: string[], invoiceId: string) => Promise<void>
 }
 
 export const useTimeStore = create<TimeState>((set, get) => ({
@@ -61,8 +62,8 @@ export const useTimeStore = create<TimeState>((set, get) => ({
           description: activeTimer.description,
           start_time: activeTimer.start_time,
           end_time,
-          duration_minutes
-          // Removed is_billable as it's not in the current time_logs schema
+          duration_minutes,
+          is_billable: activeTimer.is_billable ?? true
         })
         .select('*, task:tasks(title, project:projects(name))')
         .single()
@@ -87,7 +88,7 @@ export const useTimeStore = create<TimeState>((set, get) => ({
         .insert({
           ...log,
           task_id: log.task_id || null, // Ensure empty string becomes null
-          is_billable: undefined // Strip unsupported property before sending to DB
+          is_billable: log.is_billable ?? true
         })
         .select('*, task:tasks(title, project:projects(name))')
         .single()
@@ -114,6 +115,26 @@ export const useTimeStore = create<TimeState>((set, get) => ({
       const friendlyError = toFriendlyError(err, "Failed to delete time log.")
       set({ logs: previousLogs, error: friendlyError.message })
       throw friendlyError
+    }
+  },
+
+  markLogsAsBilled: async (logIds, invoiceId) => {
+    try {
+      const { data, error } = await supabase
+        .from('time_logs')
+        .update({ is_billed: true, invoice_id: invoiceId })
+        .in('id', logIds)
+        .select('*, task:tasks(title, project:projects(name))')
+
+      if (error) throw error
+
+      set(state => ({
+        logs: state.logs.map(log => 
+          logIds.includes(log.id) ? { ...log, is_billed: true, invoice_id: invoiceId } : log
+        )
+      }))
+    } catch (err) {
+      throw toFriendlyError(err)
     }
   }
 }))

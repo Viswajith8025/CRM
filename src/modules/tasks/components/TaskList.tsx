@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils"
 import type { Task } from "../types"
 import { useTasksStore } from "../tasksStore"
+import { TaskDetailsDialog } from "./TaskDetailsDialog"
+import { useState } from "react"
 
 interface TaskListProps {
   tasks: Task[]
@@ -19,6 +21,7 @@ interface TaskListProps {
 
 export function TaskList({ tasks }: TaskListProps) {
   const { deleteTask } = useTasksStore()
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   if (tasks.length === 0) {
     return (
@@ -63,7 +66,11 @@ export function TaskList({ tasks }: TaskListProps) {
           </thead>
           <tbody className="divide-y divide-border/50">
             {tasks.map((task) => (
-              <tr key={task.id} className="group hover:bg-muted/30 transition-colors">
+              <tr 
+                key={task.id} 
+                className="group hover:bg-muted/30 transition-colors cursor-pointer"
+                onClick={() => setSelectedTask(task)}
+              >
                 <td className="px-6 py-4">
                   <div className="space-y-1">
                     <p className="text-sm font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">{task.title}</p>
@@ -125,6 +132,11 @@ export function TaskList({ tasks }: TaskListProps) {
           </tbody>
         </table>
       </div>
+      <TaskDetailsDialog 
+        task={selectedTask} 
+        open={!!selectedTask} 
+        onOpenChange={(open) => !open && setSelectedTask(null)} 
+      />
     </div>
   )
 }

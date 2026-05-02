@@ -4,6 +4,7 @@ export interface Project {
   id: string
   user_id: string
   name: string
+  type: 'Software' | 'Website' | 'Marketing' | 'Ecommerce' | 'Other'
   description: string | null
   client_id: string | null
   status: ProjectStatus
@@ -34,6 +35,6 @@ export interface Milestone {
   title: string
   description: string | null
   due_date: string | null
-  is_completed: boolean
+  status: 'pending' | 'completed'
   created_at: string
 }

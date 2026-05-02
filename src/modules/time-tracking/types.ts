@@ -7,8 +7,10 @@ export interface TimeLog {
   end_time: string | null
   duration_minutes: number | null
   is_billable: boolean
+  is_billed?: boolean
+  invoice_id?: string | null
   created_at: string
-  task?: { title: string, project?: { name: string } }
+  task?: { title: string, project?: { id: string, name: string } }
 }
 
 export interface ActiveTimer {

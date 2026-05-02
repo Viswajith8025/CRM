@@ -43,9 +43,10 @@ const statusColors: Record<string, string> = {
 
 interface LeadListProps {
   onEdit: (lead: Lead) => void
+  onViewDetails: (lead: Lead) => void
 }
 
-export function LeadList({ onEdit }: LeadListProps) {
+export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
   const { leads, isLoading, deleteLead } = useCRMStore()
   const [search, setSearch] = useState("")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
@@ -124,7 +125,7 @@ export function LeadList({ onEdit }: LeadListProps) {
               </TableRow>
             ) : (
               filteredLeads.map((lead) => (
-                <TableRow key={lead.id}>
+                <TableRow key={lead.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewDetails(lead)}>
                   <TableCell className="font-medium">
                     {lead.first_name} {lead.last_name}
                     <p className="text-xs text-muted-foreground">{lead.email}</p>
@@ -136,7 +137,7 @@ export function LeadList({ onEdit }: LeadListProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>${lead.value?.toLocaleString() || "0"}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -144,6 +145,9 @@ export function LeadList({ onEdit }: LeadListProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onViewDetails(lead)} className="gap-2">
+                          <Eye className="h-4 w-4" /> View Details
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(lead)} className="gap-2">
                           <Edit2 className="h-4 w-4" /> Edit Lead
                         </DropdownMenuItem>

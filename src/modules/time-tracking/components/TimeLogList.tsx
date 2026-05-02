@@ -88,19 +88,20 @@ export function TimeLogList() {
             <TableHead>Date</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Billable</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                 Loading logs...
               </TableCell>
             </TableRow>
           ) : filteredLogs.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
                 No time logs found.
               </TableCell>
             </TableRow>
@@ -131,6 +132,17 @@ export function TimeLogList() {
                     {log.is_billable ? "Billable" : "Non-Billable"}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  {log.is_billed ? (
+                    <Badge variant="outline" className="text-[10px] uppercase bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+                      Invoiced
+                    </Badge>
+                  ) : log.is_billable ? (
+                    <Badge variant="outline" className="text-[10px] uppercase text-muted-foreground">
+                      Unbilled
+                    </Badge>
+                  ) : null}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     <Button 
@@ -138,6 +150,7 @@ export function TimeLogList() {
                       size="icon"
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => setEditingLog(log)}
+                      disabled={log.is_billed}
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
@@ -147,6 +160,7 @@ export function TimeLogList() {
                           variant="ghost" 
                           size="icon"
                           className="text-rose-500 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          disabled={log.is_billed}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

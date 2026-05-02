@@ -29,22 +29,40 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef, useCallback } from "react"
 import { useTasksStore } from "@/modules/tasks/tasksStore"
 import { useProjectsStore } from "@/modules/projects/projectsStore"
 import { useBillingStore } from "@/modules/billing/billingStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import { useTimeStore } from "@/modules/time-tracking/timeStore"
-import { formatDistanceToNow, subDays, startOfDay, isWithinInterval, format } from "date-fns"
+import { formatDistanceToNow, subDays, startOfDay, isWithinInterval, format, isAfter, isBefore, parseISO } from "date-fns"
 import { toast } from "sonner"
 import Grainient from "@/components/ui/Grainient"
+import { useCRMStore } from "@/modules/crm/crmStore"
+import { useActivityStore } from "@/modules/reports/activityStore"
+import { useState } from "react"
+import { Calendar as CalendarIcon, Filter } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function Dashboard() {
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const [chartReady, setChartReady] = useState(false)
+
   const { tasks, fetchTasks } = useTasksStore()
   const { projects, fetchProjects } = useProjectsStore()
   const { invoices, fetchInvoices } = useBillingStore()
   const { members, fetchMembers } = useTeamStore()
   const { logs, fetchLogs } = useTimeStore()
+  const { leads, fetchLeads } = useCRMStore()
+  const { activities, fetchActivities, subscribeToActivities } = useActivityStore()
+
+  const [filterType, setFilterType] = useState<'all' | 'range'>('all')
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  })
 
   useEffect(() => {
     fetchTasks()
@@ -52,17 +70,72 @@ export default function Dashboard() {
     fetchInvoices()
     fetchMembers()
     fetchLogs()
+    fetchLeads()
+    fetchActivities()
+    
+    const unsubscribe = subscribeToActivities()
+    return () => unsubscribe()
   }, [])
 
-  const stats = useMemo(() => {
-    const activeProjects = projects.filter(p => p.status === 'in_progress').length
-    const overdueTasks = tasks.filter(t => t.status !== 'done' && t.due_date && new Date(t.due_date) < new Date()).length
+  // Defer chart rendering until the container has real dimensions
+  useEffect(() => {
+    const el = chartContainerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          // Add a tiny delay to ensure paint is complete
+          setTimeout(() => setChartReady(true), 50)
+          observer.disconnect()
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
-    // Revenue for current month
-    const now = new Date()
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthlyRevenue = invoices
-      .filter(inv => inv.status === 'paid' && new Date(inv.issued_at) >= monthStart)
+  const filteredData = useMemo(() => {
+    let filteredProjects = projects
+    let filteredTasks = tasks
+    let filteredInvoices = invoices
+
+    if (filterType === 'range' && dateRange.from && dateRange.to) {
+      const from = startOfDay(dateRange.from)
+      const to = new Date(dateRange.to.setHours(23, 59, 59, 999))
+
+      filteredProjects = projects.filter(p => {
+        const date = new Date(p.created_at)
+        return date >= from && date <= to
+      })
+
+      filteredTasks = tasks.filter(t => {
+        const date = new Date(t.created_at)
+        return date >= from && date <= to
+      })
+
+      filteredInvoices = invoices.filter(inv => {
+        const date = new Date(inv.issued_at)
+        return date >= from && date <= to
+      })
+    }
+
+    return { filteredProjects, filteredTasks, filteredInvoices }
+  }, [projects, tasks, invoices, filterType, dateRange])
+
+  const stats = useMemo(() => {
+    const { filteredProjects, filteredTasks, filteredInvoices } = filteredData
+
+    const activeProjects = filteredProjects.filter(p => p.status === 'in_progress').length
+    const overdueTasks = filteredTasks.filter(t => t.status !== 'done' && t.due_date && new Date(t.due_date) < new Date()).length
+
+    // All time revenue (always calculated)
+    const allTimeRevenue = invoices
+      .filter(inv => inv.status === 'paid')
+      .reduce((sum, inv) => sum + Number(inv.amount), 0)
+
+    // Filtered revenue
+    const filteredRevenue = filteredInvoices
+      .filter(inv => inv.status === 'paid')
       .reduce((sum, inv) => sum + Number(inv.amount), 0)
 
     // Utilization: Real logged hours vs capacity (40h/week per member)
@@ -75,9 +148,19 @@ export default function Dashboard() {
 
     return [
       {
-        name: 'Active Projects',
+        name: filterType === 'all' ? 'Total Revenue' : 'Period Revenue',
+        value: `$${filteredRevenue.toLocaleString()}`,
+        change: filterType === 'all' ? 'All time earnings' : 'For selected period',
+        changeType: 'increase',
+        icon: DollarSign,
+        color: 'text-emerald-500',
+        bg: 'bg-emerald-500/10',
+        path: '/billing'
+      },
+      {
+        name: filterType === 'all' ? 'Active Projects' : 'Projects in Period',
         value: activeProjects.toString(),
-        change: `${projects.filter(p => p.status === 'completed').length} completed`,
+        change: `${filteredProjects.filter(p => p.status === 'completed').length} completed`,
         changeType: 'neutral',
         icon: Briefcase,
         color: 'text-blue-500',
@@ -85,7 +168,7 @@ export default function Dashboard() {
         path: '/projects'
       },
       {
-        name: 'Overdue Tasks',
+        name: filterType === 'all' ? 'Overdue Tasks' : 'Tasks in Period',
         value: overdueTasks.toString(),
         change: overdueTasks > 0 ? 'Action required' : 'All clear',
         changeType: overdueTasks > 0 ? 'decrease' : 'increase',
@@ -95,16 +178,6 @@ export default function Dashboard() {
         path: '/tasks'
       },
       {
-        name: 'Revenue (MTD)',
-        value: `$${monthlyRevenue.toLocaleString()}`,
-        change: 'Paid invoices only',
-        changeType: 'increase',
-        icon: DollarSign,
-        color: 'text-emerald-500',
-        bg: 'bg-emerald-500/10',
-        path: '/billing'
-      },
-      {
         name: 'Resource Load',
         value: `${utilization}%`,
         change: `${Math.round(totalMinutes / 60)}h logged / 7d`,
@@ -112,27 +185,42 @@ export default function Dashboard() {
         icon: Clock,
         color: 'text-amber-500',
         bg: 'bg-amber-500/10',
-        path: '/team'
+        path: '/teams'
       },
     ]
-  }, [projects, tasks, invoices, members, logs])
+  }, [filteredData, members, logs, invoices, filterType])
 
   const chartData = useMemo(() => {
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const d = subDays(new Date(), 6 - i)
+    const { filteredInvoices } = filteredData
+    
+    // Determine the date range for the chart
+    let daysCount = 7
+    let startFrom = subDays(new Date(), 6)
+    
+    if (filterType === 'range' && dateRange.from && dateRange.to) {
+      // If range is selected, show data for that range (limit to 30 days for readability)
+      const diffTime = Math.abs(dateRange.to.getTime() - dateRange.from.getTime())
+      daysCount = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1, 30)
+      startFrom = dateRange.from
+    }
+
+    const days = Array.from({ length: daysCount }, (_, i) => {
+      const d = new Date(startFrom)
+      d.setDate(startFrom.getDate() + i)
       return {
         date: d,
-        name: format(d, 'EEE')
+        name: daysCount > 14 ? format(d, 'MMM d') : format(d, 'EEE')
       }
     })
 
     return days.map(day => {
-      const dailyRev = invoices
+      const dailyRev = filteredInvoices
         .filter(inv => {
           const invDate = new Date(inv.issued_at)
           return inv.status === 'paid' &&
             invDate.getDate() === day.date.getDate() &&
-            invDate.getMonth() === day.date.getMonth()
+            invDate.getMonth() === day.date.getMonth() &&
+            invDate.getFullYear() === day.date.getFullYear()
         })
         .reduce((sum, inv) => sum + Number(inv.amount), 0)
 
@@ -141,44 +229,33 @@ export default function Dashboard() {
         revenue: dailyRev
       }
     })
-  }, [invoices])
+  }, [filteredData, filterType, dateRange])
 
   const invoiceMetrics = useMemo(() => {
-    const paid = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + Number(i.amount), 0)
-    const outstanding = invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + Number(i.amount), 0)
+    const { filteredInvoices } = filteredData
+    const paid = filteredInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + Number(i.amount), 0)
+    const outstanding = filteredInvoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + Number(i.amount), 0)
     const total = paid + outstanding
     const paidPercentage = total > 0 ? (paid / total) * 100 : 0
     const outstandingPercentage = total > 0 ? (outstanding / total) * 100 : 0
 
     return { paid, outstanding, paidPercentage, outstandingPercentage }
-  }, [invoices])
+  }, [filteredData])
 
   const recentActivity = useMemo(() => {
-    const taskActivities = tasks.slice(0, 5).map(t => ({
-      id: `task-${t.id}`,
-      user: t.assignee?.full_name || 'System',
-      action: 'updated task',
-      target: t.title,
-      date: new Date(t.updated_at || t.created_at),
-      time: formatDistanceToNow(new Date(t.updated_at || t.created_at), { addSuffix: true })
+    return activities.slice(0, 6).map(activity => ({
+      id: activity.id,
+      user: activity.user?.full_name || 'System',
+      action: activity.action,
+      target: activity.target_name,
+      date: new Date(activity.created_at),
+      time: formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })
     }))
-
-    const projectActivities = projects.slice(0, 5).map(p => ({
-      id: `proj-${p.id}`,
-      user: 'Workspace',
-      action: 'active project',
-      target: p.name,
-      date: new Date(p.created_at),
-      time: formatDistanceToNow(new Date(p.created_at), { addSuffix: true })
-    }))
-
-    return [...taskActivities, ...projectActivities]
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 6)
-  }, [tasks, projects])
+  }, [activities])
 
   const upcomingDeadlines = useMemo(() => {
-    return tasks
+    const { filteredTasks } = filteredData
+    return filteredTasks
       .filter(t => t.status !== 'done' && t.due_date)
       .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())
       .slice(0, 5)
@@ -189,7 +266,7 @@ export default function Dashboard() {
         date: format(new Date(task.due_date!), 'MMM d'),
         status: task.priority
       }))
-  }, [tasks])
+  }, [filteredData])
 
   return (
     <PageWrapper
@@ -204,6 +281,63 @@ export default function Dashboard() {
           color3="#111111"
           timeSpeed={0.15}
         />
+      </div>
+
+      {/* Dashboard Filters */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-card/20 p-4 rounded-2xl border border-border/40 backdrop-blur-sm">
+        <div className="space-y-1">
+          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+            <Filter className="h-3 w-3" />
+            Data Visibility
+          </h2>
+          <p className="text-xs text-muted-foreground font-medium">Toggle between all-time stats or a custom date range.</p>
+        </div>
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Tabs 
+            value={filterType} 
+            onValueChange={(v) => setFilterType(v as 'all' | 'range')}
+            className="w-full sm:w-auto"
+          >
+            <TabsList className="grid w-full grid-cols-2 bg-muted/50 border border-border/50">
+              <TabsTrigger value="all" className="text-xs font-bold uppercase tracking-tight">All Time</TabsTrigger>
+              <TabsTrigger value="range" className="text-xs font-bold uppercase tracking-tight">Date Range</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {filterType === 'range' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 px-3 gap-2 border-border/50 bg-background/50 hover:bg-accent/50">
+                  <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-xs font-bold">
+                    {dateRange.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
+                        </>
+                      ) : (
+                        format(dateRange.from, "LLL dd")
+                      )
+                    ) : (
+                      "Select date"
+                    )}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange.from}
+                  selected={{ from: dateRange.from, to: dateRange.to }}
+                  onSelect={(range: any) => setDateRange(range || { from: undefined, to: undefined })}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -244,46 +378,53 @@ export default function Dashboard() {
             <CardDescription>Daily cash flow from paid invoices over the last 7 days.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                  <XAxis
-                    dataKey="name"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 600 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                    tickFormatter={(v) => `$${v}`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'hsl(var(--card))',
-                      borderColor: 'hsl(var(--border))',
-                      borderRadius: '12px',
-                      boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="revenue"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorRevenue)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div ref={chartContainerRef} className="h-[300px] w-full flex items-center justify-center bg-muted/5">
+              {chartReady ? (
+                <ResponsiveContainer width="99%" height={300} minWidth={0}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 600 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickFormatter={(v) => `$${v}`}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        borderColor: 'hsl(var(--border))',
+                        borderRadius: '12px',
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorRevenue)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Calibrating Chart...</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

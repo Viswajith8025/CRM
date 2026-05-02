@@ -23,6 +23,9 @@ import { ProjectForm } from "../components/ProjectForm"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import MarketingDashboard from "@/modules/marketing/pages/MarketingDashboard"
+
 export default function ProjectsPage() {
   const { projects, fetchProjects, subscribeToProjects, isLoading } = useProjectsStore()
   const [view, setView] = useState<'grid' | 'list'>('grid')
@@ -45,8 +48,8 @@ export default function ProjectsPage() {
 
   return (
     <PageWrapper 
-      title="Projects" 
-      description="Manage and track all your active client projects."
+      title="Projects & Growth" 
+      description="Manage active projects and monitor your marketing performance."
       actions={
         <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
           <Plus className="h-4 w-4" />
@@ -54,81 +57,96 @@ export default function ProjectsPage() {
         </Button>
       }
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
-        <div className="flex flex-1 items-center gap-4 max-w-md">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Search projects..." 
-              className="pl-9" 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="planning">Planning</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="on_hold">On Hold / Archived</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-          <Button 
-            variant={view === 'grid' ? 'secondary' : 'ghost'} 
-            size="sm" 
-            onClick={() => setView('grid')}
-            className="h-8 w-8 p-0"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant={view === 'list' ? 'secondary' : 'ghost'} 
-            size="sm" 
-            onClick={() => setView('list')}
-            className="h-8 w-8 p-0"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <Tabs defaultValue="projects" className="space-y-6">
+        <TabsList className="bg-muted/50 border">
+          <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>
+          <TabsTrigger value="marketing" className="font-bold uppercase tracking-tight text-xs">Marketing Dashboard</TabsTrigger>
+        </TabsList>
 
-      {isLoading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-[250px] rounded-xl bg-muted animate-pulse" />
-          ))}
-        </div>
-      ) : filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
-          <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
-            <Plus className="h-10 w-10 text-muted-foreground" />
+        <TabsContent value="projects" className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+            <div className="flex flex-1 items-center gap-4 max-w-md">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input 
+                  placeholder="Search projects..." 
+                  className="pl-9" 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="planning">Planning</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="on_hold">On Hold / Archived</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+              <Button 
+                variant={view === 'grid' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setView('grid')}
+                className="h-8 w-8 p-0"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant={view === 'list' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setView('list')}
+                className="h-8 w-8 p-0"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <h3 className="text-xl font-bold">No projects found</h3>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            {search || statusFilter !== "all" 
-              ? "Try adjusting your filters to find what you're looking for." 
-              : "Get started by creating your first project and assigning it to a client."}
-          </p>
-        </div>
-      ) : (
-        <div className={cn(
-          view === 'grid' 
-            ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3" 
-            : "flex flex-col gap-4"
-        )}>
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
-          ))}
-        </div>
-      )}
+
+          {isLoading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-[250px] rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
+              <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
+                <Plus className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-xl font-bold">No projects found</h3>
+              <p className="text-muted-foreground max-w-xs mx-auto">
+                {search || statusFilter !== "all" 
+                  ? "Try adjusting your filters to find what you're looking for." 
+                  : "Get started by creating your first project and assigning it to a client."}
+              </p>
+            </div>
+          ) : (
+            <div className={cn(
+              view === 'grid' 
+                ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3" 
+                : "flex flex-col gap-4"
+            )}>
+              {filteredProjects.map((project) => (
+                <ProjectCard key={project.id} project={project} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="marketing">
+          <div className="-mt-12"> {/* Negate PageWrapper padding for sub-dashboard */}
+            <MarketingDashboard />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">

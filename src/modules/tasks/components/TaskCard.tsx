@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { TaskForm } from "./TaskForm"
+import { TaskDetailsDialog } from "./TaskDetailsDialog"
 import { useState } from "react"
 import { useTasksStore } from "../tasksStore"
 import { toast } from "sonner"
@@ -51,6 +52,7 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
   const { deleteTask, updateTask } = useTasksStore()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
   const {
     attributes,
@@ -83,6 +85,7 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
         style={style}
         {...attributes}
         {...listeners}
+        onClick={() => setIsDetailsOpen(true)}
         className={cn(
           "group relative flex flex-col gap-3 rounded-lg border border-border/50 bg-card p-4 shadow-sm transition-all hover:shadow-md cursor-grab active:cursor-grabbing",
           isDragging && "opacity-50 grayscale",
@@ -190,6 +193,12 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TaskDetailsDialog 
+        task={task} 
+        open={isDetailsOpen} 
+        onOpenChange={setIsDetailsOpen} 
+      />
     </>
   )
 }

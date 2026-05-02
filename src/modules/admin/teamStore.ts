@@ -76,17 +76,15 @@ export const useTeamStore = create<TeamState>((set, get) => ({
   },
 
   revokeAccess: async (id) => {
-    // In a real app, this might involve calling an edge function to disable the user in Auth
-    // For now, we'll just remove them from the profiles table or mark as inactive if we had a status
     try {
       const { error } = await supabase
         .from('profiles')
-        .delete()
+        .update({ status: 'denied' })
         .eq('id', id)
 
       if (error) throw error
       set({
-        members: get().members.filter((m) => m.id !== id),
+        members: get().members.map((m) => (m.id === id ? { ...m, status: 'denied' } : m)),
       })
     } catch (error) {
       console.error('Error revoking access:', error)

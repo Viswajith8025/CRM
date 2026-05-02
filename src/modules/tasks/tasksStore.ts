@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import type { Task } from './types'
+import type { Task, Subtask, TaskComment } from './types'
 import { useNotificationsStore } from '@/modules/notifications/notificationsStore'
 import { useActivityStore } from '@/modules/reports/activityStore'
 
@@ -10,6 +10,8 @@ const getTaskCacheKey = (projectId?: string) => projectId ?? 'all'
 
 interface TasksState {
   tasks: Task[]
+  subtasks: Record<string, Subtask[]>
+  comments: Record<string, TaskComment[]>
   isLoading: boolean
   error: string | null
   hasFetched: boolean
@@ -19,10 +21,19 @@ interface TasksState {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   subscribeToTasks: (projectId?: string) => () => void
+
+  fetchSubtasks: (taskId: string) => Promise<void>
+  addSubtask: (subtask: Partial<Subtask>) => Promise<void>
+  updateSubtask: (id: string, updates: Partial<Subtask>) => Promise<void>
+  
+  fetchComments: (taskId: string) => Promise<void>
+  addComment: (comment: Partial<TaskComment>) => Promise<void>
 }
 
 export const useTasksStore = create<TasksState>((set, get) => ({
   tasks: [],
+  subtasks: {},
+  comments: {},
   isLoading: false,
   error: null,
   hasFetched: false,
@@ -31,19 +42,20 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   fetchTasks: async (projectId, force = false) => {
     const cacheKey = getTaskCacheKey(projectId)
     const lastFetchedAt = get().lastFetchedAtByKey[cacheKey]
-    const isFresh = lastFetchedAt !== undefined && Date.now() - lastFetchedAt < CACHE_TTL_MS
-    if (!force && isFresh) return
+    const isFresh = false // Force fresh fetch
+    if (!force && get().hasFetched && isFresh) return
     set({ isLoading: true })
     try {
       let query = supabase
         .from('tasks')
-        .select('*, project:projects(name), assignee:profiles(full_name, avatar_url), comments:task_comments(count)')
+        .select('*')
 
       if (projectId) {
         query = query.eq('project_id', projectId)
       }
 
       const { data, error } = await query.order('created_at', { ascending: false })
+      console.log('Fetch Tasks Debug:', { count: data?.length, error, projectId })
 
       if (error) throw error
       set((state) => ({
@@ -64,9 +76,12 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   addTask: async (task) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const taskWithOrg = { ...task, organization_id: profile?.organization_id }
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert(task)
+        .insert(taskWithOrg)
         .select('*, project:projects(name), assignee:profiles(full_name, avatar_url), comments:task_comments(count)')
         .single()
 
@@ -220,6 +235,114 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
     return () => {
       supabase.removeChannel(channel)
+    }
+  },
+
+  fetchSubtasks: async (taskId) => {
+    try {
+      const { data, error } = await supabase
+        .from('task_subtasks')
+        .select('*')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      set((state) => ({
+        subtasks: { ...state.subtasks, [taskId]: data as Subtask[] }
+      }))
+    } catch (err) {
+      console.error("Failed to fetch subtasks:", err)
+    }
+  },
+
+  addSubtask: async (subtask) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const payload = { ...subtask, organization_id: profile?.organization_id }
+
+      const { data, error } = await supabase
+        .from('task_subtasks')
+        .insert(payload)
+        .select()
+        .single()
+
+      if (error) throw error
+      set((state) => {
+        const existing = state.subtasks[data.task_id] || []
+        return {
+          subtasks: { ...state.subtasks, [data.task_id]: [...existing, data as Subtask] }
+        }
+      })
+    } catch (err) {
+      console.error("Failed to add subtask:", err)
+      throw err
+    }
+  },
+
+  updateSubtask: async (id, updates) => {
+    try {
+      const { data, error } = await supabase
+        .from('task_subtasks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) throw error
+      set((state) => {
+        const taskId = data.task_id
+        const existing = state.subtasks[taskId] || []
+        return {
+          subtasks: {
+            ...state.subtasks,
+            [taskId]: existing.map(s => s.id === id ? data as Subtask : s)
+          }
+        }
+      })
+    } catch (err) {
+      console.error("Failed to update subtask:", err)
+      throw err
+    }
+  },
+
+  fetchComments: async (taskId) => {
+    try {
+      const { data, error } = await supabase
+        .from('task_comments')
+        .select('*, user:profiles(full_name, avatar_url)')
+        .eq('task_id', taskId)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+      set((state) => ({
+        comments: { ...state.comments, [taskId]: data as TaskComment[] }
+      }))
+    } catch (err) {
+      console.error("Failed to fetch comments:", err)
+    }
+  },
+
+  addComment: async (comment) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const payload = { ...comment, organization_id: profile?.organization_id }
+
+      const { data, error } = await supabase
+        .from('task_comments')
+        .insert(payload)
+        .select('*, user:profiles(full_name, avatar_url)')
+        .single()
+
+      if (error) throw error
+      set((state) => {
+        const existing = state.comments[data.task_id] || []
+        return {
+          comments: { ...state.comments, [data.task_id]: [...existing, data as TaskComment] }
+        }
+      })
+    } catch (err) {
+      console.error("Failed to add comment:", err)
+      throw err
     }
   }
 }))

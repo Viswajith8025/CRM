@@ -138,4 +138,11 @@
   .premium-gradient {
     @apply bg-gradient-to-br from-primary via-primary/80 to-primary/60;
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
