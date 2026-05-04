@@ -27,10 +27,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const { data, error } = await supabase
         .from('organization_settings')
         .select('*')
-        .single()
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') throw error
-      set({ settings: data })
+      set({ settings: data || null })
     } catch (error) {
       console.error('Error fetching settings:', error)
     } finally {

@@ -25,7 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useProjectsStore } from "../projectsStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import { toast } from "sonner"
-import { useCRMStore } from "@/modules/crm/crmStore"
+import { useCRMStore } from "@/modules/crm/store/crmStore"
 import type { Project } from "../types"
 
 const formSchema = z.object({
@@ -80,7 +80,12 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
     setIsLoading(true)
     try {
       const { lead_id, member_ids, ...projectData } = values
-      const finalClientId = !projectData.client_id || projectData.client_id === "none" ? null : projectData.client_id
+      let finalClientId = !projectData.client_id || projectData.client_id === "none" ? null : projectData.client_id
+      
+      // Ensure the selected client is a real record (converts lead if needed)
+      if (finalClientId) {
+        finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+      }
       const finalStartDate = !projectData.start_date ? null : projectData.start_date
       const finalEndDate = !projectData.end_date ? null : projectData.end_date
 

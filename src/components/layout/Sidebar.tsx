@@ -50,7 +50,7 @@ export function Sidebar() {
           <div className="h-4 w-4 bg-primary-foreground rounded-sm rotate-45" />
         </div>
         <span className="text-xl font-black tracking-tighter text-foreground">
-          ERP<span className="text-primary">PRO</span>
+          ECRAFTZ
         </span>
       </div>
       <nav className="flex flex-1 flex-col mt-4">

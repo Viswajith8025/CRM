@@ -85,6 +85,7 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
       }
       onSuccess()
     } catch (error) {
+      console.error("Task Save Error:", error)
       toast.error("Failed to save task")
     } finally {
       setIsLoading(false)

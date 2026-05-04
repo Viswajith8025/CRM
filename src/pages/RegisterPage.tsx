@@ -70,7 +70,7 @@ export default function RegisterPage() {
               <div className="h-5 w-5 bg-primary-foreground rounded-sm rotate-45" />
             </div>
             <span className="text-2xl font-black tracking-tighter">
-              ERP<span className="text-primary">PRO</span>
+              ECRAFTZ
             </span>
           </div>
         </div>
@@ -79,7 +79,7 @@ export default function RegisterPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-black">Create an account</CardTitle>
             <CardDescription>
-              Enter your details to get started with ERPPRO.
+              Enter your details to get started with ECRAFTZ.
             </CardDescription>
           </CardHeader>
           <CardContent>

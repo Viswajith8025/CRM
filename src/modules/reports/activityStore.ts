@@ -51,11 +51,15 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      const { useAuthStore } = await import('@/store/useAuthStore')
+      const profile = useAuthStore.getState().profile
+
       const { error } = await supabase
         .from('activities')
         .insert({
           ...activity,
-          user_id: user.id
+          user_id: user.id,
+          organization_id: profile?.organization_id
         })
       
       if (error) throw error
@@ -66,7 +70,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
   subscribeToActivities: () => {
     const channel = supabase
-      .channel('activities-realtime')
+      .channel(`activities-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'activities' },

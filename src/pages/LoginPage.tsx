@@ -58,7 +58,7 @@ export default function LoginPage() {
               <div className="h-5 w-5 bg-primary-foreground rounded-sm rotate-45" />
             </div>
             <span className="text-2xl font-black tracking-tighter">
-              ERP<span className="text-primary">PRO</span>
+              ECRAFTZ
             </span>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-black">Sign in</CardTitle>
             <CardDescription>
-              Enter your email and password to access your ERP dashboard.
+              Enter your email and password to access your ECRAFTZ dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -87,23 +87,12 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Button 
-                    variant="link" 
-                    className="px-0 font-bold text-xs" 
-                    type="button"
-                    onClick={async () => {
-                      if (!email) return toast.error("Please enter your email address first.")
-                      try {
-                        const { error } = await supabase.auth.resetPasswordForEmail(email)
-                        if (error) throw error
-                        toast.success("Password reset link sent to your email.")
-                      } catch (error: any) {
-                        toast.error(error.message || "Failed to send reset link.")
-                      }
-                    }}
+                  <Link 
+                    to="/forgot-password"
+                    className="text-xs font-bold text-primary hover:underline transition-all"
                   >
                     Forgot password?
-                  </Button>
+                  </Link>
                 </div>
                 <Input 
                   id="password" 

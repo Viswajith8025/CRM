@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Contact as Lead } from "../types"
-import { useCRMStore } from "../crmStore"
+import { useCRMStore } from "../store/crmStore"
 import { toast } from "sonner"
 
 const formSchema = z.object({

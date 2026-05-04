@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import { useActivityStore } from '@/modules/reports/activityStore'
+import { logActivity } from '@/lib/auditLogger'
+import { notificationService } from '@/lib/notificationService'
 import type { Invoice, Payment } from './types'
 
 interface BillingState {
@@ -33,7 +34,8 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   lastFetchedAt: null,
 
   fetchInvoices: async (force = false) => {
-    if (!force && get().hasFetched) return;
+    const isFresh = false // Force fresh fetch
+    if (!force && get().hasFetched && isFresh) return
     set({ isLoading: true })
     try {
       const { data, error } = await supabase
@@ -63,13 +65,17 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       if (error) throw error
       
-      // Log Activity
-      useActivityStore.getState().logActivity({
-        action: 'issued invoice',
-        target_type: 'invoice',
-        target_name: data.invoice_number,
-        target_id: data.id
+      // Audit Log
+      logActivity({
+        action: 'CREATE',
+        targetType: 'invoice',
+        targetId: data.id,
+        targetName: data.invoice_number,
+        description: `Issued new invoice for $${data.amount.toLocaleString()}`
       })
+
+      // Trigger Notification
+      notificationService.notifyInvoiceCreated(data.id, data.invoice_number, data.amount)
 
       set({ invoices: [data as Invoice, ...get().invoices] })
     } catch (err) {
@@ -89,6 +95,16 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .single()
 
       if (error) throw error
+
+      // Audit Log
+      logActivity({
+        action: 'STATUS_CHANGE',
+        targetType: 'invoice',
+        targetId: id,
+        targetName: data.invoice_number,
+        description: `Invoice status changed to ${status}`
+      })
+
       set({
         invoices: get().invoices.map((inv) => (inv.id === id ? (data as Invoice) : inv))
       })
@@ -125,13 +141,48 @@ export const useBillingStore = create<BillingState>((set, get) => ({
     set({ invoices: previousInvoices.filter(i => i.id !== id) })
 
     try {
-      const { error } = await supabase.from('invoices').delete().eq('id', id)
+      const { error } = await supabase
+        .from('invoices')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
       if (error) throw error
+
+      logActivity({
+        action: 'DELETE',
+        targetType: 'invoice',
+        targetId: id,
+        targetName: 'Invoice',
+        description: `Soft deleted invoice`
+      })
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to delete invoice.")
       // Rollback
       set({ invoices: previousInvoices, error: friendlyError.message })
       throw friendlyError
+    }
+  },
+
+  restoreInvoice: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      get().fetchInvoices(true)
+
+      logActivity({
+        action: 'UPDATE',
+        targetType: 'invoice',
+        targetId: id,
+        targetName: 'Restored Invoice',
+        description: `Restored a previously deleted invoice`
+      })
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to restore invoice.")
     }
   },
 
@@ -147,13 +198,17 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (payment.invoice_id) {
         await get().updateInvoiceStatus(payment.invoice_id, 'paid')
         
-        // Log Activity
-        useActivityStore.getState().logActivity({
-          action: 'recorded payment',
-          target_type: 'billing',
-          target_name: `Payment of $${payment.amount}`,
-          target_id: payment.invoice_id
+        // Audit Log
+        logActivity({
+          action: 'PAYMENT',
+          targetType: 'invoice',
+          targetId: payment.invoice_id,
+          targetName: `Payment Recieved`,
+          description: `Recorded payment of $${payment.amount}`
         })
+
+        // Trigger Notification
+        notificationService.notifyPaymentReceived(payment.invoice_id, payment.amount!)
       }
     } catch (err) {
       const friendlyError = toFriendlyError(err, "Failed to record payment.")
@@ -227,7 +282,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       await get().addInvoice(newInvoice)
       
       // 3. Update proposal status
-      const { useCRMStore } = await import('@/modules/crm/crmStore')
+      const { useCRMStore } = await import('@/modules/crm/store/crmStore')
       await useCRMStore.getState().updateProposal(proposalId, { status: 'accepted' })
       
       return true

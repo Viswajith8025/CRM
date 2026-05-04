@@ -21,11 +21,28 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Sidebar } from "./Sidebar"
+import { useNotificationsStore } from "@/modules/notifications/notificationsStore"
+import { useEffect } from "react"
+import { GlobalSearch } from "../GlobalSearch"
 
 export function Navbar() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { user, profile, signOut } = useAuthStore()
+  const { 
+    notifications, 
+    unreadCount, 
+    fetchNotifications, 
+    subscribeToNotifications,
+    markAsRead,
+    markAllAsRead 
+  } = useNotificationsStore()
+
+  useEffect(() => {
+    fetchNotifications()
+    const unsubscribe = subscribeToNotifications()
+    return () => unsubscribe()
+  }, [])
 
   return (
     <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-border bg-background/80 backdrop-blur-md px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
@@ -51,23 +68,9 @@ export function Navbar() {
       {/* Separator */}
       <div className="h-6 w-px bg-border lg:hidden" aria-hidden="true" />
 
-      <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-        <form className="relative flex flex-1" action="#" method="GET">
-          <label htmlFor="search-field" className="sr-only">
-            Search
-          </label>
-          <Search
-            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-muted-foreground ml-2"
-            aria-hidden="true"
-          />
-          <input
-            id="search-field"
-            className="block h-full w-full border-0 py-0 pl-10 pr-0 text-foreground placeholder:text-muted-foreground focus:ring-0 sm:text-sm bg-transparent"
-            placeholder="Search..."
-            type="search"
-            name="search"
-          />
-        </form>
+        <div className="flex flex-1 items-center gap-x-4 self-stretch lg:gap-x-6">
+          <GlobalSearch />
+        </div>
         <div className="flex items-center gap-x-4 lg:gap-x-6">
           <Button
             variant="ghost"
@@ -85,50 +88,71 @@ export function Navbar() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-2 right-2 h-4 w-4 rounded-full bg-destructive text-[10px] font-bold text-white flex items-center justify-center border-2 border-background">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel className="flex items-center justify-between">
                 Notifications
-                <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded">3 New</span>
+                <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                  {unreadCount} New
+                </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-[300px] overflow-y-auto">
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-4 cursor-pointer">
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <p className="text-sm font-bold">New Task Assigned</p>
-                    <span className="text-[10px] text-muted-foreground ml-auto">2m ago</span>
+              <div className="max-h-[350px] overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <Bell className="h-8 w-8 mx-auto text-muted-foreground/20 mb-2" />
+                    <p className="text-xs text-muted-foreground">No notifications yet</p>
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">You have been assigned to "Frontend Optimization" for Project Alpha.</p>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-4 cursor-pointer">
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                    <p className="text-sm font-bold">Invoice Paid</p>
-                    <span className="text-[10px] text-muted-foreground ml-auto">1h ago</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">Invoice #INV-9284 for $1,200 has been marked as paid by Client X.</p>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="flex flex-col items-start gap-1 p-4 cursor-pointer">
-                  <div className="flex items-center gap-2 w-full">
-                    <div className="h-2 w-2 rounded-full bg-rose-500" />
-                    <p className="text-sm font-bold">System Alert</p>
-                    <span className="text-[10px] text-muted-foreground ml-auto">3h ago</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">Database maintenance scheduled for 2:00 AM UTC tomorrow.</p>
-                </DropdownMenuItem>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n.id}>
+                      <DropdownMenuItem 
+                        onClick={() => markAsRead(n.id)}
+                        className={`flex flex-col items-start gap-1 p-4 cursor-pointer focus:bg-accent/50 ${!n.is_read ? 'bg-primary/[0.03]' : ''}`}
+                      >
+                        <div className="flex items-center gap-2 w-full">
+                          <div className={`h-2 w-2 rounded-full ${
+                            n.type === 'assignment' ? 'bg-blue-500' : 
+                            n.type === 'billing' ? 'bg-emerald-500' : 
+                            n.type === 'system' ? 'bg-rose-500' : 'bg-primary'
+                          }`} />
+                          <p className={`text-sm ${!n.is_read ? 'font-bold' : 'font-medium'}`}>{n.title}</p>
+                          <span className="text-[10px] text-muted-foreground ml-auto">
+                            {new Date(n.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{n.description}</p>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </div>
+                  ))
+                )}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => navigate("/notifications")}
-                className="justify-center text-xs font-bold text-primary cursor-pointer hover:bg-primary/5"
-              >
-                View All Notifications
-              </DropdownMenuItem>
+              <div className="p-2 flex items-center justify-between">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-[10px] h-7 px-2"
+                  onClick={() => markAllAsRead()}
+                >
+                  Mark all as read
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-[10px] h-7 px-2 text-primary hover:text-primary"
+                  onClick={() => navigate("/notifications")}
+                >
+                  View All
+                </Button>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -174,6 +198,5 @@ export function Navbar() {
           </DropdownMenu>
         </div>
       </div>
-    </div>
   )
 }

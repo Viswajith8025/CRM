@@ -29,7 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useBillingStore } from "../billingStore"
 import { useProjectsStore } from "@/modules/projects/projectsStore"
-import { useCRMStore } from "@/modules/crm/crmStore"
+import { useCRMStore } from "@/modules/crm/store/crmStore"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 import type { Invoice } from "../types"
@@ -87,8 +87,15 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
+    console.log('Submitting Invoice - Selected Client:', values.client_id)
     try {
-      const finalClientId = values.client_id
+      let finalClientId = values.client_id
+      
+      // Ensure the selected client is a real record (converts lead if needed)
+      if (finalClientId && finalClientId !== "none") {
+        finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+      }
+      console.log('Final Client ID after conversion:', finalClientId)
       const taxRate = values.tax_rate || 0
       const taxAmount = (values.amount * taxRate) / 100
 
@@ -228,7 +235,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Bill To</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder="Select client..." />
@@ -240,6 +247,14 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                             {realClients.map(client => (
                               <SelectItem key={client.id} value={client.id}>
                                 {client.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                          <SelectGroup>
+                            <SelectLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Won Leads (to be converted)</SelectLabel>
+                            {clients.filter(c => c.isVirtual).map(client => (
+                              <SelectItem key={client.id} value={client.id}>
+                                {client.name} (Lead)
                               </SelectItem>
                             ))}
                           </SelectGroup>
@@ -256,21 +271,28 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Project Link</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select 
+                        onValueChange={(val) => {
+                          field.onChange(val)
+                          // Auto-fill client if project is selected
+                          const selectedProject = projects.find(p => p.id === val)
+                          if (selectedProject?.client_id) {
+                            form.setValue('client_id', selectedProject.client_id)
+                          }
+                        }} 
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder="Select a project" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {projects
-                            .filter(p => p.client_id === form.watch('client_id'))
-                            .map(project => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.name}
-                              </SelectItem>
-                            ))
-                          }
+                          {projects.map(project => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

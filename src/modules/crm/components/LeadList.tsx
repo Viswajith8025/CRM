@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye } from "lucide-react"
-import { useCRMStore } from "../crmStore"
+import { useCRMStore } from "../store/crmStore"
 import type { Contact as Lead } from "../types"
 import {
   AlertDialog,

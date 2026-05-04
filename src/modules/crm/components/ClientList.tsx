@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, MoreHorizontal, FileText, Send } from "lucide-react"
-import { useCRMStore } from "../crmStore"
+import { useCRMStore } from "../store/crmStore"
 import type { Client } from "../types"
 import {
   AlertDialog,

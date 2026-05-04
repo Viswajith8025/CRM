@@ -130,9 +130,17 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   addNotification: async (notification) => {
     try {
+      const { useAuthStore } = await import('@/store/useAuthStore')
+      const profile = useAuthStore.getState().profile
+      
+      const payload = { 
+        ...notification, 
+        organization_id: profile?.organization_id 
+      }
+
       const { error } = await supabase
         .from('notifications')
-        .insert(notification)
+        .insert(payload)
       
       if (error) throw error
     } catch (err) {
@@ -141,8 +149,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   subscribeToNotifications: () => {
+    const channelName = `notifications-${Date.now()}`
     const channel = supabase
-      .channel('notifications-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'notifications' },

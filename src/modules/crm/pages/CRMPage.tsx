@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { LeadList } from "../components/LeadList"
 import { LeadForm } from "../components/LeadForm"
-import { useCRMStore } from "../crmStore"
+import { useCRMStore } from "../store/crmStore"
 import { Users } from "lucide-react"
 import {
   Dialog,

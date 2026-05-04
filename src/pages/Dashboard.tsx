@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   XAxis,
   YAxis,
@@ -37,14 +38,17 @@ import { useTeamStore } from "@/modules/admin/teamStore"
 import { useTimeStore } from "@/modules/time-tracking/timeStore"
 import { formatDistanceToNow, subDays, startOfDay, isWithinInterval, format, isAfter, isBefore, parseISO } from "date-fns"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
 import Grainient from "@/components/ui/Grainient"
-import { useCRMStore } from "@/modules/crm/crmStore"
+import { useCRMStore } from "@/modules/crm/store/crmStore"
 import { useActivityStore } from "@/modules/reports/activityStore"
 import { useState } from "react"
 import { Calendar as CalendarIcon, Filter } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DashboardGrid } from "@/modules/dashboard/components/DashboardGrid"
+import { useDashboardStore } from "@/modules/dashboard/dashboardStore"
 
 export default function Dashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -340,199 +344,59 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card
+      {/* Top Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {stats.map((stat, i) => (
+          <motion.div
             key={stat.name}
-            className="group overflow-hidden transition-all duration-300 hover:shadow-premium-hover hover:-translate-y-1 border-border/50 bg-card/50 cursor-pointer active:scale-95"
-            onClick={() => window.location.href = stat.path}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
           >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className={cn(stat.bg, "p-3 rounded-xl transition-transform group-hover:scale-110")}>
-                  <stat.icon className={cn("h-6 w-6", stat.color)} />
+            <Card className="bg-card/40 border-border/40 backdrop-blur-md hover:border-primary/50 transition-all group">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={cn("p-2 rounded-lg", stat.bg)}>
+                    <stat.icon className={cn("h-5 w-5", stat.color)} />
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+                      {stat.change}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] mt-1 border-primary/20 bg-primary/5 text-primary">
+                      {stat.name === 'Overdue Tasks' && stat.value !== '0' ? 'ACTION REQUIRED' : 'STABLE'}
+                    </Badge>
+                  </div>
                 </div>
-                <div className={cn(
-                  "text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter",
-                  stat.changeType === 'increase' ? 'bg-emerald-500/10 text-emerald-500' :
-                    stat.changeType === 'decrease' ? 'bg-rose-500/10 text-rose-500' : 'bg-muted text-muted-foreground'
-                )}>
-                  {stat.change}
+                <div className="space-y-1">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    {stat.name}
+                  </h3>
+                  <div className="text-3xl font-black tracking-tighter">
+                    {stat.value}
+                  </div>
                 </div>
-              </div>
-              <div className="mt-5">
-                <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">{stat.name}</p>
-                <h3 className="text-3xl font-black tracking-tighter mt-1">{stat.value}</h3>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-7">
-        {/* Revenue Chart */}
-        <Card className="lg:col-span-4 border-border/50 bg-card/30">
-          <CardHeader>
-            <CardTitle className="text-lg">Weekly Revenue Velocity</CardTitle>
-            <CardDescription>Daily cash flow from paid invoices over the last 7 days.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div ref={chartContainerRef} className="h-[300px] w-full flex items-center justify-center bg-muted/5">
-              {chartReady ? (
-                <ResponsiveContainer width="99%" height={300} minWidth={0}>
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11, fontWeight: 600 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                      tickFormatter={(v) => `$${v}`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        borderColor: 'hsl(var(--border))',
-                        borderRadius: '12px',
-                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="revenue"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#colorRevenue)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter">Calibrating Chart...</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="lg:col-span-3 border-border/50">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Workspace Activity</CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs font-bold uppercase tracking-tight"
-                onClick={() => window.location.href = '/reports'}
-              >
-                Full Reports
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-4">
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Clock className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-medium leading-tight">
-                      <span className="font-bold text-foreground">{activity.user}</span>{' '}
-                      <span className="text-muted-foreground">{activity.action}</span>{' '}
-                      <span className="text-primary font-semibold">{activity.target}</span>
-                    </p>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming Deadlines */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg">Critical Deadlines</CardTitle>
-            <CardDescription>Upcoming project milestones and task due dates.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {upcomingDeadlines.length === 0 ? (
-                <div className="p-8 text-center text-muted-foreground font-medium border-2 border-dashed rounded-xl">
-                  No upcoming deadlines found.
-                </div>
-              ) : (
-                upcomingDeadlines.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer group"
-                    onClick={() => window.location.href = `/projects/${item.id}`} // Or task detail if implemented
-                  >
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-bold tracking-tight">{item.task}</p>
-                      <p className="text-xs text-muted-foreground font-medium">{item.project}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">{item.date}</p>
-                      <div className={cn("h-2 w-2 rounded-full",
-                        item.status === 'high' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]' :
-                          item.status === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'
-                      )} />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Invoice Status */}
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-lg">Cash Flow Health</CardTitle>
-            <CardDescription>Comparison of collected vs outstanding revenue.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6 pt-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Collected</span>
-                <span className="text-sm font-black text-emerald-500 tracking-tighter">${invoiceMetrics.paid.toLocaleString()}</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-3 overflow-hidden border border-border/50">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${invoiceMetrics.paidPercentage}%` }}></div>
-              </div>
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Outstanding</span>
-                <span className="text-sm font-black text-rose-500 tracking-tighter">${invoiceMetrics.outstanding.toLocaleString()}</span>
-              </div>
-              <div className="w-full bg-muted rounded-full h-3 overflow-hidden border border-border/50">
-                <div className="bg-rose-500 h-full rounded-full transition-all duration-1000" style={{ width: `${invoiceMetrics.outstandingPercentage}%` }}></div>
-              </div>
-            </div>
-            <div className="pt-4 p-4 rounded-xl bg-accent/30 border border-border/50">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 text-center">Collection Efficiency</p>
-              <p className="text-2xl font-black text-center tracking-tighter">{Math.round(invoiceMetrics.paidPercentage)}%</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Customizable Widget Grid */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <Plus className="h-3 w-3" />
+              Dynamic Workspace
+            </h3>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase">Personalize your command center layout.</p>
+          </div>
+          <Button variant="ghost" size="sm" className="h-8 text-[10px] font-black uppercase border-border/50 bg-background/30" onClick={() => useDashboardStore.getState().resetLayout()}>
+            Reset Default Layout
+          </Button>
+        </div>
+        <DashboardGrid />
       </div>
     </PageWrapper>
   )

@@ -28,6 +28,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog"
 import { TaskForm } from "./TaskForm"
 import { TaskDetailsDialog } from "./TaskDetailsDialog"
@@ -138,15 +139,31 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
           </div>
         </div>
 
-        <div className="space-y-1">
-          <h4 className="text-sm font-bold leading-tight group-hover:text-primary transition-colors">
-            {task.title}
-          </h4>
-          {task.project && (
-            <p className="text-[10px] font-medium text-muted-foreground uppercase">
-              {task.project.name}
-            </p>
-          )}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-sm font-bold leading-tight group-hover:text-primary transition-colors line-clamp-2">
+              {task.title}
+            </h4>
+          </div>
+          
+          <div className="flex flex-col gap-1">
+            {task.project && (
+              <div className="flex items-center gap-1.5">
+                <span className="h-1 w-1 rounded-full bg-primary" />
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight truncate">
+                  {task.project.name}
+                </p>
+              </div>
+            )}
+            
+            {task.assignee && (
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  Lead: <span className="text-foreground font-bold">{task.assignee.full_name}</span>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
@@ -172,6 +189,9 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
+            <DialogDescription>
+              Update the details of this task.
+            </DialogDescription>
           </DialogHeader>
           <TaskForm task={task} onSuccess={() => setIsEditOpen(false)} />
         </DialogContent>

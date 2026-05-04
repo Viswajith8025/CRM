@@ -5,11 +5,14 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { Toaster } from '@/components/ui/sonner'
 import Dashboard from '@/pages/Dashboard'
 import LoginPage from '@/pages/LoginPage'
 import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
+import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/ResetPasswordPage'
 
 import CRMPage from '@/modules/crm/pages/CRMPage'
 import ClientsPage from '@/modules/crm/pages/ClientsPage'
@@ -51,59 +54,63 @@ function App() {
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="erp-theme">
-      <Router>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+      <ErrorBoundary module="ECRAFTZ Platform">
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Standard Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<DashboardLayout children={<Outlet />} />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/teams" element={<TeamPage />} />
-              <Route path="/hr" element={<HRDashboard />} />
-              <Route path="/support" element={<SupportDashboard />} />
-              <Route path="/support/tickets/:id" element={<TicketDetailPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/crm" element={<CRMPage />} />
-              <Route path="/clients" element={<ClientsPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/:id" element={<ProjectDetailPage />} />
-              <Route path="/time-tracking" element={<TimeTrackingPage />} />
-              <Route path="/billing" element={<BillingPage />} />
-              <Route path="/billing/:id" element={<InvoiceDetail />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
+            {/* Standard Protected Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/" element={<ErrorBoundary module="Dashboard"><Dashboard /></ErrorBoundary>} />
+                <Route path="/teams" element={<ErrorBoundary module="Teams"><TeamPage /></ErrorBoundary>} />
+                <Route path="/hr" element={<ErrorBoundary module="HR"><HRDashboard /></ErrorBoundary>} />
+                <Route path="/support" element={<ErrorBoundary module="Support"><SupportDashboard /></ErrorBoundary>} />
+                <Route path="/support/tickets/:id" element={<ErrorBoundary module="Ticket Details"><TicketDetailPage /></ErrorBoundary>} />
+                <Route path="/tasks" element={<ErrorBoundary module="Tasks"><TasksPage /></ErrorBoundary>} />
+                <Route path="/crm" element={<ErrorBoundary module="CRM"><CRMPage /></ErrorBoundary>} />
+                <Route path="/clients" element={<ErrorBoundary module="Clients"><ClientsPage /></ErrorBoundary>} />
+                <Route path="/projects" element={<ErrorBoundary module="Projects"><ProjectsPage /></ErrorBoundary>} />
+                <Route path="/projects/:id" element={<ErrorBoundary module="Project Details"><ProjectDetailPage /></ErrorBoundary>} />
+                <Route path="/time-tracking" element={<ErrorBoundary module="Time Tracking"><TimeTrackingPage /></ErrorBoundary>} />
+                <Route path="/billing" element={<ErrorBoundary module="Billing"><BillingPage /></ErrorBoundary>} />
+                <Route path="/billing/:id" element={<ErrorBoundary module="Invoice Details"><InvoiceDetail /></ErrorBoundary>} />
+                <Route path="/profile" element={<ErrorBoundary module="Profile"><ProfilePage /></ErrorBoundary>} />
+                <Route path="/notifications" element={<ErrorBoundary module="Notifications"><NotificationsPage /></ErrorBoundary>} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Manager & Admin Only Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
-            <Route element={<DashboardLayout children={<Outlet />} />}>
-              <Route path="/reports" element={<ReportsPage />} />
+            {/* Manager & Admin Only Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Admin Only Routes */}
-          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-            <Route element={<DashboardLayout children={<Outlet />} />}>
-              <Route path="/settings" element={<SettingsPage />} />
+            {/* Admin Only Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/settings" element={<ErrorBoundary module="Settings"><SettingsPage /></ErrorBoundary>} />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Client Portal Routes */}
-          <Route path="/portal" element={<ClientLayout />}>
-            <Route index element={<ClientDashboard />} />
-            <Route path="projects" element={<ClientProjects />} />
-            <Route path="invoices" element={<ClientInvoices />} />
-          </Route>
+            {/* Client Portal Routes */}
+            <Route path="/portal" element={<ClientLayout />}>
+              <Route index element={<ErrorBoundary module="Client Portal"><ClientDashboard /></ErrorBoundary>} />
+              <Route path="projects" element={<ErrorBoundary module="Client Projects"><ClientProjects /></ErrorBoundary>} />
+              <Route path="invoices" element={<ErrorBoundary module="Client Invoices"><ClientInvoices /></ErrorBoundary>} />
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        <Toaster />
-      </Router>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <Toaster />
+        </Router>
+      </ErrorBoundary>
     </ThemeProvider>
   )
 }

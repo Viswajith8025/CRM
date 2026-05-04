@@ -14,7 +14,8 @@ import {
   Trash2,
   Plus,
   Clock,
-  FileText
+  FileText,
+  Paperclip
 } from "lucide-react"
 import {
   AlertDialog,
@@ -49,6 +50,8 @@ import { cn } from "@/lib/utils"
 import type { Project, Milestone } from "../types"
 import { MilestoneForm } from "../components/MilestoneForm"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
+import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 
 function LoadingState() {
   return (
@@ -211,11 +214,12 @@ export default function ProjectDetailPage() {
           </div>
 
           <Tabs defaultValue="milestones">
-            <TabsList className="grid grid-cols-4 w-full">
+            <TabsList className="grid grid-cols-5 w-full">
               <TabsTrigger value="milestones">Roadmap</TabsTrigger>
               <TabsTrigger value="sprints">Sprints</TabsTrigger>
               <TabsTrigger value="tasks">Backlog</TabsTrigger>
               <TabsTrigger value="team">Resource</TabsTrigger>
+              <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
             
             <TabsContent value="milestones" className="space-y-4 pt-4">
@@ -417,6 +421,25 @@ export default function ProjectDetailPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="documents" className="space-y-6 pt-4">
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Assets</h4>
+                <FileUploadZone 
+                  relatedId={project.id}
+                  relatedType="project"
+                  bucket="documents"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Files</h4>
+                <AttachmentList 
+                  relatedId={project.id}
+                  relatedType="project"
+                />
               </div>
             </TabsContent>
           </Tabs>

@@ -2,12 +2,14 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { Printer, Download, ArrowLeft, Mail } from "lucide-react"
+import { Printer, Download, ArrowLeft, Mail, Paperclip } from "lucide-react"
 import { useBillingStore } from "../billingStore"
 import type { Invoice } from "../types"
 import { LoadingState } from "@/components/shared/LoadingState"
 import { format } from "date-fns"
 import { Separator } from "@/components/ui/separator"
+import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
+import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 import {
   Table,
   TableBody,
@@ -17,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "sonner"
+
+import { ProfessionalInvoice } from "../components/ProfessionalInvoice"
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
@@ -57,11 +61,38 @@ export default function InvoiceDetail() {
     }
   }
 
+  const invoiceData = {
+    invoice_number: invoice.invoice_number,
+    issued_at: invoice.issued_at,
+    due_date: invoice.due_date,
+    status: invoice.status as any,
+    currency: 'INR',
+    items: [
+      {
+        id: '1',
+        description: invoice.project?.name || "IT Services & Consulting",
+        quantity: 1,
+        rate: invoice.amount,
+        taxRate: invoice.tax_rate || 0
+      }
+    ],
+    client: {
+      name: invoice.client?.name || 'Unknown Client',
+      email: invoice.client?.email || '',
+      address: invoice.client?.address
+    },
+    project: {
+      name: invoice.project?.name || 'General Project',
+      service_type: 'Software Development',
+      billing_type: invoice.is_recurring ? 'Subscription' : 'Fixed Rate'
+    }
+  };
+
   return (
     <PageWrapper 
       title={`Invoice ${invoice.invoice_number}`} 
       description="Review and manage invoice details."
-      className="max-w-4xl mx-auto print:p-0"
+      className="max-w-6xl mx-auto print:p-0"
       actions={
         <div className="flex gap-2 print:hidden">
           <Button variant="outline" onClick={() => navigate('/billing')}>
@@ -73,6 +104,18 @@ export default function InvoiceDetail() {
             Print
           </Button>
           <Button 
+            variant="outline" 
+            onClick={() => {
+              import('@/lib/exportUtils').then(({ exportInvoiceToPDF }) => {
+                exportInvoiceToPDF(invoice)
+                toast.success('Invoice exported to PDF successfully.')
+              })
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
+          <Button 
             onClick={handleSendToClient} 
             disabled={isSending || invoice.status === 'sent' || invoice.status === 'paid'}
           >
@@ -82,93 +125,32 @@ export default function InvoiceDetail() {
         </div>
       }
     >
-      <div className="bg-card p-8 sm:p-12 border rounded-xl shadow-sm print:border-0 print:shadow-none overflow-hidden relative">
-        {/* PDF Ready Layout */}
-        <div className="flex flex-col gap-8">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-3xl font-bold text-primary">ERP PRO</h2>
-              <p className="text-muted-foreground mt-2">
-                123 Business Avenue<br />
-                Silicon Valley, CA 94025<br />
-                United States
-              </p>
-            </div>
-            <div className="text-right">
-              <h1 className="text-4xl font-black text-muted/20 absolute top-4 right-4">INVOICE</h1>
-              <div className="space-y-1">
-                <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Invoice Number</p>
-                <p className="text-xl font-mono font-bold">{invoice.invoice_number}</p>
-              </div>
-            </div>
+      <ProfessionalInvoice data={invoiceData} />
+      
+      <div className="mt-12 space-y-8 print:hidden">
+        <Separator />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <Paperclip className="h-5 w-5 text-primary" />
+              Invoice Documents
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Attach signed contracts, payment receipts, or other supporting documents for this invoice.
+            </p>
+            <FileUploadZone 
+              relatedId={invoice.id}
+              relatedType="invoice"
+              bucket="invoices"
+            />
           </div>
-
-          <Separator />
-
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <p className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">Billed To</p>
-              <p className="text-lg font-bold">{invoice.client?.name}</p>
-              <p className="text-muted-foreground">
-                {invoice.client?.email}<br />
-                {invoice.client?.address || "No address provided"}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <span className="text-muted-foreground font-medium">Issue Date:</span>
-                <span className="font-bold">{format(new Date(invoice.issued_at), 'MMM d, yyyy')}</span>
-                <span className="text-muted-foreground font-medium">Due Date:</span>
-                <span className="font-bold">{format(new Date(invoice.due_date), 'MMM d, yyyy')}</span>
-                <span className="text-muted-foreground font-medium">Project:</span>
-                <span className="font-bold">{invoice.project?.name || "N/A"}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[60%]">Description</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>
-                    <p className="font-bold">{invoice.project?.name || "Service Implementation"}</p>
-                    <p className="text-sm text-muted-foreground">Development and IT Services for the period ending {format(new Date(invoice.issued_at), 'MMMM yyyy')}</p>
-                  </TableCell>
-                  <TableCell className="text-right text-lg font-bold">
-                    ${invoice.amount.toLocaleString()}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="flex justify-end mt-8">
-            <div className="w-64 space-y-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal:</span>
-                <span className="font-bold">${invoice.amount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax (0%):</span>
-                <span className="font-bold">$0.00</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-xl font-black">
-                <span>Total:</span>
-                <span className="text-primary">${invoice.amount.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-20 pt-8 border-t text-center text-xs text-muted-foreground">
-            <p>Thank you for your business! Please pay by the due date to avoid service interruption.</p>
-            <p className="mt-2">ERP Pro - IT Services & Consulting</p>
+          
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold">Related Files</h3>
+            <AttachmentList 
+              relatedId={invoice.id}
+              relatedType="invoice"
+            />
           </div>
         </div>
       </div>

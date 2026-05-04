@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
 import { useTasksStore } from '@/modules/tasks/tasksStore'
-import { useActivityStore } from '@/modules/reports/activityStore'
+import { logActivity } from '@/lib/auditLogger'
+import { notificationService } from '@/lib/notificationService'
 import type { Project, Milestone } from './types'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
@@ -61,18 +62,22 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .select(`
           *,
           client:clients(name),
-          tasks:tasks(id, status, assigned_to:profiles!assigned_to(id, full_name, avatar_url)),
-          members:project_members(user_id, role, profiles(full_name, email))
+          tasks(*, assignee:profiles!assigned_to(id, full_name, email, avatar_url)),
+          members:project_members(role, user_id, profiles(full_name, email))
         `)
         .order('created_at', { ascending: false })
 
+      console.log('Fetch Projects - Data:', data, 'Error:', error)
       if (error) throw error
 
       const projectsWithStats = (data as any[]).map(project => {
         // Extract unique team members from tasks
         const teamMap = new Map()
         project.tasks?.forEach((t: any) => {
-          if (t.assigned_to) {
+          // The query returns the joined profile as 'assignee'
+          if (t.assignee) {
+            teamMap.set(t.assignee.id, t.assignee)
+          } else if (t.assigned_to && typeof t.assigned_to === 'object') {
             teamMap.set(t.assigned_to.id, t.assigned_to)
           }
         })
@@ -85,13 +90,32 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           email: leadMember.profiles?.email
         } : undefined
 
+        const totalTasks = project.tasks?.length || 0
+        const completedTasks = project.tasks?.filter((t: any) => t.status === 'done').length || 0
+        const inProgressTasks = project.tasks?.filter((t: any) => t.status === 'in_progress' || t.status === 'review').length || 0
+
+        // Dynamic Status Calculation
+        let dynamicStatus = project.status
+        if (project.status !== 'on_hold' && project.status !== 'cancelled') {
+          if (totalTasks === 0) {
+            dynamicStatus = 'planning'
+          } else if (completedTasks === totalTasks) {
+            dynamicStatus = 'completed'
+          } else if (inProgressTasks > 0 || completedTasks > 0) {
+            dynamicStatus = 'in_progress'
+          } else {
+            dynamicStatus = 'planning'
+          }
+        }
+
         return {
           ...project,
+          status: dynamicStatus, // Override the DB status with the dynamic one
           team: Array.from(teamMap.values()),
           lead,
           task_stats: {
-            total: project.tasks?.length || 0,
-            completed: project.tasks?.filter((t: any) => t.status === 'done').length || 0
+            total: totalTasks,
+            completed: completedTasks
           }
         }
       })
@@ -117,15 +141,16 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       
       const projectId = data.id
       const memberInserts = []
+      const orgId = profile?.organization_id
       
       if (lead_id) {
-        memberInserts.push({ project_id: projectId, user_id: lead_id, role: 'lead' })
+        memberInserts.push({ project_id: projectId, user_id: lead_id, role: 'lead', organization_id: orgId })
       }
       
       if (member_ids && member_ids.length > 0) {
         member_ids.forEach(id => {
           if (id !== lead_id) {
-            memberInserts.push({ project_id: projectId, user_id: id, role: 'member' })
+            memberInserts.push({ project_id: projectId, user_id: id, role: 'member', organization_id: orgId })
           }
         })
       }
@@ -134,21 +159,25 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         await supabase.from('project_members').insert(memberInserts)
       }
 
-      // Log Activity
-      useActivityStore.getState().logActivity({
-        action: 'created project',
-        target_type: 'project',
-        target_name: data.name,
-        target_id: data.id
+      // Audit Log
+      logActivity({
+        action: 'CREATE',
+        targetType: 'project',
+        targetId: data.id,
+        targetName: data.name,
+        description: `New project created: ${data.name}`
       })
 
       if (lead_id) {
-        useActivityStore.getState().logActivity({
-          action: 'assigned project lead',
-          target_type: 'project',
-          target_name: data.name,
-          target_id: data.id
+        logActivity({
+          action: 'UPDATE',
+          targetType: 'project',
+          targetId: data.id,
+          targetName: data.name,
+          description: `Assigned project lead`
         })
+
+        notificationService.notifyProjectUpdate(data.id, data.name, 'assigned to you (Lead)')
       }
 
       get().fetchProjects(true)
@@ -174,15 +203,18 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         // Clear existing members
         await supabase.from('project_members').delete().eq('project_id', id)
         
+        const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+        const orgId = profile?.organization_id
+
         const memberInserts = []
         if (lead_id) {
-          memberInserts.push({ project_id: id, user_id: lead_id, role: 'lead' })
+          memberInserts.push({ project_id: id, user_id: lead_id, role: 'lead', organization_id: orgId })
         }
         
         if (member_ids && member_ids.length > 0) {
           member_ids.forEach(userId => {
             if (userId !== lead_id) {
-              memberInserts.push({ project_id: id, user_id: userId, role: 'member' })
+              memberInserts.push({ project_id: id, user_id: userId, role: 'member', organization_id: orgId })
             }
           })
         }
@@ -192,23 +224,37 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         }
 
         if (lead_id) {
-          useActivityStore.getState().logActivity({
-            action: 'updated project lead',
-            target_type: 'project',
-            target_name: data.name,
-            target_id: data.id
+          logActivity({
+            action: 'UPDATE',
+            targetType: 'project',
+            targetId: data.id,
+            targetName: data.name,
+            description: `Updated project lead`
           })
+
+          notificationService.notifyProjectUpdate(data.id, data.name, 'updated (New Lead)')
         }
       }
 
       // Log Activity
-      useActivityStore.getState().logActivity({
-        action: 'updated project details',
-        target_type: 'project',
-        target_name: data.name,
-        target_id: data.id,
-        metadata: updates
-      })
+      if (updates.status) {
+        logActivity({
+          action: 'STATUS_CHANGE',
+          targetType: 'project',
+          targetId: data.id,
+          targetName: data.name,
+          description: `Project status changed to ${updates.status.replace('_', ' ')}`
+        })
+        notificationService.notifyProjectUpdate(data.id, data.name, `changed to ${updates.status.replace('_', ' ')}`)
+      } else {
+        logActivity({
+          action: 'UPDATE',
+          targetType: 'project',
+          targetId: data.id,
+          targetName: data.name,
+          description: `Updated project details`
+        })
+      }
 
       get().fetchProjects(true)
     } catch (err) {
@@ -237,35 +283,49 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
     const previousProjects = get().projects
     const deletedProject = previousProjects.find((p) => p.id === id)
-    const deletedIndex = previousProjects.findIndex((p) => p.id === id)
-    set({ projects: previousProjects.filter((p) => p.id !== id) })
 
     try {
-      const { error } = await supabase.from('projects').delete().eq('id', id)
+      const { error } = await supabase
+        .from('projects')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
       if (error) throw error
 
-      if (deletedProject) {
-        useActivityStore.getState().logActivity({
-          action: 'deleted project',
-          target_type: 'project',
-          target_name: deletedProject.name,
-          target_id: id
-        })
-      }
-
-      set({ error: null, lastFetchedAt: Date.now() })
-    } catch (err) {
-      const friendlyError = toFriendlyError(err, "Failed to delete project.")
-      set((state) => {
-        if (!deletedProject || state.projects.some((project) => project.id === id)) {
-          return { error: friendlyError.message }
-        }
-
-        const projects = [...state.projects]
-        projects.splice(Math.max(deletedIndex, 0), 0, deletedProject)
-        return { projects, error: friendlyError.message }
+      logActivity({
+        action: 'DELETE',
+        targetType: 'project',
+        targetId: id,
+        targetName: deletedProject?.name || 'Unknown',
+        description: `Soft deleted project: ${deletedProject?.name || id}`
       })
-      throw friendlyError
+
+      get().fetchProjects(true)
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to delete project.")
+    }
+  },
+
+  restoreProject: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      get().fetchProjects(true)
+
+      logActivity({
+        action: 'UPDATE',
+        targetType: 'project',
+        targetId: id,
+        targetName: 'Restored Project',
+        description: `Restored a previously deleted project`
+      })
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to restore project.")
     }
   },
   getProjectById: async (id) => {
@@ -370,7 +430,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
   subscribeToProjects: () => {
     const channel = supabase
-      .channel('projects-realtime')
+      .channel(`projects-${Date.now()}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'projects' },

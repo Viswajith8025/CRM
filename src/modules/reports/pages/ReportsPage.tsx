@@ -3,7 +3,7 @@ import { useTasksStore } from "@/modules/tasks/tasksStore"
 import { useBillingStore } from "@/modules/billing/billingStore"
 import { useProjectsStore } from "@/modules/projects/projectsStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
-import { useCRMStore } from "@/modules/crm/crmStore"
+import { useCRMStore } from "@/modules/crm/store/crmStore"
 import { useTimeStore } from "@/modules/time-tracking/timeStore"
 import { useActivityStore } from "../activityStore"
 import { 
@@ -185,8 +185,24 @@ export default function ReportsPage() {
             </DialogContent>
           </Dialog>
 
-          <Button className="gap-2 font-bold" onClick={() => window.print()}>
-            <Download className="h-4 w-4" /> Export
+          <Button 
+            className="gap-2 font-bold" 
+            onClick={() => {
+              import('@/lib/exportUtils').then(({ exportToCSV }) => {
+                // Determine which data to export based on some logic or just export a combined summary
+                const exportData = invoices.map(inv => ({
+                  Invoice_Number: inv.invoice_number,
+                  Client: inv.client?.name || 'Unknown',
+                  Amount: inv.amount,
+                  Status: inv.status,
+                  Issued_Date: format(new Date(inv.issued_at), 'yyyy-MM-dd')
+                }))
+                exportToCSV(exportData, `Financial_Report_${format(new Date(), 'yyyy-MM-dd')}`)
+                toast.success('Report exported to CSV successfully.')
+              })
+            }}
+          >
+            <Download className="h-4 w-4" /> Export CSV
           </Button>
         </div>
       }

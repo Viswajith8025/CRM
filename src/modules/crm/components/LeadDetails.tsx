@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useCRMStore } from "../crmStore"
+import { useCRMStore } from "../store/crmStore"
 import type { Contact as Lead, Interaction } from "../types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

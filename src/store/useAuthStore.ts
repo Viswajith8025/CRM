@@ -12,6 +12,7 @@ export interface UserProfile {
   organization_id: string | null
   email: string | null
   created_at: string
+  permissions: string[]
 }
 
 interface AuthState {
@@ -48,7 +49,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     
     try {
-      const { data, error } = await supabase
+      // 1. Fetch Profile
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -56,42 +58,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (error) throw error
       
-      if (!data) {
-        // Fallback: If profile doesn't exist, create it from user metadata
+      if (!profile) {
+        // Fallback: Create initial profile
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
             email: user.email,
             full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
-            role: 'admin' // Default to admin for first-time auto-creation
+            role: 'employee',
+            status: 'pending',
+            organization_id: '00000000-0000-0000-0000-000000000000'
           })
           .select()
           .maybeSingle()
         
-        if (createError) {
-          // If 409 Conflict, it means the profile exists but RLS blocks reading it.
-          // We provide a mock local profile so the app doesn't crash.
-          if (createError.code === '23505' || createError.message.includes('duplicate')) {
-            console.warn("Profile exists but is hidden by RLS. Please update your Supabase RLS policies.")
-            set({ profile: { id: user.id, email: user.email, role: 'admin', full_name: user.email }, isLoading: false })
-            return
-          }
-          throw createError
-        }
-        set({ profile: newProfile || { id: user.id, email: user.email, role: 'admin' }, isLoading: false })
+        if (createError) throw createError
+        set({ profile: { ...newProfile, permissions: [] } as UserProfile, isLoading: false })
       } else {
-        set({ profile: data, isLoading: false })
+        // 2. Fetch Permissions (RBAC)
+        const { data: permsData } = await supabase
+          .from('profile_roles')
+          .select(`
+            role_id,
+            roles!inner(
+              role_permissions(permission_id)
+            )
+          `)
+          .eq('profile_id', user.id)
+
+        const permissions = Array.from(new Set(
+          permsData?.flatMap((pr: any) => 
+            pr.roles.role_permissions.map((rp: any) => rp.permission_id)
+          ) || []
+        ))
+
+        set({ profile: { ...profile, permissions } as UserProfile, isLoading: false })
       }
     } catch (err: any) {
-      // Catch any other PGRST errors and mock the profile to prevent crashes
-      if (err?.code === 'PGRST116' || err?.message?.includes('Not Acceptable')) {
-        console.warn("RLS is blocking profile access. Mocking profile.")
-        set({ profile: { id: user.id, email: user.email, role: 'admin' }, isLoading: false })
-      } else {
-        console.error("Error fetching profile:", err)
-        set({ isLoading: false })
-      }
+      console.error("Error fetching profile:", err)
+      set({ isLoading: false })
     }
   },
   signOut: async () => {

@@ -1,9 +1,11 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
+import { apiCall } from '@/lib/errorHandler'
 import type { Task, Subtask, TaskComment } from './types'
 import { useNotificationsStore } from '@/modules/notifications/notificationsStore'
-import { useActivityStore } from '@/modules/reports/activityStore'
+import { logActivity } from '@/lib/auditLogger'
+import { notificationService } from '@/lib/notificationService'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const getTaskCacheKey = (projectId?: string) => projectId ?? 'all'
@@ -44,34 +46,41 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     const lastFetchedAt = get().lastFetchedAtByKey[cacheKey]
     const isFresh = false // Force fresh fetch
     if (!force && get().hasFetched && isFresh) return
-    set({ isLoading: true })
-    try {
-      let query = supabase
-        .from('tasks')
-        .select('*')
+    set({ isLoading: true, error: null })
+    
+    await apiCall(
+      async () => {
+        let query = supabase
+          .from('tasks')
+          .select('*, project:projects(name), assignee:profiles!assigned_to(full_name, avatar_url), comments:task_comments(count)')
 
-      if (projectId) {
-        query = query.eq('project_id', projectId)
+        if (projectId) {
+          query = query.eq('project_id', projectId)
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false })
+        if (error) throw error
+
+        set((state) => ({
+          tasks: data as Task[],
+          hasFetched: state.hasFetched || !projectId,
+          lastFetchedAtByKey: {
+            ...state.lastFetchedAtByKey,
+            [cacheKey]: Date.now(),
+          },
+        }))
+      },
+      {
+        context: 'loading tasks',
+        maxRetries: 2, 
+        retryDelay: 1000,
+        showToast: true,
       }
-
-      const { data, error } = await query.order('created_at', { ascending: false })
-      console.log('Fetch Tasks Debug:', { count: data?.length, error, projectId })
-
-      if (error) throw error
-      set((state) => ({
-        tasks: data as Task[],
-        error: null,
-        hasFetched: state.hasFetched || !projectId,
-        lastFetchedAtByKey: {
-          ...state.lastFetchedAtByKey,
-          [cacheKey]: Date.now(),
-        },
-      }))
-    } catch (err) {
-      set({ error: getFriendlySupabaseError(err, "Failed to load tasks.") })
-    } finally {
+    ).catch((err) => {
+      set({ error: err.message })
+    }).finally(() => {
       set({ isLoading: false })
-    }
+    })
   },
 
   addTask: async (task) => {
@@ -82,26 +91,22 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const { data, error } = await supabase
         .from('tasks')
         .insert(taskWithOrg)
-        .select('*, project:projects(name), assignee:profiles(full_name, avatar_url), comments:task_comments(count)')
+        .select('*, project:projects(name), assignee:profiles!assigned_to(full_name, avatar_url), comments:task_comments(count)')
         .single()
 
       if (error) throw error
 
-      // Log Activity
-      useActivityStore.getState().logActivity({
-        action: 'created task',
-        target_type: 'task',
-        target_name: data.title,
-        target_id: data.id
+      // Audit Log
+      logActivity({
+        action: 'CREATE',
+        targetType: 'task',
+        targetId: data.id,
+        targetName: data.title,
+        description: `New task created: ${data.title}`
       })
 
       if (data.assigned_to) {
-        useNotificationsStore.getState().addNotification({
-          user_id: data.assigned_to,
-          title: "New Task Assigned",
-          description: `You have been assigned to: ${data.title}`,
-          type: 'assignment'
-        })
+        notificationService.notifyTaskAssignment(data.id, data.assigned_to, data.title)
       }
 
       set((state) => ({
@@ -115,6 +120,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         },
       }))
     } catch (err) {
+      console.error("Task Store Error:", err)
       const friendlyError = toFriendlyError(err, "Failed to add task.")
       set({ error: friendlyError.message })
       throw friendlyError
@@ -122,48 +128,70 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   updateTask: async (id, updates) => {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', id)
-        .select('*, project:projects(name), assignee:profiles(full_name, avatar_url), comments:task_comments(count)')
-        .single()
-
-      if (error) throw error
-
-      // Log Activity
-      useActivityStore.getState().logActivity({
-        action: `updated task status to ${updates.status || 'modified'}`,
-        target_type: 'task',
-        target_name: data.title,
-        target_id: data.id,
-        metadata: updates
-      })
-
-      if (updates.assigned_to) {
-        useNotificationsStore.getState().addNotification({
-          user_id: updates.assigned_to,
-          title: "Task Reassigned",
-          description: `You have been assigned to: ${data.title}`,
-          type: 'assignment'
-        })
-      }
-
-      set((state) => ({
-        tasks: state.tasks.map((t) => (t.id === id ? (data as Task) : t)),
-        error: null,
-        lastFetchedAtByKey: {
-          ...state.lastFetchedAtByKey,
-          all: Date.now(),
-          ...(data.project_id ? { [getTaskCacheKey(data.project_id)]: Date.now() } : {}),
-        },
-      }))
-    } catch (err) {
-      const friendlyError = toFriendlyError(err, "Failed to update task.")
-      set({ error: friendlyError.message })
-      throw friendlyError
+    // 1. Optimistic UI Update
+    const previousTasks = get().tasks
+    const taskIndex = previousTasks.findIndex(t => t.id === id)
+    if (taskIndex > -1) {
+      const optimisticTasks = [...previousTasks]
+      optimisticTasks[taskIndex] = { ...optimisticTasks[taskIndex], ...updates } as Task
+      set({ tasks: optimisticTasks })
     }
+
+    // 2. Network Request (Queue if offline)
+    await apiCall(
+      async () => {
+        const { data, error } = await supabase
+          .from('tasks')
+          .update(updates)
+          .eq('id', id)
+          .select('*, project:projects(name), assignee:profiles!assigned_to(full_name, avatar_url), comments:task_comments(count)')
+          .single()
+
+        if (error) throw error
+
+        // Audit Log
+        if (updates.status) {
+          logActivity({
+            action: 'STATUS_CHANGE',
+            targetType: 'task',
+            targetId: id,
+            targetName: data.title,
+            description: `Task status changed to ${updates.status.replace('_', ' ')}`
+          })
+        } else {
+          logActivity({
+            action: 'UPDATE',
+            targetType: 'task',
+            targetId: id,
+            targetName: data.title,
+            description: `Updated task details`
+          })
+        }
+
+        if (updates.assigned_to) {
+          notificationService.notifyTaskAssignment(id, updates.assigned_to, data.title)
+        }
+
+        // Final UI confirmation with server data
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === id ? (data as Task) : t)),
+          error: null,
+          lastFetchedAtByKey: {
+            ...state.lastFetchedAtByKey,
+            all: Date.now(),
+            ...(data.project_id ? { [getTaskCacheKey(data.project_id)]: Date.now() } : {}),
+          },
+        }))
+      },
+      {
+        context: 'updating task',
+        queueIfOffline: true,
+        showToast: false, // We're using optimistic UI, we only want toasts on failure
+      }
+    ).catch((err) => {
+      // Revert Optimistic Update on failure
+      set({ tasks: previousTasks, error: err.message })
+    })
   },
 
   deleteTask: async (id) => {
@@ -174,15 +202,20 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     set({ tasks: previousTasks.filter((t) => t.id !== id) })
 
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', id)
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+
       if (error) throw error
 
       if (deletedTask) {
-        useActivityStore.getState().logActivity({
-          action: 'deleted task',
-          target_type: 'task',
-          target_name: deletedTask.title,
-          target_id: id
+        logActivity({
+          action: 'DELETE',
+          targetType: 'task',
+          targetId: id,
+          targetName: deletedTask.title,
+          description: `Soft deleted task: ${deletedTask.title}`
         })
       }
 
@@ -209,9 +242,33 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     }
   },
 
+  restoreTask: async (id) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: null })
+        .eq('id', id)
+
+      if (error) throw error
+
+      // Refresh tasks
+      get().fetchTasks(undefined, true)
+      
+      logActivity({
+        action: 'UPDATE',
+        targetType: 'task',
+        targetId: id,
+        targetName: 'Restored Task',
+        description: `Restored a previously deleted task`
+      })
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to restore task.")
+    }
+  },
+
   subscribeToTasks: (projectId) => {
     const channel = supabase
-      .channel('tasks-realtime')
+      .channel(`tasks-${Date.now()}`)
       .on(
         'postgres_changes',
         {

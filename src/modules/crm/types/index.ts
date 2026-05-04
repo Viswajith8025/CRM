@@ -6,6 +6,7 @@ export interface Contact {
   first_name: string
   last_name: string | null
   email: string | null
+  phone: string | null
   company: string | null
   status: LeadStatus
   source: string | null
