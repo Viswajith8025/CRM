@@ -58,6 +58,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .from('leads')
         .select('*')
         .order('created_at', { ascending: false })
+        .range(0, 50)
       
       if (leadsError) throw leadsError
 
@@ -424,6 +425,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .from('clients')
         .select('*, leads!lead_id(status)')
         .order('created_at', { ascending: false })
+        .range(0, 50)
 
       if (clientsError) throw clientsError
 
@@ -673,6 +675,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .from('proposals')
         .select('*')
         .order('created_at', { ascending: false })
+        .range(0, 50)
 
       if (error) throw error
       set({ proposals: data as Proposal[] })

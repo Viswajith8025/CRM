@@ -42,6 +42,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .from('invoices')
         .select('*, client:clients(name, email, address), project:projects(name)')
         .order('created_at', { ascending: false })
+        .range(0, 50)
 
       if (error) throw error
       set({ invoices: data as Invoice[], error: null, hasFetched: true })

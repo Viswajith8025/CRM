@@ -66,6 +66,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           members:project_members(role, user_id, profiles(full_name, email))
         `)
         .order('created_at', { ascending: false })
+        .range(0, 50)
 
       console.log('Fetch Projects - Data:', data, 'Error:', error)
       if (error) throw error
@@ -92,25 +93,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
         const totalTasks = project.tasks?.length || 0
         const completedTasks = project.tasks?.filter((t: any) => t.status === 'done').length || 0
-        const inProgressTasks = project.tasks?.filter((t: any) => t.status === 'in_progress' || t.status === 'review').length || 0
-
-        // Dynamic Status Calculation
-        let dynamicStatus = project.status
-        if (project.status !== 'on_hold' && project.status !== 'cancelled') {
-          if (totalTasks === 0) {
-            dynamicStatus = 'planning'
-          } else if (completedTasks === totalTasks) {
-            dynamicStatus = 'completed'
-          } else if (inProgressTasks > 0 || completedTasks > 0) {
-            dynamicStatus = 'in_progress'
-          } else {
-            dynamicStatus = 'planning'
-          }
-        }
 
         return {
           ...project,
-          status: dynamicStatus, // Override the DB status with the dynamic one
           team: Array.from(teamMap.values()),
           lead,
           task_stats: {
