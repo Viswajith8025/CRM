@@ -42,6 +42,7 @@ import { motion } from "framer-motion"
 import Grainient from "@/components/ui/Grainient"
 import { useCRMStore } from "@/modules/crm/store/crmStore"
 import { useActivityStore } from "@/modules/reports/activityStore"
+import { useAuthStore } from "@/store/useAuthStore"
 import { useState } from "react"
 import { Calendar as CalendarIcon, Filter } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
@@ -53,6 +54,7 @@ import { useDashboardStore } from "@/modules/dashboard/dashboardStore"
 export default function Dashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const [chartReady, setChartReady] = useState(false)
+  const { profile } = useAuthStore()
 
   const { tasks, fetchTasks } = useTasksStore()
   const { projects, fetchProjects } = useProjectsStore()
@@ -146,7 +148,7 @@ export default function Dashboard() {
     const sevenDaysAgo = subDays(new Date(), 7)
     const weekLogs = logs.filter(log => new Date(log.start_time) >= sevenDaysAgo)
     const totalMinutes = weekLogs.reduce((sum, log) => sum + (log.duration_minutes || 0), 0)
-    const memberCount = members.length || 1
+    const memberCount = members.filter(m => m.status === 'active').length || 1
     const totalCapacityMinutes = memberCount * 40 * 60
     const utilization = Math.min(Math.round((totalMinutes / totalCapacityMinutes) * 100), 100)
 
@@ -191,8 +193,15 @@ export default function Dashboard() {
         bg: 'bg-amber-500/10',
         path: '/teams'
       },
-    ]
-  }, [filteredData, members, logs, invoices, filterType])
+    ].filter(stat => {
+      if (profile?.role === 'employee') {
+        return stat.name !== 'Total Revenue' && 
+               stat.name !== 'Period Revenue' && 
+               stat.name !== 'Resource Load'
+      }
+      return true
+    })
+  }, [filteredData, members, logs, invoices, filterType, profile?.role])
 
   const chartData = useMemo(() => {
     const { filteredInvoices } = filteredData

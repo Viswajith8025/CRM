@@ -118,7 +118,9 @@ export default function ReportsPage() {
   }, [tasks, dateRange])
 
   const employeeProductivity = useMemo(() => {
-    return members.map(member => {
+    return members
+      .filter(m => m.status === 'active')
+      .map(member => {
       const memberLogs = logs.filter(log => log.user_id === member.id && isInRange(log.start_time))
       const memberTasks = tasks.filter(t => t.assigned_to === member.id && t.status === 'done' && isInRange(t.updated_at))
       
@@ -143,9 +145,9 @@ export default function ReportsPage() {
     const rangeInvoices = invoices.filter(inv => isInRange(inv.issued_at))
     return {
       revenue: rangeInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + Number(i.amount), 0),
-      pending: rangeInvoices.filter(i => i.status === 'sent').reduce((sum, i) => sum + Number(i.amount), 0),
+      pending: rangeInvoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + Number(i.amount), 0),
       projects: projects.filter(p => p.status === 'in_progress').length,
-      members: members.length
+      members: members.filter(m => m.status === 'active').length
     }
   }, [invoices, projects, members, dateRange])
 
@@ -301,128 +303,128 @@ export default function ReportsPage() {
                 <CardDescription>Historical paid revenue grouped by month.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
-                    <AreaChart data={revenueData}>
-                      <defs>
-                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={600} />
-                      <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => `$${v}`} />
-                      <Tooltip />
-                      <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="h-[350px] w-full aspect-video min-h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueData}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={600} />
+                    <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => `$${v}`} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg">Task Status</CardTitle>
-                <CardDescription>Workspace load distribution.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
-                    <PieChart>
-                      <Pie
-                        data={taskStats}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={100}
-                        paddingAngle={8}
-                        dataKey="value"
-                      >
-                        {taskStats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="operations" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle>Project Lifecycle</CardTitle>
-                <CardDescription>Current projects by status.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
-                    <BarChart data={[
-                      { name: 'Planning', count: projects.filter(p => p.status === 'planning').length },
-                      { name: 'Active', count: projects.filter(p => p.status === 'in_progress').length },
-                      { name: 'Hold', count: projects.filter(p => p.status === 'on_hold').length },
-                      { name: 'Done', count: projects.filter(p => p.status === 'completed').length },
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                      <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle>Lead Conversion Pipeline</CardTitle>
-                <CardDescription>Prospect distribution across sales stages.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[350px] w-full">
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                    <LineChart data={leadData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} fontWeight={700} />
-                      <YAxis axisLine={false} tickLine={false} />
-                      <Tooltip />
-                      <Line type="stepAfter" dataKey="count" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 6, fill: '#8b5cf6' }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-6">
           <Card className="border-border/50">
             <CardHeader>
-              <CardTitle>Resource Utilization Matrix</CardTitle>
-              <CardDescription>Correlation between logged hours and completed tasks.</CardDescription>
+              <CardTitle className="text-lg">Task Status</CardTitle>
+              <CardDescription>Workspace load distribution.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[450px] w-full">
+              <div className="h-[350px] w-full aspect-square min-h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={employeeProductivity} layout="vertical" margin={{ left: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                    <XAxis type="number" axisLine={false} tickLine={false} />
-                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} fontSize={11} fontWeight={600} />
+                  <PieChart>
+                    <Pie
+                      data={taskStats}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={8}
+                      dataKey="value"
+                    >
+                      {taskStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
                     <Tooltip />
-                    <Bar dataKey="hours" name="Logged Hours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
-                    <Bar dataKey="tasks" name="Tasks Closed" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="operations" className="space-y-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle>Project Lifecycle</CardTitle>
+              <CardDescription>Current projects by status.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px] w-full aspect-video min-h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { name: 'Planning', count: projects.filter(p => p.status === 'planning').length },
+                    { name: 'Active', count: projects.filter(p => p.status === 'in_progress').length },
+                    { name: 'Hold', count: projects.filter(p => p.status === 'on_hold').length },
+                    { name: 'Done', count: projects.filter(p => p.status === 'completed').length },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+
+          <Card className="border-border/50">
+            <CardHeader>
+              <CardTitle>Lead Conversion Pipeline</CardTitle>
+              <CardDescription>Prospect distribution across sales stages.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px] w-full aspect-video min-h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={leadData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} fontWeight={700} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <Tooltip />
+                    <Line type="stepAfter" dataKey="count" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 6, fill: '#8b5cf6' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="team" className="space-y-6">
+        <Card className="border-border/50">
+          <CardHeader>
+            <CardTitle>Resource Utilization Matrix</CardTitle>
+            <CardDescription>Correlation between logged hours and completed tasks.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[450px] w-full aspect-video min-h-[450px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={employeeProductivity} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" axisLine={false} tickLine={false} />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} fontSize={11} fontWeight={600} />
+                  <Tooltip />
+                  <Bar dataKey="hours" name="Logged Hours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
+                  <Bar dataKey="tasks" name="Tasks Closed" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
       </Tabs>
     </PageWrapper>
   )
