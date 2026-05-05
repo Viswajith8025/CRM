@@ -115,6 +115,32 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       if (error) throw error
 
+      // NEW: If status is changed to paid, ensure a payment record exists
+      if (status === 'paid') {
+        const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+        
+        // Check if a payment already exists for this invoice to avoid duplicates
+        const { data: existingPayments } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('invoice_id', id)
+          .limit(1)
+
+        if (!existingPayments || existingPayments.length === 0) {
+          await supabase.from('payments').insert({
+            user_id: data.user_id,
+            organization_id: profile?.organization_id || data.organization_id,
+            invoice_id: id,
+            amount: data.amount,
+            payment_method: 'manual',
+            paid_at: new Date().toISOString()
+          })
+          
+          // Refresh payments state
+          get().fetchPayments(true)
+        }
+      }
+
       // Audit Log
       logActivity({
         action: 'STATUS_CHANGE',
