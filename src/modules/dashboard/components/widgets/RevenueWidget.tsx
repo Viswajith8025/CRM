@@ -6,10 +6,10 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'rec
 import { subDays, format } from 'date-fns'
 
 export function RevenueWidget() {
-  const { invoices, fetchInvoices } = useBillingStore()
+  const { payments, fetchPayments } = useBillingStore()
 
   useEffect(() => {
-    fetchInvoices()
+    fetchPayments()
   }, [])
 
   const chartData = useMemo(() => {
@@ -22,26 +22,24 @@ export function RevenueWidget() {
     })
 
     return last7Days.map(day => {
-      const dailyRev = invoices
-        .filter(inv => {
-          const invDate = new Date(inv.issued_at)
-          return inv.status === 'paid' &&
-            invDate.getDate() === day.date.getDate() &&
-            invDate.getMonth() === day.date.getMonth() &&
-            invDate.getFullYear() === day.date.getFullYear()
+      const dailyRev = payments
+        .filter(pay => {
+          const payDate = new Date(pay.paid_at)
+          return payDate.getDate() === day.date.getDate() &&
+            payDate.getMonth() === day.date.getMonth() &&
+            payDate.getFullYear() === day.date.getFullYear()
         })
-        .reduce((sum, inv) => sum + Number(inv.amount), 0)
+        .reduce((sum, pay) => sum + Number(pay.amount), 0)
 
       return {
         name: day.name,
         revenue: dailyRev
       }
     })
-  }, [invoices])
+  }, [payments])
 
-  const totalPaid = invoices
-    .filter(inv => inv.status === 'paid')
-    .reduce((sum, inv) => sum + Number(inv.amount), 0)
+  const totalPaid = payments
+    .reduce((sum, pay) => sum + Number(pay.amount), 0)
 
   return (
     <div className="h-full flex flex-col bg-slate-950/50 rounded-xl overflow-hidden border border-white/5">
@@ -60,9 +58,10 @@ export function RevenueWidget() {
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 p-0 mt-4 h-[250px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+      <CardContent className="flex-1 p-0 mt-4 min-h-[300px]">
+        <div className="w-full h-full aspect-[16/9] min-h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#ffffff" stopOpacity={0.3}/>
@@ -92,7 +91,8 @@ export function RevenueWidget() {
             />
           </AreaChart>
         </ResponsiveContainer>
-      </CardContent>
+      </div>
+    </CardContent>
     </div>
   )
 }

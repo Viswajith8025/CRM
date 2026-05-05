@@ -7,12 +7,14 @@ import type { Invoice, Payment } from './types'
 
 interface BillingState {
   invoices: Invoice[]
+  payments: Payment[]
   isLoading: boolean
   error: string | null
   hasFetched: boolean
   lastFetchedAt: number | null
   
   fetchInvoices: (force?: boolean) => Promise<void>
+  fetchPayments: (force?: boolean) => Promise<void>
   addInvoice: (invoice: Partial<Invoice>) => Promise<void>
   updateInvoiceStatus: (id: string, status: Invoice['status']) => Promise<void>
   updateInvoice: (id: string, updates: Partial<Invoice>) => Promise<void>
@@ -28,10 +30,26 @@ interface BillingState {
 
 export const useBillingStore = create<BillingState>((set, get) => ({
   invoices: [],
+  payments: [],
   isLoading: false,
   error: null,
   hasFetched: false,
   lastFetchedAt: null,
+
+  fetchPayments: async (force = false) => {
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .order('paid_at', { ascending: false })
+        .range(0, 100)
+
+      if (error) throw error
+      set({ payments: data as Payment[] })
+    } catch (err) {
+      console.error("Failed to load payments:", err)
+    }
+  },
 
   fetchInvoices: async (force = false) => {
     const isFresh = false // Force fresh fetch
@@ -207,6 +225,11 @@ export const useBillingStore = create<BillingState>((set, get) => ({
           targetName: `Payment Recieved`,
           description: `Recorded payment of $${payment.amount}`
         })
+
+        // Refresh state
+        get().fetchInvoices(true)
+        get().fetchPayments(true)
+      }
 
         // Trigger Notification
         notificationService.notifyPaymentReceived(payment.invoice_id, payment.amount!)
