@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS activities (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. AUTH TRIGGER
+-- 4. AUTH TRIGGER & SECURITY
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -230,6 +230,23 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+CREATE OR REPLACE FUNCTION public.prevent_profile_escalation()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Prevent users from changing their own role or organization_id
+  -- This blocks privilege escalation attacks via the PostgREST API
+  NEW.organization_id = OLD.organization_id;
+  NEW.role = OLD.role;
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_profile_update ON profiles;
+CREATE TRIGGER on_profile_update
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_profile_escalation();
 
 -- 5. INDEXES
 CREATE INDEX IF NOT EXISTS idx_profiles_org       ON profiles(organization_id);

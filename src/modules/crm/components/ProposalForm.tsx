@@ -74,10 +74,17 @@ export function ProposalForm({ client, onSuccess }: ProposalFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      const subtotal = values.items.reduce((acc, item) => acc + item.price, 0)
-      const gst_amount = (subtotal * values.gst_percent) / 100
-      const total = subtotal + gst_amount
+      // Safe financial math: Round to 2 decimal places
+      const rawSubtotal = values.items.reduce((acc, item) => acc + item.price, 0)
+      const subtotal = Math.round(rawSubtotal * 100) / 100
+      
+      const rawGst = (subtotal * values.gst_percent) / 100
+      const gst_amount = Math.round(rawGst * 100) / 100
+      
+      const total = Math.round((subtotal + gst_amount) * 100) / 100
 
+      const secureId = crypto.randomUUID().split('-')[0].toUpperCase()
+      
       const proposalData = {
         ...values,
         company_name: profile?.company_name || "ECRAFTZ ERP",
@@ -89,7 +96,7 @@ export function ProposalForm({ client, onSuccess }: ProposalFormProps) {
         client_email: client?.email,
         client_phone: client?.phone,
         date: new Date().toLocaleDateString(),
-        proposal_id: `PROP-${Math.floor(Math.random() * 100000)}`,
+        proposal_id: `PROP-${secureId}`,
         subtotal,
         gst_amount,
         total,

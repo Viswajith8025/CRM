@@ -268,7 +268,9 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (pError) throw pError
 
       // 2. Create invoice
-      const invoiceNumber = `INV-${Math.floor(1000 + Math.random() * 9000)}`
+      const datePrefix = new Date().toISOString().split('T')[0].replace(/-/g, '')
+      const secureId = crypto.randomUUID().split('-')[0].toUpperCase()
+      const invoiceNumber = `INV-${datePrefix}-${secureId}`
       const newInvoice: Partial<Invoice> = {
         client_id: proposal.client_id || (await get().fetchClientByLead(proposal.lead_id)),
         proposal_id: proposal.id,
