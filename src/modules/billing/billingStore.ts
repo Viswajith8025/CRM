@@ -233,13 +233,12 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
         // Trigger Notification
         notificationService.notifyPaymentReceived(payment.invoice_id, payment.amount!)
+      } catch (err) {
+        const friendlyError = toFriendlyError(err, "Failed to record payment.")
+        set({ error: friendlyError.message })
+        throw friendlyError
       }
-    } catch (err) {
-      const friendlyError = toFriendlyError(err, "Failed to record payment.")
-      set({ error: friendlyError.message })
-      throw friendlyError
-    }
-  },
+    },
 
   getInvoiceById: async (id) => {
     try {
