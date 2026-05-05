@@ -194,7 +194,7 @@ export function TeamList() {
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-2">
                             <Badge variant="outline" className={roleColors[member.role]}>
-                              {member.role.toUpperCase()}
+                              {member.role === 'manager' ? 'HR' : member.role.toUpperCase()}
                             </Badge>
                             <ChevronDown className="h-3 w-3 text-muted-foreground" />
                           </Button>
@@ -202,14 +202,14 @@ export function TeamList() {
                         <DropdownMenuContent align="start">
                           {(['admin', 'manager', 'employee'] as const).map(role => (
                             <DropdownMenuItem key={role} onClick={() => handleRoleChange(member.id, role)} className="gap-2 capitalize">
-                              {role}
+                              {role === 'manager' ? 'HR' : role}
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
                       <Badge variant="outline" className={roleColors[member.role]}>
-                        {member.role.toUpperCase()}
+                        {member.role === 'manager' ? 'HR' : member.role.toUpperCase()}
                       </Badge>
                     )}
                   </TableCell>

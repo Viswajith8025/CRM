@@ -115,6 +115,9 @@ export function DocumentUploadModal({ isOpen, onClose, defaultProjectId }: Docum
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Upload Document</DialogTitle>
+          <DialogDescription>
+            Securely upload and categorize your project files, contracts, or design assets.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>

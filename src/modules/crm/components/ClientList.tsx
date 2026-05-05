@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, Trash2, Search, MoreHorizontal, FileText, Send } from "lucide-react"
+import { Edit2, Trash2, Search, MoreHorizontal, FileText, Loader2, Eye } from "lucide-react"
 import { useCRMStore } from "../store/crmStore"
+
 import type { Client } from "../types"
 import {
   AlertDialog,
@@ -33,9 +34,11 @@ import { useNavigate } from "react-router-dom"
 
 interface ClientListProps {
   onEdit: (client: Client) => void
+  onCreateProposal: (client: Client) => void
+  onViewProposals: (client: Client) => void
 }
 
-export function ClientList({ onEdit }: ClientListProps) {
+export function ClientList({ onEdit, onCreateProposal, onViewProposals }: ClientListProps) {
   const { clients, isLoading, deleteClient, fetchClients } = useCRMStore()
   const [search, setSearch] = useState("")
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -143,8 +146,19 @@ export function ClientList({ onEdit }: ClientListProps) {
                           <DropdownMenuItem onClick={() => onEdit(client)} className="gap-2">
                             <Edit2 className="h-4 w-4" /> Edit Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Send className="h-4 w-4" /> Send Proposal
+                          <DropdownMenuItem 
+                            className="gap-2 cursor-pointer"
+                            onClick={() => onCreateProposal(client)}
+                          >
+                            <FileText className="h-4 w-4" />
+                            Create Proposal
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="gap-2 cursor-pointer"
+                            onClick={() => onViewProposals(client)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            View Proposals
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-bold" 

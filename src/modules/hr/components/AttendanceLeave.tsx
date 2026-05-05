@@ -96,7 +96,7 @@ export function AttendanceLeave() {
               <DialogHeader>
                 <DialogTitle>Submit Leave Request</DialogTitle>
                 <DialogDescription>
-                  Request time off for approval by your manager.
+                  Request time off for approval by HR.
                 </DialogDescription>
               </DialogHeader>
               <LeaveRequestForm onSuccess={() => {

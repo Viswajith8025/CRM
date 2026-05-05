@@ -42,6 +42,7 @@ export const useHRStore = create<HRState>((set, get) => ({
         .from('profiles')
         .select('*')
         .in('role', ['employee', 'manager', 'admin'])
+        .eq('status', 'active')
 
       if (profilesError) throw profilesError
 
