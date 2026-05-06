@@ -15,7 +15,7 @@ begin
   -- This makes an HTTP POST request directly to Resend from the database
   select net.http_post(
     url := 'https://api.resend.com/emails',
-    headers := '{"Authorization": "Bearer re_GXv6zoJJ_JSBPShjiLEqyfmCzqx3svtWv", "Content-Type": "application/json"}'::jsonb,
+    headers := '{"Authorization": "Bearer YOUR_RESEND_API_KEY", "Content-Type": "application/json"}'::jsonb,
     body := jsonb_build_object(
       'from', 'ECRAFTZ CRM <onboarding@resend.dev>',
       'to', jsonb_build_array(p_to_email),
