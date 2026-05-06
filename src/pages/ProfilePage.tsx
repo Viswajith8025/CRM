@@ -84,7 +84,7 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase text-[10px] tracking-widest">
                   <Shield className="h-3.5 w-3.5" /> Access Level
                 </div>
-                <span className="font-black capitalize px-2 py-0.5 rounded bg-primary/10 text-primary">{isLoading ? "..." : role}</span>
+                <span className="font-black capitalize px-2 py-0.5 rounded bg-primary/10 text-primary">{isLoading ? "..." : (role === 'manager' ? 'HR' : role)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase text-[10px] tracking-widest">

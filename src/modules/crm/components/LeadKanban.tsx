@@ -138,7 +138,7 @@ export function LeadKanban({ searchQuery = "", segmentFilter = "all" }: LeadKanb
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-6 h-full overflow-x-auto pb-8 scrollbar-hide">
+      <div className="flex gap-6 h-full overflow-x-auto pb-6 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-secondary/20 [&::-webkit-scrollbar-thumb]:bg-primary/20 hover:[&::-webkit-scrollbar-thumb]:bg-primary/40 [&::-webkit-scrollbar-thumb]:rounded-full transition-colors">
         {COLUMNS.map((col) => (
           <LeadKanbanColumn
             key={col.id}

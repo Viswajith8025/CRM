@@ -24,6 +24,7 @@ export default function ClientsPage() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [isListOpen, setIsListOpen] = useState(false)
   const [proposalData, setProposalData] = useState<any>(null)
+  const [editingProposal, setEditingProposal] = useState<any>(null)
 
   const handleEdit = (client: Client) => {
     setSelectedClient(client)
@@ -43,6 +44,12 @@ export default function ClientsPage() {
   const handleViewProposals = (client: Client) => {
     setSelectedClient(client)
     setIsListOpen(true)
+  }
+
+  const handleEditProposal = (proposal: any) => {
+    setEditingProposal(proposal)
+    setIsListOpen(false)
+    setIsProposalOpen(true)
   }
 
   return (
@@ -81,19 +88,24 @@ export default function ClientsPage() {
       </Dialog>
 
       {/* PROPOSAL FORM DIALOG */}
-      <Dialog open={isProposalOpen} onOpenChange={setIsProposalOpen}>
+      <Dialog open={isProposalOpen} onOpenChange={(open) => { setIsProposalOpen(open); if (!open) setEditingProposal(null) }}>
         <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Create Project Proposal</DialogTitle>
+            <DialogTitle>{editingProposal ? "Edit Proposal" : "Create Project Proposal"}</DialogTitle>
             <DialogDescription>
-              Draft a professional proposal for {selectedClient?.name}. The template will be generated automatically.
+              {editingProposal
+                ? `Update the proposal "${editingProposal.title}".`
+                : `Draft a professional proposal for ${selectedClient?.name}. The template will be generated automatically.`
+              }
             </DialogDescription>
           </DialogHeader>
           <ProposalForm 
-            client={selectedClient} 
+            client={selectedClient}
+            proposal={editingProposal}
             onSuccess={(data) => {
               setProposalData(data)
               setIsProposalOpen(false)
+              setEditingProposal(null)
               setIsPreviewOpen(true)
             }} 
           />
@@ -131,7 +143,8 @@ export default function ClientsPage() {
                 setProposalData(proposal.content)
                 setIsListOpen(false)
                 setIsPreviewOpen(true)
-              }} 
+              }}
+              onEdit={handleEditProposal}
             />
           )}
         </DialogContent>

@@ -35,16 +35,16 @@ export async function logActivity({
     const { error } = await supabase
       .from('activities')
       .insert({
-        user_id: session.user.id,
         action,
         target_type: targetType,
         target_id: targetId,
         target_name: targetName,
+        user_id: session.user.id,
         metadata: {
           ...metadata,
-          description // Including description in metadata for flexibility
-        },
-        // organization_id will be handled by the public.get_my_org_id() default in DB
+          description
+        }
+        // organization_id will be auto-set by the DB default: public.get_my_org_id()
       })
 
     if (error) {

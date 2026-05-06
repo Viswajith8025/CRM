@@ -58,8 +58,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
         .from('activities')
         .insert({
           ...activity,
-          user_id: user.id,
-          organization_id: profile?.organization_id
+          user_id: user.id
         })
       
       if (error) throw error

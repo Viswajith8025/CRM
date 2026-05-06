@@ -347,7 +347,7 @@ export default function SettingsPage() {
                               Make Admin
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'manager')} className="font-medium">
-                              Make Manager
+                              Make HR
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'employee')} className="font-medium">
                               Make Employee
@@ -529,7 +529,7 @@ export default function SettingsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="manager">HR</SelectItem>
                   <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>
               </Select>

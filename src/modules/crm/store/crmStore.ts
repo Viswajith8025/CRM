@@ -115,9 +115,17 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   addLead: async (lead) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      const leadWithOrg = { ...lead, organization_id: profile?.organization_id }
       
-      console.log('CRM Store - Adding Lead:', leadWithOrg)
+      // Strip fields that don't exist in the database schema to prevent 400 Bad Request
+      const { job_title, ...cleanLead } = lead as any;
+      
+      // Convert empty strings to null for unique constraints
+      if (cleanLead.email === "") cleanLead.email = null;
+      if (cleanLead.phone === "") cleanLead.phone = null;
+      
+      const leadWithOrg = { ...cleanLead, organization_id: profile?.organization_id }
+      
+      console.log('CRM Store - Adding Lead (Cleaned):', leadWithOrg)
 
       const { data, error } = await supabase
         .from('leads')
@@ -238,9 +246,16 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         return
       }
 
+      // Strip fields that don't exist in the database schema to prevent 400 Bad Request
+      const { job_title, ...cleanUpdates } = updates as any;
+      
+      // Convert empty strings to null
+      if (cleanUpdates.email === "") cleanUpdates.email = null;
+      if (cleanUpdates.phone === "") cleanUpdates.phone = null;
+
       const { data, error } = await supabase
         .from('leads')
-        .update(updates)
+        .update(cleanUpdates)
         .eq('id', id)
         .select()
         .single()
@@ -294,12 +309,30 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     try {
       console.log('CRM Store - ensureClientFromLead called with:', leadId)
       
-      // Safety Check: If this is already a real client ID, do nothing and return it
-      const { clients } = get()
-      const isRealClient = clients.some(c => c.id === leadId && !c.isVirtual)
-      if (isRealClient) {
-        console.log('CRM Store - Already a real client, skipping conversion.')
-        return leadId
+      // CRITICAL: Verify directly in the DB if this ID is a real client row.
+      // We cannot trust the in-memory store because won-leads appear in the 
+      // clients list with isVirtual:false, making the local check unreliable.
+      const { data: realClientCheck } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', leadId)
+        .maybeSingle()
+
+      if (realClientCheck) {
+        console.log('CRM Store - DB confirms this is a real client ID, skipping conversion.')
+        return realClientCheck.id
+      }
+
+      // Also check if it's already linked as a lead's client
+      const { data: linkedClientCheck } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('lead_id', leadId)
+        .maybeSingle()
+
+      if (linkedClientCheck) {
+        console.log('CRM Store - Found existing client linked to this lead ID.')
+        return linkedClientCheck.id
       }
 
       // Fetch lead to get its organization_id
@@ -689,8 +722,32 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   addProposal: async (proposal) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      
+      // Always call ensureClientFromLead — it now does a direct DB check,
+      // so it safely handles both real client IDs and lead IDs (won leads).
+      // It will create a real client record if one doesn't exist yet.
+      let finalClientId = proposal.client_id;
+      let finalLeadId = proposal.lead_id;
+
+      if (proposal.client_id) {
+        finalClientId = await get().ensureClientFromLead(proposal.client_id);
+        // If the original ID was a lead ID, also set finalLeadId
+        if (finalClientId !== proposal.client_id) {
+          finalLeadId = proposal.client_id;
+        }
+      }
+
+      // If we still don't have a lead_id, try to look it up from the real client
+      if (!finalLeadId && finalClientId) {
+        const { data: clientRow } = await supabase
+          .from('clients').select('lead_id').eq('id', finalClientId).maybeSingle()
+        if (clientRow?.lead_id) finalLeadId = clientRow.lead_id
+      }
+
       const payload = { 
         ...proposal, 
+        client_id: finalClientId,
+        lead_id: finalLeadId,
         organization_id: profile?.organization_id,
         user_id: profile?.id
       }

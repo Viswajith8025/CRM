@@ -297,59 +297,73 @@ export default function Dashboard() {
       </div>
 
       {/* Dashboard Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-card/20 p-4 rounded-2xl border border-border/40 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-card/40 p-5 rounded-2xl border border-border/40 backdrop-blur-md shadow-sm">
         <div className="space-y-1">
-          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <Filter className="h-3 w-3" />
+          <h2 className="text-sm font-black uppercase tracking-widest text-foreground flex items-center gap-2">
+            <Filter className="h-4 w-4 text-primary" />
             Data Visibility
           </h2>
-          <p className="text-xs text-muted-foreground font-medium">Toggle between all-time stats or a custom date range.</p>
+          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Analyze your metrics by selecting a specific timeframe.</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Tabs 
-            value={filterType} 
-            onValueChange={(v) => setFilterType(v as 'all' | 'range')}
-            className="w-full sm:w-auto"
+        <div className="flex flex-col sm:flex-row items-center gap-2 p-1 bg-background/60 rounded-xl border border-border/50 shadow-inner w-full sm:w-auto">
+          <Button 
+            variant={filterType === 'all' ? 'default' : 'ghost'} 
+            size="sm" 
+            className={cn("w-full sm:w-auto h-9 px-6 text-xs font-bold transition-all rounded-lg", filterType === 'all' && "shadow-md bg-primary text-primary-foreground")}
+            onClick={() => setFilterType('all')}
           >
-            <TabsList className="grid w-full grid-cols-2 bg-muted/50 border border-border/50">
-              <TabsTrigger value="all" className="text-xs font-bold uppercase tracking-tight">All Time</TabsTrigger>
-              <TabsTrigger value="range" className="text-xs font-bold uppercase tracking-tight">Date Range</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {filterType === 'range' && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 px-3 gap-2 border-border/50 bg-background/50 hover:bg-accent/50">
-                  <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                  <span className="text-xs font-bold">
-                    {dateRange.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "LLL dd")} - {format(dateRange.to, "LLL dd")}
-                        </>
-                      ) : (
-                        format(dateRange.from, "LLL dd")
-                      )
-                    ) : (
-                      "Select date"
-                    )}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar
-                  initialFocus
-                  mode="range"
-                  defaultMonth={dateRange.from}
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(range: any) => setDateRange(range || { from: undefined, to: undefined })}
-                  numberOfMonths={2}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
+            All Time
+          </Button>
+          
+          <div className="w-px h-5 bg-border/50 hidden sm:block"></div>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button 
+                variant={filterType === 'range' ? 'default' : 'ghost'} 
+                size="sm" 
+                className={cn("w-full sm:w-auto h-9 px-4 text-xs font-bold gap-2 transition-all rounded-lg", filterType === 'range' && "shadow-md bg-primary text-primary-foreground")}
+                onClick={() => setFilterType('range')}
+              >
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {filterType === 'range' && dateRange.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "MMM dd, yyyy")} - {format(dateRange.to, "MMM dd, yyyy")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "MMM dd, yyyy")
+                  )
+                ) : (
+                  "Custom Range"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-4 flex flex-col gap-4 border-border/60 shadow-2xl rounded-xl" align="end">
+              <div className="flex flex-wrap gap-2 pb-4 border-b border-border/40">
+                <Button variant="outline" size="sm" className="flex-1 text-xs font-bold h-8 border-border/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30" onClick={() => { setDateRange({ from: subDays(new Date(), 7), to: new Date() }); setFilterType('range') }}>Last 7 Days</Button>
+                <Button variant="outline" size="sm" className="flex-1 text-xs font-bold h-8 border-border/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30" onClick={() => { setDateRange({ from: subDays(new Date(), 30), to: new Date() }); setFilterType('range') }}>Last 30 Days</Button>
+                <Button variant="outline" size="sm" className="flex-1 text-xs font-bold h-8 border-border/50 hover:bg-primary/10 hover:text-primary hover:border-primary/30" onClick={() => { 
+                  const now = new Date();
+                  setDateRange({ from: new Date(now.getFullYear(), now.getMonth(), 1), to: now }); 
+                  setFilterType('range') 
+                }}>This Month</Button>
+              </div>
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange.from || new Date()}
+                selected={{ from: dateRange.from, to: dateRange.to }}
+                onSelect={(range: any) => {
+                  setDateRange(range || { from: undefined, to: undefined })
+                  setFilterType('range')
+                }}
+                numberOfMonths={2}
+                className="bg-card/50 rounded-lg"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 

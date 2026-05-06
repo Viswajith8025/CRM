@@ -58,7 +58,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
           query = query.eq('project_id', projectId)
         }
 
-        const { data, error } = await query.order('created_at', { ascending: false })
+        const { data, error } = await query
+          .order('created_at', { ascending: false })
+          .range(0, 50)
         if (error) throw error
 
         set((state) => ({

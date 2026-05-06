@@ -132,8 +132,8 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
 
             {task.assignee && (
               <Avatar className="h-6 w-6">
-                <AvatarImage src={task.assignee.avatar_url} />
-                <AvatarFallback>{task.assignee.full_name.charAt(0)}</AvatarFallback>
+                <AvatarImage src={task.assignee?.avatar_url} />
+                <AvatarFallback>{task.assignee?.full_name?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
             )}
           </div>
@@ -159,7 +159,7 @@ export function TaskCard({ task, isOverlay, isSyncing }: TaskCardProps) {
             {task.assignee && (
               <div className="flex items-center gap-1.5">
                 <p className="text-[10px] font-medium text-muted-foreground">
-                  Lead: <span className="text-foreground font-bold">{task.assignee.full_name}</span>
+                  Lead: <span className="text-foreground font-bold">{task.assignee?.full_name || "Unknown"}</span>
                 </p>
               </div>
             )}

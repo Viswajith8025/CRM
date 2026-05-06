@@ -1,12 +1,12 @@
 import { NavLink } from "react-router-dom" // Sidebar
-import { 
-  LayoutDashboard, 
-  Users, 
+import {
+  LayoutDashboard,
+  Users,
   Target,
-  Briefcase, 
-  CheckSquare, 
-  FileText, 
-  BarChart3, 
+  Briefcase,
+  CheckSquare,
+  FileText,
+  BarChart3,
   Settings,
   Building2,
   LifeBuoy
@@ -17,19 +17,19 @@ import { useAuthStore } from "@/store/useAuthStore"
 
 const topNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'CRM Leads', href: '/crm', icon: Target },
-  { name: 'Active Clients', href: '/clients', icon: Building2 },
-  { name: 'Projects', href: '/projects', icon: Briefcase },
+  { name: 'CRM Leads', href: '/crm', icon: Target, roles: ['admin', 'manager'] },
+  { name: 'Active Clients', href: '/clients', icon: Building2, roles: ['admin', 'manager'] },
+  { name: 'Projects', href: '/projects', icon: Briefcase, roles: ['admin', 'manager', 'employee'] },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Teams', href: '/teams', icon: Users },
-  { name: 'Billing', href: '/billing', icon: FileText },
-  { name: 'HR & Payroll', href: '/hr', icon: Users },
+  { name: 'Teams', href: '/teams', icon: Users, roles: ['admin'] },
+  { name: 'Billing', href: '/billing', icon: FileText, roles: ['admin', 'manager'] },
+  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['admin', 'manager'] },
   { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
 ]
 
 const bottomNavigation = [
   { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
-  { name: 'Support', href: '/support', icon: LifeBuoy },
+  { name: 'Support', href: '/support', icon: LifeBuoy, roles: ['admin', 'manager'] },
 ]
 
 export function Sidebar() {
@@ -76,7 +76,7 @@ export function Sidebar() {
                         )} aria-hidden="true" />
                         {item.name}
                         {isActive && (
-                          <motion.div 
+                          <motion.div
                             layoutId="active-nav"
                             className="absolute left-0 w-1 h-6 bg-primary rounded-r-full top-1/2 -translate-y-1/2"
                           />
@@ -88,7 +88,7 @@ export function Sidebar() {
               ))}
             </ul>
           </li>
-          
+
           <li className="mt-auto">
             <ul role="list" className="-mx-2 space-y-1.5">
               {filteredBottom.map((item) => (
@@ -110,7 +110,7 @@ export function Sidebar() {
                         )} aria-hidden="true" />
                         {item.name}
                         {isActive && (
-                          <motion.div 
+                          <motion.div
                             layoutId="active-nav"
                             className="absolute left-0 w-1 h-6 bg-primary rounded-r-full top-1/2 -translate-y-1/2"
                           />

@@ -76,7 +76,7 @@ export function GlobalSearch() {
         </kbd>
       </button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
         <CommandInput 
           placeholder="Type to search clients, tasks, projects..." 
           value={query}

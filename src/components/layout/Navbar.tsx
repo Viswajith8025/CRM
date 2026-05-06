@@ -173,7 +173,7 @@ export function Navbar() {
                     {profile?.role === 'admin' ? (
                       <span className="text-primary">ROOT ADMIN</span>
                     ) : profile?.role === 'manager' ? (
-                      'Manager'
+                      'HR'
                     ) : (
                       profile?.full_name || user?.email?.split('@')[0] || 'Guest'
                     )}
@@ -185,8 +185,11 @@ export function Navbar() {
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/billing")}>Billing</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
+              
+              {profile?.role === 'admin' && (
+                <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
+              )}
+              
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={async () => {
                 await signOut()

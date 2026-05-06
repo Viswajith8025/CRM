@@ -51,11 +51,49 @@ export default function InvoiceDetail() {
     if (!invoice.id) return;
     setIsSending(true);
     try {
+      let emailDispatched = false;
+      
+      // Attempt to send the actual email via Resend if client has an email
+      if (invoice.client?.email) {
+        try {
+          const { sendEmail } = await import('@/lib/email');
+          await sendEmail({
+            to: invoice.client.email,
+            subject: `Invoice ${invoice.invoice_number} from ECRAFTZ`,
+            html: `
+              <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <h2 style="color: #0f172a;">New Invoice: ${invoice.invoice_number}</h2>
+                <p>Hello <strong>${invoice.client.name}</strong>,</p>
+                <p>Please find the details for your recent invoice.</p>
+                <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                  <p style="margin: 5px 0;"><strong>Amount Due:</strong> ₹${invoice.amount}</p>
+                  <p style="margin: 5px 0;"><strong>Due Date:</strong> ${invoice.due_date ? format(new Date(invoice.due_date), 'MMMM dd, yyyy') : 'N/A'}</p>
+                  <p style="margin: 5px 0;"><strong>Project:</strong> ${invoice.project?.name || 'General Services'}</p>
+                </div>
+                <p>If you have any questions, please reply to this email.</p>
+                <br/>
+                <p>Thank you for your business!</p>
+                <p><strong>- ECRAFTZ Team</strong></p>
+              </div>
+            `
+          });
+          emailDispatched = true;
+        } catch (emailErr: any) {
+          console.warn("Email dispatch failed (Edge function may not be deployed yet).", emailErr);
+          toast.info("Invoice marked as sent in DB, but email delivery requires Supabase Edge Function to be deployed.");
+        }
+      } else {
+        toast.info("Client has no email address on file. Marked as sent manually.");
+      }
+
       await updateInvoiceStatus(invoice.id, 'sent');
       setInvoice({ ...invoice, status: 'sent' });
-      toast.success("Invoice sent to client successfully!");
+      
+      if (emailDispatched) {
+        toast.success(`Invoice emailed to ${invoice.client?.email} successfully!`);
+      }
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invoice.");
+      toast.error(error.message || "Failed to update invoice status.");
     } finally {
       setIsSending(false);
     }

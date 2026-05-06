@@ -290,7 +290,7 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 name="lead_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Project Manager / Lead</FormLabel>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Project Lead / HR</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger className="bg-muted/20">

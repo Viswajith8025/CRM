@@ -15,7 +15,7 @@ import {
   Plus,
   Clock,
   FileText,
-  Paperclip
+  ShieldAlert
 } from "lucide-react"
 import {
   AlertDialog,
@@ -52,6 +52,7 @@ import { MilestoneForm } from "../components/MilestoneForm"
 import { Skeleton } from "@/components/ui/skeleton"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
+import { useAuthStore } from "@/store/useAuthStore"
 
 function LoadingState() {
   return (
@@ -74,9 +75,11 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate()
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
   const { getProjectById, fetchMilestones, updateProject, deleteProject, updateMilestone, fetchSprints, sprints } = useProjectsStore()
+  const { profile } = useAuthStore()
   const [project, setProject] = useState<Project | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
+  const isEmployee = profile?.role === 'employee'
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const projectSprints = id ? sprints[id] || [] : []
 
@@ -153,53 +156,57 @@ export default function ProjectDetailPage() {
             Back
           </Button>
 
-          <Button variant="outline" className="gap-2" onClick={handleArchive}>
-            <Archive className="h-4 w-4" />
-            Archive
-          </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50">
-                <Trash2 className="h-4 w-4" />
-                Delete
+          {!isEmployee && (
+            <>
+              <Button variant="outline" className="gap-2" onClick={handleArchive}>
+                <Archive className="h-4 w-4" />
+                Archive
               </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the project
-                  and all associated tasks and milestones.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-rose-500 hover:bg-rose-600 text-white">
-                  Delete Project
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>Edit Project</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Project</DialogTitle>
-                <DialogDescription>Update project details and budget.</DialogDescription>
-              </DialogHeader>
-              <ProjectForm 
-                project={project} 
-                onSuccess={() => {
-                  setIsEditDialogOpen(false)
-                  loadData()
-                }} 
-              />
-            </DialogContent>
-          </Dialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" className="gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50">
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the project
+                      and all associated tasks and milestones.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-rose-500 hover:bg-rose-600 text-white">
+                      Delete Project
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>Edit Project</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Project</DialogTitle>
+                    <DialogDescription>Update project details and budget.</DialogDescription>
+                  </DialogHeader>
+                  <ProjectForm 
+                    project={project} 
+                    onSuccess={() => {
+                      setIsEditDialogOpen(false)
+                      loadData()
+                    }} 
+                  />
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </div>
       }
     >
@@ -369,10 +376,10 @@ export default function ProjectDetailPage() {
                       </div>
                       {task.assignee && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium">{task.assignee.full_name}</span>
+                          <span className="text-xs font-medium">{task.assignee?.full_name || "Unknown"}</span>
                           <Avatar className="h-7 w-7">
-                            <AvatarImage src={task.assignee.avatar_url} />
-                            <AvatarFallback>{task.assignee.full_name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={task.assignee?.avatar_url} />
+                            <AvatarFallback>{task.assignee?.full_name?.charAt(0) || "U"}</AvatarFallback>
                           </Avatar>
                         </div>
                       )}
@@ -390,11 +397,11 @@ export default function ProjectDetailPage() {
                   <h5 className="text-xs font-bold text-primary uppercase mb-2">Team Lead</h5>
                   <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
                     <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                      <AvatarFallback className="bg-primary text-primary-foreground">{project.lead.full_name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground">{project.lead?.full_name?.charAt(0) || "L"}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-bold text-sm">{project.lead.full_name}</p>
-                      <p className="text-xs text-muted-foreground">{project.lead.email}</p>
+                      <p className="font-bold text-sm">{project.lead?.full_name || "Unassigned"}</p>
+                      <p className="text-xs text-muted-foreground">{project.lead?.email || "No email"}</p>
                     </div>
                   </div>
                 </div>
@@ -411,11 +418,11 @@ export default function ProjectDetailPage() {
                     {project.members.filter(m => m.role === 'member').map(member => (
                       <div key={member.user_id} className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
                         <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                          <AvatarFallback>{member.profiles.full_name.charAt(0)}</AvatarFallback>
+                          <AvatarFallback>{member.profiles?.full_name?.charAt(0) || "M"}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-bold text-sm">{member.profiles.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{member.profiles.email}</p>
+                          <p className="font-bold text-sm">{member.profiles?.full_name || "Unknown Member"}</p>
+                          <p className="text-xs text-muted-foreground">{member.profiles?.email || "No email"}</p>
                         </div>
                       </div>
                     ))}
@@ -468,12 +475,14 @@ export default function ProjectDetailPage() {
                 </span>
                 <span className="font-medium">{project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'N/A'}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground flex items-center gap-2">
-                  <DollarSign className="h-4 w-4" /> Budget
-                </span>
-                <span className="font-bold text-emerald-500">${project.budget?.toLocaleString() || '0'}</span>
-              </div>
+              {!isEmployee && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" /> Budget
+                  </span>
+                  <span className="font-bold text-emerald-500">${project.budget?.toLocaleString() || '0'}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground flex items-center gap-2">
                   <User className="h-4 w-4" /> Lead

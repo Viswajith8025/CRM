@@ -1,6 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Printer, X } from 'lucide-react'
+import { Printer, X, Send, Loader2 } from 'lucide-react'
+import { sendEmail } from '@/lib/email'
+import { toast } from 'sonner'
 
 interface ProposalPreviewProps {
   data: any
@@ -8,8 +10,74 @@ interface ProposalPreviewProps {
 }
 
 export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
+  const [isSending, setIsSending] = useState(false)
+
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleSendEmail = async () => {
+    if (!data.client_email) {
+      toast.error("Client email is missing!")
+      return
+    }
+
+    setIsSending(true)
+    try {
+      const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+          <h2 style="color: #000;">Project Proposal: ${data.service_name}</h2>
+          <p>Dear ${data.client_name},</p>
+          <p>Please find below the project proposal for <strong>${data.service_name}</strong> from <strong>${data.company_name}</strong>.</p>
+          
+          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">Proposal Summary</h3>
+            <p><strong>Proposal ID:</strong> ${data.proposal_id}</p>
+            <p><strong>Total Amount:</strong> ₹${data.total.toLocaleString()}</p>
+            <p><strong>Valid Until:</strong> ${data.valid_until}</p>
+          </div>
+
+          <h3>Pricing Breakdown</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #eee;">
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
+                <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.items.map((item: any) => `
+                <tr>
+                  <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
+                  <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹${item.price.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+              <tr>
+                <td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>Total</strong></td>
+                <td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>₹${data.total.toLocaleString()}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #888;">
+            <p>Regards,<br/><strong>${data.company_name}</strong><br/>${data.company_phone}</p>
+          </div>
+        </div>
+      `
+
+      await sendEmail({
+        to: data.client_email,
+        subject: `Project Proposal: ${data.service_name} - ${data.company_name}`,
+        html,
+      })
+
+      toast.success("Proposal sent to client successfully!")
+    } catch (error) {
+      console.error("Failed to send email:", error)
+      toast.error("Failed to send proposal. Please check your Resend configuration.")
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
@@ -17,6 +85,10 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
       <div className="flex justify-between items-center p-4 border-b bg-muted/50">
         <h2 className="text-sm font-black uppercase tracking-widest">Proposal Preview</h2>
         <div className="flex gap-2">
+          <Button size="sm" variant="default" onClick={handleSendEmail} disabled={isSending} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Send to Client
+          </Button>
           <Button size="sm" variant="outline" onClick={handlePrint} className="gap-2">
             <Printer className="h-4 w-4" /> Print / Save PDF
           </Button>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { Plus, LayoutGrid, List, Search } from "lucide-react"
+import { Plus, LayoutGrid, List, Search, Columns } from "lucide-react"
 import { ProjectCard } from "../components/ProjectCard"
+import { KanbanBoard } from "../components/KanbanBoard"
 import { useProjectsStore } from "../projectsStore"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,10 +26,12 @@ import { cn } from "@/lib/utils"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import MarketingDashboard from "@/modules/marketing/pages/MarketingDashboard"
+import { useAuthStore } from "@/store/useAuthStore"
 
 export default function ProjectsPage() {
   const { projects, fetchProjects, subscribeToProjects, isLoading } = useProjectsStore()
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const { profile } = useAuthStore()
+  const [view, setView] = useState<'grid' | 'list' | 'kanban'>('kanban')
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -60,7 +63,9 @@ export default function ProjectsPage() {
       <Tabs defaultValue="projects" className="space-y-6">
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>
-          <TabsTrigger value="marketing" className="font-bold uppercase tracking-tight text-xs">Marketing Dashboard</TabsTrigger>
+          {profile?.role !== 'employee' && (
+            <TabsTrigger value="marketing" className="font-bold uppercase tracking-tight text-xs">Marketing Dashboard</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="projects" className="space-y-6">
@@ -91,6 +96,14 @@ export default function ProjectsPage() {
             </div>
             
             <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+              <Button 
+                variant={view === 'kanban' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setView('kanban')}
+                className="h-8 w-8 p-0"
+              >
+                <Columns className="h-4 w-4" />
+              </Button>
               <Button 
                 variant={view === 'grid' ? 'secondary' : 'ghost'} 
                 size="sm" 
@@ -127,6 +140,10 @@ export default function ProjectsPage() {
                   ? "Try adjusting your filters to find what you're looking for." 
                   : "Get started by creating your first project and assigning it to a client."}
               </p>
+            </div>
+          ) : view === 'kanban' ? (
+            <div className="h-[calc(100vh-280px)] min-h-[600px]">
+              <KanbanBoard filterStatus={statusFilter} searchQuery={search} />
             </div>
           ) : (
             <div className={cn(

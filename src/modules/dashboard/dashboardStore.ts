@@ -29,7 +29,6 @@ export const WIDGET_REGISTRY: Record<WidgetId, WidgetConfig> = {
     id: 'active_projects',
     title: 'Active Projects',
     description: 'Status summary of running projects.',
-    requiredPermission: 'projects.create',
     defaultSize: 'medium'
   },
   lead_funnel: {

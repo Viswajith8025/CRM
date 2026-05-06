@@ -30,11 +30,11 @@ export const useSearchStore = create<SearchState>((set) => ({
     const term = `%${query}%`
 
     try {
-      // Parallel search across tables
+      // Parallel search across tables (removed complex joins to prevent silent failures)
       const [leads, clients, projects, tasks, invoices] = await Promise.all([
         supabase.from('leads').select('id, first_name, last_name, company').or(`first_name.ilike.${term},last_name.ilike.${term},company.ilike.${term}`).limit(5),
-        supabase.from('clients').select('id, name, company:leads(company)').ilike('name', term).limit(5),
-        supabase.from('projects').select('id, name, client:clients(name)').ilike('name', term).limit(5),
+        supabase.from('clients').select('id, name').ilike('name', term).limit(5),
+        supabase.from('projects').select('id, name').ilike('name', term).limit(5),
         supabase.from('tasks').select('id, title, status').ilike('title', term).limit(5),
         supabase.from('invoices').select('id, invoice_number, amount').ilike('invoice_number', term).limit(5),
       ])
@@ -50,14 +50,14 @@ export const useSearchStore = create<SearchState>((set) => ({
         ...(clients.data || []).map(c => ({
           id: c.id,
           title: c.name,
-          subtitle: (c.company as any)?.company || 'Active Client',
+          subtitle: 'Active Client',
           type: 'client' as const,
           url: `/clients?id=${c.id}`
         })),
         ...(projects.data || []).map(p => ({
           id: p.id,
           title: p.name,
-          subtitle: (p.client as any)?.name,
+          subtitle: 'Project',
           type: 'project' as const,
           url: `/projects/${p.id}`
         })),
