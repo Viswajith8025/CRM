@@ -492,13 +492,24 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
+      // 1. Check if this is ALREADY a client ID (prevent double-conversion attempts)
+      const { data: alreadyClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('id', leadId)
+        .eq('organization_id', orgId)
+        .maybeSingle()
+
+      if (alreadyClient) return alreadyClient.id
+
+      // 2. Check if a client exists for this lead_id
       const { data: existing } = await supabase
         .from('clients')
         .select('id')
         .eq('lead_id', leadId)
         .eq('organization_id', orgId)
         .maybeSingle()
-      
+
       if (existing) return existing.id
 
       const { data: lead } = await supabase

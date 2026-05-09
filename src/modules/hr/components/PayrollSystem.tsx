@@ -24,7 +24,7 @@ export function PayrollSystem() {
     fetchEmployees()
   }, [])
 
-  const filteredPayroll = payroll.filter((slip) =>
+  const filteredPayroll = (payroll || []).filter((slip) =>
     slip.profile?.full_name?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -35,15 +35,15 @@ export function PayrollSystem() {
 
     employees.forEach(emp => {
       // Check if already exists for this month
-      if (!payroll.find(p => p.user_id === emp.user_id && p.month === currentMonth && p.year === currentYear)) {
+      if (!payroll.find(p => p.user_id === emp.id && p.month === currentMonth && p.year === currentYear)) {
         generatePayroll({
-          user_id: emp.user_id,
+          user_id: emp.id,
           month: currentMonth,
           year: currentYear,
-          basic_pay: emp.base_salary,
-          allowances: emp.base_salary * 0.1, // Dummy 10% allowance
-          deductions: emp.base_salary * 0.05, // Dummy 5% deduction
-          net_pay: emp.base_salary + (emp.base_salary * 0.1) - (emp.base_salary * 0.05),
+          basic_pay: emp.base_salary || 0,
+          allowances: (emp.base_salary || 0) * 0.1, // Dummy 10% allowance
+          deductions: (emp.base_salary || 0) * 0.05, // Dummy 5% deduction
+          net_pay: (emp.base_salary || 0) + ((emp.base_salary || 0) * 0.1) - ((emp.base_salary || 0) * 0.05),
           status: 'draft'
         })
       }

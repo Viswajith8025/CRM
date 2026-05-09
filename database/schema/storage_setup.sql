@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS documents (
   bucket_name TEXT NOT NULL,
   file_url TEXT NOT NULL,
   
+  -- Versioning & Organization
+  version_number INTEGER DEFAULT 1,
+  folder TEXT DEFAULT 'Assets',
+  client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+  
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -55,6 +60,18 @@ DROP POLICY IF EXISTS "Storage Update" ON storage.objects;
 CREATE POLICY "Storage Update" ON storage.objects FOR UPDATE TO authenticated
 USING (bucket_id IN ('task-attachments', 'invoices', 'documents') 
   AND (storage.foldername(name))[1] = public.get_my_org_id()::text);
+
+-- 5. ACCESS TRACKING RPC
+CREATE OR REPLACE FUNCTION track_document_access(p_doc_id UUID)
+RETURNS VOID AS $$
+BEGIN
+  UPDATE documents 
+  SET updated_at = NOW() 
+  WHERE id = p_doc_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+NOTIFY pgrst, 'reload schema';
 
 DROP POLICY IF EXISTS "Storage Delete" ON storage.objects;
 CREATE POLICY "Storage Delete" ON storage.objects FOR DELETE TO authenticated

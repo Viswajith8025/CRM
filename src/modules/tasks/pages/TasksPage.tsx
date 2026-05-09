@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react"
 import { usePerfGuard } from '@/hooks/usePerfGuard'
+import { useDebounce } from "@/hooks/useDebounce"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Plus, LayoutGrid, List as ListIcon, Filter, Search, FileSpreadsheet } from "lucide-react"
 import { ImportWizard } from "@/components/shared/ImportWizard"
@@ -34,6 +35,7 @@ export default function TasksPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
 
   const [isImportOpen, setIsImportOpen] = useState(false)
@@ -55,13 +57,13 @@ export default function TasksPage() {
 
     const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
     
-    const query = searchQuery.toLowerCase()
+    const query = debouncedSearchQuery.toLowerCase()
     const matchesSearch = query === "" || 
                           task.title.toLowerCase().includes(query) || 
                           (task.description && task.description.toLowerCase().includes(query))
 
     return matchesStatus && matchesPriority && matchesSearch
-  }), [tasks, statusFilter, priorityFilter, searchQuery])
+  }), [tasks, statusFilter, priorityFilter, debouncedSearchQuery])
 
   const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all"
 
@@ -209,9 +211,8 @@ export default function TasksPage() {
 
       {view === 'kanban' ? (
         <KanbanBoard 
-          filterStatus={statusFilter} 
-          filterPriority={priorityFilter} 
-          searchQuery={searchQuery}
+          tasks={filteredTasks}
+          filterStatus={statusFilter}
         />
       ) : (
         <TaskList 

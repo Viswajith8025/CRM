@@ -30,52 +30,21 @@ export const useSearchStore = create<SearchState>((set) => ({
     const term = `%${query}%`
 
     try {
-      // Parallel search across tables (removed complex joins to prevent silent failures)
-      const [leads, clients, projects, tasks, invoices] = await Promise.all([
-        supabase.from('leads').select('id, first_name, last_name, company').or(`first_name.ilike.${term},last_name.ilike.${term},company.ilike.${term}`).limit(5),
-        supabase.from('clients').select('id, name').ilike('name', term).limit(5),
-        supabase.from('projects').select('id, name').ilike('name', term).limit(5),
-        supabase.from('tasks').select('id, title, status').ilike('title', term).limit(5),
-        supabase.from('invoices').select('id, invoice_number, amount').ilike('invoice_number', term).limit(5),
-      ])
+      // Use the optimized Database RPC for unified global search
+      const { data, error } = await supabase.rpc('global_search', {
+        p_query: query,
+        p_limit: 20
+      })
+      
+      if (error) throw error
 
-      const formattedResults: SearchResult[] = [
-        ...(leads.data || []).map(l => ({
-          id: l.id,
-          title: `${l.first_name} ${l.last_name}`,
-          subtitle: l.company,
-          type: 'lead' as const,
-          url: `/crm?id=${l.id}`
-        })),
-        ...(clients.data || []).map(c => ({
-          id: c.id,
-          title: c.name,
-          subtitle: 'Active Client',
-          type: 'client' as const,
-          url: `/clients?id=${c.id}`
-        })),
-        ...(projects.data || []).map(p => ({
-          id: p.id,
-          title: p.name,
-          subtitle: 'Project',
-          type: 'project' as const,
-          url: `/projects/${p.id}`
-        })),
-        ...(tasks.data || []).map(t => ({
-          id: t.id,
-          title: t.title,
-          subtitle: `Status: ${t.status}`,
-          type: 'task' as const,
-          url: `/tasks?id=${t.id}`
-        })),
-        ...(invoices.data || []).map(i => ({
-          id: i.id,
-          title: `Invoice ${i.invoice_number}`,
-          subtitle: `$${i.amount.toLocaleString()}`,
-          type: 'invoice' as const,
-          url: `/billing/${i.id}`
-        })),
-      ]
+      const formattedResults: SearchResult[] = (data || []).map((r: any) => ({
+        id: r.id,
+        title: r.title,
+        subtitle: r.subtitle,
+        type: r.type,
+        url: r.link
+      }))
 
       set({ results: formattedResults })
     } catch (error) {

@@ -152,6 +152,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
           organization_id: orgId,
           invoice_id: data.id,
           amount: data.amount,
+          status: 'verified',
           payment_method: 'manual',
           paid_at: new Date().toISOString()
         })
@@ -207,6 +208,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
             organization_id: orgId,
             invoice_id: id,
             amount: data.amount,
+            status: 'verified',
             payment_method: 'manual',
             paid_at: new Date().toISOString()
           })

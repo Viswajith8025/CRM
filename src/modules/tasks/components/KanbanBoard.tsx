@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useCallback } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -12,10 +12,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
-  SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import type { Task, TaskStatus } from '../types'
 import { KanbanColumn } from './KanbanColumn'
@@ -41,7 +38,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { toast } from 'sonner'
-import { useCallback } from 'react'
 
 const COLUMNS: { id: TaskStatus; title: string }[] = [
   { id: 'todo', title: 'To Do' },
@@ -51,13 +47,12 @@ const COLUMNS: { id: TaskStatus; title: string }[] = [
 ]
 
 interface KanbanBoardProps {
+  tasks: Task[]
   filterStatus?: string
-  filterPriority?: string
-  searchQuery?: string
 }
 
-export function KanbanBoard({ filterStatus = "all", filterPriority = "all", searchQuery = "" }: KanbanBoardProps) {
-  const { tasks, updateTask, deleteTask } = useTasksStore()
+export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }: KanbanBoardProps) => {
+  const { tasks: allTasks, updateTask, deleteTask } = useTasksStore()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null)
   
@@ -77,28 +72,9 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
     })
   )
 
-  const filteredTasks = useMemo(() => tasks.filter(task => {
-    let matchesStatus = filterStatus === "all" || task.status === filterStatus
-    
-    if (filterStatus === "overdue") {
-      matchesStatus = task.status !== 'done' && 
-                      task.due_date !== null && 
-                      new Date(task.due_date) < new Date()
-    }
-
-    const matchesPriority = filterPriority === "all" || task.priority === filterPriority
-    
-    const query = searchQuery.toLowerCase()
-    const matchesSearch = query === "" || 
-                          task.title.toLowerCase().includes(query) || 
-                          (task.description && task.description.toLowerCase().includes(query))
-
-    return matchesStatus && matchesPriority && matchesSearch
-  }), [tasks, filterStatus, filterPriority, searchQuery])
-
   function handleDragStart(event: DragStartEvent) {
     const { active } = event
-    const task = tasks.find((t) => t.id === active.id)
+    const task = allTasks.find((t) => t.id === active.id)
     if (task) setActiveTask(task)
   }
 
@@ -115,7 +91,7 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
     const activeId = active.id
     const overId = over.id
 
-    const activeTask = tasks.find((t) => t.id === activeId)
+    const activeTask = allTasks.find((t) => t.id === activeId)
     if (!activeTask) return
 
     // If dragging over a column
@@ -131,7 +107,7 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
     }
 
     // If dragging over another task
-    const overTask = tasks.find(t => t.id === overId)
+    const overTask = allTasks.find(t => t.id === overId)
     if (overTask && activeTask.status !== overTask.status) {
       try {
         setSyncingTaskId(activeId as string)
@@ -153,12 +129,12 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
   }, [])
 
   const handleDeleteClick = useCallback((id: string) => {
-    const task = tasks.find(t => t.id === id)
+    const task = allTasks.find(t => t.id === id)
     if (task) {
       setSelectedTask(task)
       setIsDeleteAlertOpen(true)
     }
-  }, [tasks])
+  }, [allTasks])
 
   const confirmDelete = async () => {
     if (!selectedTask) return
@@ -244,4 +220,4 @@ export function KanbanBoard({ filterStatus = "all", filterPriority = "all", sear
       </AlertDialog>
     </DndContext>
   )
-}
+})

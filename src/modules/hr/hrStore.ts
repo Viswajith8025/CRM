@@ -6,8 +6,9 @@ import type { Employee, LeaveRequest, PayrollRecord } from '../types/types'
 
 interface HRState {
   employees: Employee[]
-  leaveRequests: LeaveRequest[]
-  payrollRecords: PayrollRecord[]
+  payroll: PayrollRecord[]
+  attendance: any[]
+  leaves: any[]
   isLoading: boolean
   error: string | null
   pagination: {
@@ -15,6 +16,10 @@ interface HRState {
     leaveRequests: { totalCount: number, page: number, limit: number, totalPages: number }
   }
   
+  fetchAttendance: () => Promise<void>
+  fetchLeaves: () => Promise<void>
+  clockIn: () => Promise<void>
+  clockOut: (attendanceId: string) => Promise<void>
   fetchEmployees: (params?: Partial<PaginationParams>) => Promise<void>
   addEmployee: (employee: Partial<Employee>) => Promise<void>
   updateEmployee: (id: string, updates: Partial<Employee>) => Promise<void>
@@ -24,18 +29,98 @@ interface HRState {
   updateLeaveStatus: (id: string, status: LeaveRequest['status']) => Promise<void>
   
   fetchPayroll: () => Promise<void>
-  generatePayroll: (month: string, year: number) => Promise<void>
+  generatePayroll: (payload: any) => Promise<void>
 }
 
 export const useHRStore = create<HRState>((set, get) => ({
   employees: [],
-  leaveRequests: [],
-  payrollRecords: [],
+  payroll: [],
+  attendance: [],
+  leaves: [],
   isLoading: false,
   error: null,
   pagination: {
     employees: { totalCount: 0, page: 1, limit: 20, totalPages: 0 },
     leaveRequests: { totalCount: 0, page: 1, limit: 20, totalPages: 0 }
+  },
+
+  fetchAttendance: async () => {
+    set({ isLoading: true })
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
+      const { data, error } = await supabase
+        .from('attendance')
+        .select('*, profile:profiles(full_name, avatar_url)')
+        .eq('organization_id', orgId)
+        .order('date', { ascending: false })
+        .limit(20)
+
+      if (error) throw error
+      set({ attendance: data || [], error: null })
+    } catch (err) {
+      set({ error: getFriendlySupabaseError(err) })
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+
+  fetchLeaves: async () => {
+    set({ isLoading: true })
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
+      const { data, error } = await supabase
+        .from('leave_requests')
+        .select('*, profile:profiles(full_name, avatar_url)')
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      set({ leaves: data || [], error: null })
+    } catch (err) {
+      set({ error: getFriendlySupabaseError(err) })
+    } finally {
+      set({ isLoading: false })
+    }
+  },
+
+  clockIn: async () => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      if (!profile?.id) return
+
+      const { error } = await supabase.from('attendance').insert({
+        user_id: profile.id,
+        organization_id: profile.organization_id,
+        date: new Date().toISOString().split('T')[0],
+        clock_in: new Date().toISOString(),
+        status: 'present'
+      })
+
+      if (error) throw error
+      get().fetchAttendance()
+    } catch (err) {
+      console.error("Clock in failed:", err)
+    }
+  },
+
+  clockOut: async (attendanceId) => {
+    try {
+      const { error } = await supabase
+        .from('attendance')
+        .update({ clock_out: new Date().toISOString() })
+        .eq('id', attendanceId)
+
+      if (error) throw error
+      get().fetchAttendance()
+    } catch (err) {
+      console.error("Clock out failed:", err)
+    }
   },
 
   fetchEmployees: async (params = {}) => {
@@ -131,7 +216,7 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const baseQuery = supabase
         .from('leave_requests')
-        .select('*, profiles(full_name)', { count: 'exact' })
+        .select('*, profile:profiles(full_name)', { count: 'exact' })
         .eq('organization_id', orgId)
 
       const result = await fetchPaginatedData<LeaveRequest>(baseQuery, {
@@ -173,7 +258,10 @@ export const useHRStore = create<HRState>((set, get) => ({
         .single()
 
       if (error) throw error
-      set({ leaveRequests: [data as LeaveRequest, ...get().leaveRequests] })
+      
+      // Update local state and re-fetch to ensure relations are loaded
+      set({ leaves: [data, ...get().leaves] })
+      get().fetchLeaves()
     } catch (err) {
       throw toFriendlyError(err, "Failed to submit leave request.")
     }
@@ -195,7 +283,7 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       if (error) throw error
       set({
-        leaveRequests: get().leaveRequests.map((r) => (r.id === id ? { ...r, status } : r))
+        leaves: get().leaves.map((r) => (r.id === id ? { ...r, status } : r))
       })
     } catch (err) {
       throw toFriendlyError(err, "Failed to update leave status.")
@@ -210,19 +298,34 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('payroll')
-        .select('*, profiles(full_name)')
+        .select('*, profile:profiles(full_name)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      set({ payrollRecords: data as PayrollRecord[] })
+      set({ payroll: data as PayrollRecord[] })
     } catch (err) {
       console.error("Failed to fetch payroll:", err)
     }
   },
 
-  generatePayroll: async (month, year) => {
-    // Complex logic for generating payroll - should also include orgId in any inserts
+  generatePayroll: async (payload: any) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const { data, error } = await supabase
+        .from('payroll')
+        .insert({ ...payload, organization_id: orgId })
+        .select()
+        .single()
+
+      if (error) throw error
+      set({ payroll: [data as PayrollRecord, ...get().payroll] })
+    } catch (err) {
+      console.error("Failed to generate payroll:", err)
+    }
   }
 }))
 

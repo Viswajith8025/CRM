@@ -93,9 +93,15 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
       
       // Ensure the selected client is a real record (converts lead if needed)
       if (finalClientId && finalClientId !== "none") {
-        finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+        try {
+          // If ensureClientFromLead is called on a real client, it will now handle it gracefully
+          finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+        } catch (err) {
+          console.error("Client conversion check failed:", err)
+          // Don't block the whole submission if it might already be a valid client ID
+        }
       }
-      console.log('Final Client ID after conversion:', finalClientId)
+
       const taxRate = values.tax_rate || 0
       const taxAmount = (values.amount * taxRate) / 100
 

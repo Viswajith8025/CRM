@@ -35,7 +35,7 @@ interface LeaveRequestFormProps {
 }
 
 export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
-  const { submitLeave } = useHRStore()
+  const { submitLeaveRequest } = useHRStore()
   const [loading, setLoading] = useState(false)
 
   const form = useForm<z.infer<typeof leaveSchema>>({
@@ -51,7 +51,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
   async function onSubmit(values: z.infer<typeof leaveSchema>) {
     setLoading(true)
     try {
-      await submitLeave({ ...values, status: 'pending' })
+      await submitLeaveRequest({ ...values, status: 'pending' })
       toast.success("Leave request submitted successfully")
       onSuccess?.()
     } catch (error) {

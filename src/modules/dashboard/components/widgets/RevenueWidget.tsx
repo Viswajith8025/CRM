@@ -67,10 +67,10 @@ export function RevenueWidget() {
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 p-0 mt-4 min-h-[300px] w-full">
-        <div className="w-full h-full aspect-[16/9] min-h-[300px]">
+      <CardContent className="flex-1 p-0 mt-4 w-full">
+        <div className="w-full h-[300px]">
           {isMounted && (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+            <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">

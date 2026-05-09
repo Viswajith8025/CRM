@@ -84,7 +84,12 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
       
       // Ensure the selected client is a real record (converts lead if needed)
       if (finalClientId) {
-        finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+        try {
+          finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+        } catch (err) {
+          console.error("Client conversion check failed:", err)
+          // Fallback to original ID if it's already a valid UUID
+        }
       }
       const finalStartDate = !projectData.start_date ? null : projectData.start_date
       const finalEndDate = !projectData.end_date ? null : projectData.end_date

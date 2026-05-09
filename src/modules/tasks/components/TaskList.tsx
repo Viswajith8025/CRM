@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils"
 import type { Task } from "../types"
 import { useTasksStore } from "../tasksStore"
 import TaskDetailsDialog from "./TaskDetailsDialog"
-import { useState } from "react"
+import { useState, memo } from "react"
 
 interface TaskListProps {
   tasks: Task[]
 }
 
-export function TaskList({ tasks }: TaskListProps) {
+export const TaskList = memo(({ tasks }: TaskListProps) => {
   const { deleteTask } = useTasksStore()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
@@ -139,4 +139,4 @@ export function TaskList({ tasks }: TaskListProps) {
       />
     </div>
   )
-}
+})

@@ -59,10 +59,9 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'paid': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
-      case 'partially_paid': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'overdue': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
-      default: return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'paid': return 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]';
+      case 'overdue': return 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)]';
+      default: return 'bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)]';
     }
   };
 
@@ -76,127 +75,141 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto bg-card text-card-foreground border rounded-2xl shadow-2xl overflow-hidden print:border-0 print:shadow-none print:rounded-none">
-      {/* 1. BRAND HEADER */}
-      <div className="bg-primary/5 p-8 sm:p-12 border-b">
-        <div className="flex flex-col md:flex-row justify-between gap-8">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center">
-                <div className="h-6 w-6 bg-primary-foreground rounded-sm rotate-45" />
+    <div className="w-full max-w-5xl mx-auto bg-white text-slate-900 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.14)] overflow-hidden print:shadow-none print:w-full">
+      {/* TOP DECORATIVE STRIP */}
+      <div className="h-2 bg-gradient-to-r from-primary via-blue-600 to-emerald-500" />
+
+      <div className="p-8 sm:p-16">
+        {/* 1. HEADER SECTION */}
+        <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-16">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-xl">
+                <div className="h-7 w-7 bg-white rounded-lg rotate-12 transition-transform hover:rotate-45 duration-500" />
               </div>
-              <h1 className="text-4xl font-black tracking-tighter text-foreground">ECRAFTZ</h1>
+              <div>
+                <h1 className="text-3xl font-black tracking-tighter text-slate-900 leading-none">ECRAFTZ</h1>
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary mt-1">Digital Solutions</p>
+              </div>
             </div>
-            <div className="space-y-1.5 text-sm text-muted-foreground max-w-xs">
-              <p className="flex items-start gap-2">
-                <Building2 className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+            
+            <div className="space-y-2 text-xs text-slate-500 font-medium leading-relaxed max-w-xs">
+              <p className="flex items-start gap-3">
+                <Building2 className="w-4 h-4 shrink-0 text-slate-900" />
                 NV Tower, 20/265, A9, First floor, Kallai, Kozhikode, Kerala 673003
               </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                <p className="flex items-center gap-2">
+                  <Phone className="w-3.5 h-3.5 text-slate-900" />
+                  +91 79949 71118
+                </p>
+                <p className="flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5 text-slate-900" />
+                  mail@ecraftz.in
+                </p>
+              </div>
               <p className="flex items-center gap-2">
-                <Phone className="w-4 h-4 shrink-0 text-primary" />
-                +91 79949 71118
-              </p>
-              <p className="flex items-center gap-2">
-                <Mail className="w-4 h-4 shrink-0 text-primary" />
-                mail@ecraftz.in
-              </p>
-              <p className="flex items-center gap-2">
-                <Globe className="w-4 h-4 shrink-0 text-primary" />
+                <Globe className="w-3.5 h-3.5 text-slate-900" />
                 www.ecraftz.in
               </p>
             </div>
           </div>
 
-          <div className="text-left md:text-right space-y-4">
+          <div className="text-left md:text-right space-y-6">
             <div className="space-y-1">
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">Invoice</h2>
-              <p className="text-3xl font-mono font-black text-foreground">#{data.invoice_number}</p>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Tax Invoice</h2>
+              <p className="text-5xl font-black text-slate-900 tracking-tighter">#{data.invoice_number}</p>
             </div>
             
-            <div className={cn(
-              "inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
-              getStatusStyle(data.status)
-            )}>
-              {getStatusIcon(data.status)}
-              {data.status}
+            <div className="flex flex-col md:items-end gap-2">
+               <div className={cn(
+                "inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                getStatusStyle(data.status)
+              )}>
+                {getStatusIcon(data.status)}
+                {data.status}
+              </div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Status: Finalized</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="p-8 sm:p-12 space-y-12">
-        {/* 2. DATES & INFO */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-6 border-y border-dashed border-border/50">
+        {/* 2. INFO BAR */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 p-8 rounded-3xl bg-slate-50 border border-slate-100 mb-16">
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Issued Date</p>
-            <p className="font-bold">{format(new Date(data.issued_at), 'MMMM d, yyyy')}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Issued On</p>
+            <p className="text-sm font-black text-slate-900">{format(new Date(data.issued_at), 'MMM dd, yyyy')}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Due Date</p>
-            <p className="font-bold">{format(new Date(data.due_date), 'MMMM d, yyyy')}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Due By</p>
+            <p className="text-sm font-black text-slate-900">{format(new Date(data.due_date), 'MMM dd, yyyy')}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project</p>
-            <p className="font-bold">{data.project?.name || 'General Services'}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Project Ref</p>
+            <p className="text-sm font-black text-slate-900 truncate">{data.project?.name || 'General Services'}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Billing Type</p>
-            <p className="font-bold">{data.project?.billing_type || 'Fixed Rate'}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Currency</p>
+            <p className="text-sm font-black text-slate-900">{data.currency || 'USD'} ({currencySymbol})</p>
           </div>
         </div>
 
         {/* 3. CLIENT SECTION */}
-        <div className="grid md:grid-cols-2 gap-12">
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Billed To</h3>
-            <div className="space-y-2">
-              <p className="text-2xl font-black text-foreground">{data.client.name}</p>
+        <div className="mb-16">
+          <div className="inline-block px-4 py-1 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-t-lg">
+            Recipient
+          </div>
+          <div className="p-8 border-2 border-slate-900 rounded-b-2xl rounded-r-2xl grid md:grid-cols-2 gap-12">
+            <div className="space-y-4">
+              <p className="text-4xl font-black text-slate-900 tracking-tight">{data.client.name}</p>
               {data.client.company && (
-                <p className="text-lg font-bold text-muted-foreground">{data.client.company}</p>
+                <p className="text-xl font-bold text-slate-500">{data.client.company}</p>
               )}
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p className="flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  {data.client.email}
-                </p>
-                <p className="flex items-start gap-2">
-                  <Building2 className="w-4 h-4 mt-0.5 shrink-0" />
-                  {data.client.address || 'Address not available'}
-                </p>
-              </div>
+            </div>
+            <div className="space-y-3 text-sm text-slate-500 font-medium">
+              <p className="flex items-center gap-3">
+                <Mail className="w-4 h-4 text-slate-900" />
+                {data.client.email}
+              </p>
+              <p className="flex items-start gap-3 leading-relaxed">
+                <Building2 className="w-4 h-4 mt-1 shrink-0 text-slate-900" />
+                {data.client.address || 'Standard Service Location'}
+              </p>
             </div>
           </div>
         </div>
 
         {/* 4. BILLING TABLE */}
-        <div className="overflow-x-auto">
+        <div className="mb-16">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b-2 border-primary/20">
-                <th className="py-4 font-bold text-xs uppercase tracking-widest text-muted-foreground">Description</th>
-                <th className="py-4 px-4 font-bold text-xs uppercase tracking-widest text-muted-foreground text-center">Qty</th>
-                <th className="py-4 px-4 font-bold text-xs uppercase tracking-widest text-muted-foreground text-right">Rate</th>
-                <th className="py-4 px-4 font-bold text-xs uppercase tracking-widest text-muted-foreground text-right">Tax</th>
-                <th className="py-4 font-bold text-xs uppercase tracking-widest text-muted-foreground text-right">Total</th>
+              <tr className="border-b-4 border-slate-900">
+                <th className="py-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Description</th>
+                <th className="py-6 px-4 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-center">Qty</th>
+                <th className="py-6 px-4 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-right">Unit Price</th>
+                <th className="py-6 px-4 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-right">Tax (%)</th>
+                <th className="py-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 text-right">Line Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/50">
+            <tbody className="divide-y divide-slate-100">
               {data.items.map((item) => {
                 const itemTotal = item.quantity * item.rate;
                 return (
-                  <tr key={item.id} className="group hover:bg-muted/30 transition-colors">
-                    <td className="py-6">
-                      <p className="font-bold text-foreground leading-none">{item.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1.5">{data.project?.service_type || 'IT Consultation'}</p>
+                  <tr key={item.id} className="group">
+                    <td className="py-8 pr-4">
+                      <p className="text-lg font-black text-slate-900">{item.description}</p>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
+                        {data.project?.service_type || 'Professional Service'}
+                      </p>
                     </td>
-                    <td className="py-6 px-4 text-center font-medium">{item.quantity}</td>
-                    <td className="py-6 px-4 text-right font-medium">
+                    <td className="py-8 px-4 text-center font-black text-slate-900">{item.quantity}</td>
+                    <td className="py-8 px-4 text-right font-black text-slate-900">
                       {currencySymbol}{item.rate.toLocaleString()}
                     </td>
-                    <td className="py-6 px-4 text-right text-muted-foreground text-sm">
+                    <td className="py-8 px-4 text-right font-bold text-slate-400">
                       {item.taxRate}%
                     </td>
-                    <td className="py-6 text-right font-black text-foreground">
+                    <td className="py-8 text-right font-black text-slate-900 text-xl tracking-tighter">
                       {currencySymbol}{itemTotal.toLocaleString()}
                     </td>
                   </tr>
@@ -206,86 +219,88 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
           </table>
         </div>
 
-        {/* 5. SUMMARY & PAYMENT */}
-        <div className="flex flex-col md:flex-row justify-between gap-12 pt-8">
-          {/* Payment Details */}
-          <div className="flex-1 space-y-6 max-w-sm">
-            <div className="p-6 rounded-2xl bg-muted/30 border border-dashed border-border flex flex-col gap-4">
-              <div className="flex items-center gap-3 text-primary">
-                <CreditCard className="w-5 h-5" />
-                <h4 className="font-black text-sm uppercase tracking-wider">Payment Information</h4>
-              </div>
-              <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-card border shadow-sm">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">UPI ID</p>
-                  <p className="font-mono font-black text-primary">ecraftz@upi</p>
+        {/* 5. FOOTER SUMMARY */}
+        <div className="grid md:grid-cols-2 gap-16 pt-12 border-t-2 border-slate-100">
+          <div className="space-y-8">
+            <div className="p-8 rounded-3xl bg-slate-900 text-white shadow-2xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150 duration-700" />
+              <div className="relative z-10 space-y-6">
+                <div className="flex items-center gap-3 opacity-60">
+                  <CreditCard className="w-5 h-5" />
+                  <h4 className="font-black text-[10px] uppercase tracking-[0.3em]">Payment Instructions</h4>
                 </div>
-                <div className="p-3 rounded-xl bg-card border shadow-sm">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Bank Transfer</p>
-                  <p className="text-xs font-bold leading-relaxed">
-                    A/C: 50200067891234<br/>
-                    IFSC: HDFC0001234<br/>
-                    Bank: HDFC Bank, Kozhikode
-                  </p>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">UPI Transfer</p>
+                    <p className="font-mono font-black text-lg">ecraftz@upi</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank Transfer</p>
+                    <p className="text-xs font-bold leading-relaxed opacity-80">
+                      HDFC Bank, Kozhikode branch<br/>
+                      A/C: 50200067891234 | IFSC: HDFC0001234
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
+
             {data.notes && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Additional Notes</p>
-                <p className="text-xs text-muted-foreground italic leading-relaxed">
-                  {data.notes}
+              <div className="space-y-2 px-4 border-l-4 border-primary">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Administrative Notes</p>
+                <p className="text-xs text-slate-500 font-medium italic leading-relaxed">
+                  "{data.notes}"
                 </p>
               </div>
             )}
           </div>
 
-          {/* Totals */}
-          <div className="w-full md:w-80 space-y-4">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground font-medium">Subtotal</span>
-              <span className="font-bold">{currencySymbol}{subtotal.toLocaleString()}</span>
+          <div className="space-y-6 bg-slate-50 p-8 rounded-3xl">
+            <div className="flex justify-between items-center text-sm font-bold">
+              <span className="text-slate-400 uppercase tracking-widest">Subtotal</span>
+              <span className="text-slate-900">{currencySymbol}{subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground font-medium">Estimated Tax</span>
-              <span className="font-bold text-muted-foreground">+{currencySymbol}{totalTax.toLocaleString()}</span>
+            <div className="flex justify-between items-center text-sm font-bold">
+              <span className="text-slate-400 uppercase tracking-widest">Tax Component</span>
+              <span className="text-slate-400">+{currencySymbol}{totalTax.toLocaleString()}</span>
             </div>
             {discountAmount > 0 && (
-              <div className="flex justify-between items-center text-sm text-emerald-500">
-                <span className="font-medium">Discount</span>
-                <span className="font-bold">-{currencySymbol}{discountAmount.toLocaleString()}</span>
+              <div className="flex justify-between items-center text-sm font-bold text-emerald-600">
+                <span className="uppercase tracking-widest">Loyalty Discount</span>
+                <span>-{currencySymbol}{discountAmount.toLocaleString()}</span>
               </div>
             )}
-            {data.paid_amount !== undefined && data.paid_amount > 0 && (
-              <div className="flex justify-between items-center text-sm text-blue-500">
-                <span className="font-medium">Amount Paid</span>
-                <span className="font-bold">-{currencySymbol}{data.paid_amount.toLocaleString()}</span>
+            <div className="h-px bg-slate-200" />
+            <div className="flex justify-between items-end py-4">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] block">Total Amount Due</span>
+                <span className="text-5xl font-black text-slate-900 tracking-tighter">
+                  {currencySymbol}{grandTotal.toLocaleString()}
+                </span>
               </div>
-            )}
-            <div className="h-px bg-border my-2" />
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-lg font-black text-foreground">Balance Due</span>
-              <span className="text-3xl font-black text-primary">
-                {currencySymbol}{Math.max(0, grandTotal - (data.paid_amount || 0)).toLocaleString()}
-              </span>
             </div>
+            
+            {(data.paid_amount || 0) > 0 && (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex justify-between items-center">
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Paid Already</span>
+                <span className="font-black text-emerald-600">-{currencySymbol}{data.paid_amount?.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 6. FOOTER */}
-      <div className="bg-primary/5 p-8 border-t">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 text-center md:text-left">
-          <div className="space-y-1">
-            <p className="text-sm font-black text-foreground">Terms & Conditions</p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed max-w-md">
-              Payment is due within 7 days. Please include the invoice number in your payment reference.
-              Late payments may be subject to a 2% monthly fee.
-            </p>
-          </div>
-          <div className="text-center md:text-right">
-            <p className="text-sm font-black text-primary mb-1">Thank you for choosing ECRAFTZ</p>
-            <p className="text-[10px] text-muted-foreground">Questions? Reach out to mail@ecraftz.in</p>
+      {/* FOOTER */}
+      <div className="bg-slate-900 p-12 text-center text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-50" />
+        <div className="relative z-10 space-y-6">
+          <p className="text-2xl font-black tracking-tight">Thank you for your business.</p>
+          <div className="flex flex-col md:flex-row justify-center items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] opacity-40">
+             <span>Terms: Net 7 Days</span>
+             <span className="h-1 w-1 bg-white rounded-full hidden md:block" />
+             <span>Overdue interest: 2% monthly</span>
+             <span className="h-1 w-1 bg-white rounded-full hidden md:block" />
+             <span>Support: mail@ecraftz.in</span>
           </div>
         </div>
       </div>

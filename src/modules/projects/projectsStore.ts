@@ -79,7 +79,15 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           *,
           client:clients(name),
           members:project_members(role, user_id, profiles(full_name, email)),
-          milestones:project_milestones(*)
+          milestones:project_milestones(*),
+          tasks:tasks(
+            status, 
+            due_date, 
+            assignee:assigned_to(id, full_name, avatar_url),
+            time_logs(duration_minutes, user:profiles(hourly_rate))
+          ),
+          invoices(amount, status),
+          expenses:project_expenses(*)
         `, { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
@@ -271,7 +279,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           })
         }
         
-        if (member_inserts.length > 0) {
+        if (memberInserts.length > 0) {
           await supabase.from('project_members').insert(memberInserts)
         }
       }
@@ -333,6 +341,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           client:clients(name),
           members:project_members(user_id, role, profiles(full_name, email)),
           milestones:project_milestones(*),
+          tasks:tasks(*),
           invoices(amount, status),
           expenses:project_expenses(*)
         `)

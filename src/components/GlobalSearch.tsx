@@ -61,6 +61,7 @@ export function GlobalSearch() {
     project: results.filter(r => r.type === 'project'),
     task: results.filter(r => r.type === 'task'),
     invoice: results.filter(r => r.type === 'invoice'),
+    employee: results.filter(r => r.type === 'employee'),
   }
 
   return (
@@ -155,6 +156,20 @@ export function GlobalSearch() {
               {groupedResults.invoice.map((item) => (
                 <CommandItem key={item.id} onSelect={() => onSelect(item.url)}>
                   <FileText className="mr-2 h-4 w-4 text-rose-500" />
+                  <div className="flex flex-col">
+                    <span>{item.title}</span>
+                    <span className="text-[10px] text-muted-foreground">{item.subtitle}</span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+
+          {groupedResults.employee.length > 0 && (
+            <CommandGroup heading="Team Members">
+              {groupedResults.employee.map((item) => (
+                <CommandItem key={item.id} onSelect={() => onSelect(item.url)}>
+                  <Users className="mr-2 h-4 w-4 text-cyan-500" />
                   <div className="flex flex-col">
                     <span>{item.title}</span>
                     <span className="text-[10px] text-muted-foreground">{item.subtitle}</span>
