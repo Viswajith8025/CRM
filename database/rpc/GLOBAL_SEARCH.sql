@@ -40,7 +40,7 @@ BEGIN
     'lead'::text as type, 
     l.first_name || ' ' || l.last_name as title,
     l.company as subtitle,
-    l.status as status,
+    l.status::text as status,
     '/crm?lead=' || l.id as link,
     jsonb_build_object('email', l.email) as metadata
   FROM public.leads l
@@ -55,7 +55,7 @@ BEGIN
     'client'::text as type, 
     c.name as title,
     c.email as subtitle,
-    'active' as status,
+    'active'::text as status,
     '/clients?id=' || c.id as link,
     jsonb_build_object('email', c.email) as metadata
   FROM public.clients c
@@ -70,7 +70,7 @@ BEGIN
     'project'::text as type, 
     p.name as title,
     'Project' as subtitle,
-    p.status as status,
+    p.status::text as status,
     '/projects/' || p.id as link,
     jsonb_build_object('budget', p.budget) as metadata
   FROM public.projects p
@@ -85,7 +85,7 @@ BEGIN
     'task'::text as type, 
     t.title as title,
     'Task' as subtitle,
-    t.status as status,
+    t.status::text as status,
     '/tasks' as link, -- Future: link to specific task modal
     jsonb_build_object('priority', t.priority) as metadata
   FROM public.tasks t
@@ -100,7 +100,7 @@ BEGIN
     'invoice'::text as type, 
     i.invoice_number as title,
     'Invoice' as subtitle,
-    i.status as status,
+    i.status::text as status,
     '/billing/' || i.id as link,
     jsonb_build_object('amount', i.amount) as metadata
   FROM public.invoices i
@@ -115,7 +115,7 @@ BEGIN
     'employee'::text as type, 
     prof.full_name as title,
     prof.email as subtitle,
-    prof.role as status,
+    prof.role::text as status,
     '/profile' as link, -- Future: team member profile link
     jsonb_build_object('role', prof.role) as metadata
   FROM public.profiles prof
