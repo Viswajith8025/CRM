@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { Plus, LayoutGrid, List, Search, Columns } from "lucide-react"
-import { ProjectCard } from "../components/ProjectCard"
+import { Plus, LayoutGrid, List, Search, Columns, FileSpreadsheet } from "lucide-react"
+import { ImportWizard } from "@/components/shared/ImportWizard"
+import ProjectCard from "../components/ProjectCard"
 import { KanbanBoard } from "../components/KanbanBoard"
 import { useProjectsStore } from "../projectsStore"
+import type { Project } from "../types"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -20,7 +22,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
-import { ProjectForm } from "../components/ProjectForm"
+import ProjectForm from "../components/ProjectForm"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -35,6 +37,7 @@ export default function ProjectsPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
 
   useEffect(() => {
     fetchProjects()
@@ -54,12 +57,24 @@ export default function ProjectsPage() {
       title="Projects & Growth" 
       description="Manage active projects and monitor your marketing performance."
       actions={
-        <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New Project
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+            Bulk Import
+          </Button>
+          <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Project
+          </Button>
+        </div>
       }
     >
+      <ImportWizard 
+        module="projects" 
+        open={isImportOpen} 
+        onOpenChange={setIsImportOpen} 
+        onComplete={() => fetchProjects(true)} 
+      />
       <Tabs defaultValue="projects" className="space-y-6">
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>

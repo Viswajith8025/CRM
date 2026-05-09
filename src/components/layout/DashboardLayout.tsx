@@ -1,13 +1,25 @@
-import { ReactNode } from "react"
+import { ReactNode, useEffect } from "react"
 import { Sidebar } from "./Sidebar"
 import { Navbar } from "./Navbar"
 import { NetworkIndicator } from "../shared/NetworkIndicator"
+import { QuickActionButton } from "../shared/QuickActionButton"
+import { useNotificationsStore } from "@/modules/notifications"
 
 interface DashboardLayoutProps {
   children: ReactNode
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
+  const { fetchNotifications, subscribeToNotifications } = useNotificationsStore()
+
+  useEffect(() => {
+    fetchNotifications()
+    const unsubscribe = subscribeToNotifications()
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [fetchNotifications, subscribeToNotifications])
+
   return (
     <div className="min-h-screen bg-background">
       {/* Static sidebar for desktop */}
@@ -26,6 +38,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       <NetworkIndicator />
+      <QuickActionButton />
     </div>
   )
 }
+

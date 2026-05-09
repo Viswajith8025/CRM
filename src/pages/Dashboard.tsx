@@ -31,17 +31,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 import { useEffect, useMemo, useRef, useCallback } from "react"
-import { useTasksStore } from "@/modules/tasks/tasksStore"
-import { useProjectsStore } from "@/modules/projects/projectsStore"
-import { useBillingStore } from "@/modules/billing/billingStore"
-import { useTeamStore } from "@/modules/admin/teamStore"
-import { useTimeStore } from "@/modules/time-tracking/timeStore"
+import { useTasksStore } from "@/modules/tasks"
+import { useProjectsStore } from "@/modules/projects"
+import { useBillingStore } from "@/modules/billing"
+import { useTeamStore } from "@/modules/admin"
+import { useTimeStore } from "@/modules/time-tracking"
 import { formatDistanceToNow, subDays, startOfDay, isWithinInterval, format, isAfter, isBefore, parseISO } from "date-fns"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
 import Grainient from "@/components/ui/Grainient"
-import { useCRMStore } from "@/modules/crm/store/crmStore"
-import { useActivityStore } from "@/modules/reports/activityStore"
+import { useCRMStore } from "@/modules/crm"
+import { useActivityStore } from "@/modules/reports"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useState } from "react"
 import { Calendar as CalendarIcon, Filter } from "lucide-react"
@@ -49,7 +49,8 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardGrid } from "@/modules/dashboard/components/DashboardGrid"
-import { useDashboardStore } from "@/modules/dashboard/dashboardStore"
+import { useDashboardStore } from "@/modules/dashboard"
+import { useAutomationStore } from "@/modules/notifications"
 
 export default function Dashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -78,6 +79,9 @@ export default function Dashboard() {
     fetchLogs()
     fetchLeads()
     fetchActivities()
+    
+    // Trigger Smart Reminders
+    useAutomationStore.getState().runSmartReminders()
     
     const unsubscribe = subscribeToActivities()
     return () => unsubscribe()
@@ -360,6 +364,9 @@ export default function Dashboard() {
                   setFilterType('range')
                 }}
                 numberOfMonths={2}
+                captionLayout="dropdown"
+                startMonth={new Date(2020, 0)}
+                endMonth={new Date(new Date().getFullYear() + 5, 11)}
                 className="bg-card/50 rounded-lg"
               />
             </PopoverContent>
@@ -424,3 +431,4 @@ export default function Dashboard() {
     </PageWrapper>
   )
 }
+

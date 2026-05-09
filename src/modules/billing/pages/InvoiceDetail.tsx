@@ -10,6 +10,8 @@ import { format } from "date-fns"
 import { Separator } from "@/components/ui/separator"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
+import { SignatureDialog } from "@/components/shared/SignatureDialog"
+import { CheckCircle2, ShieldCheck, PenTool } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -21,6 +23,8 @@ import {
 import { toast } from "sonner"
 
 import { ProfessionalInvoice } from "../components/ProfessionalInvoice"
+import { PaymentVerificationList } from "../components/PaymentVerificationList"
+import { VersionHistoryTimeline } from "@/components/shared/VersionHistoryTimeline"
 
 export default function InvoiceDetail() {
   const { id } = useParams<{ id: string }>()
@@ -29,6 +33,7 @@ export default function InvoiceDetail() {
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
+  const [isSignatureOpen, setIsSignatureOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -123,7 +128,8 @@ export default function InvoiceDetail() {
       name: invoice.project?.name || 'General Project',
       service_type: 'Software Development',
       billing_type: invoice.is_recurring ? 'Subscription' : 'Fixed Rate'
-    }
+    },
+    paid_amount: invoice.paid_amount
   };
 
   return (
@@ -160,10 +166,41 @@ export default function InvoiceDetail() {
             <Mail className="h-4 w-4 mr-2" />
             {isSending ? "Sending..." : invoice.status === 'sent' ? "Already Sent" : "Send to Client"}
           </Button>
+          {invoice.status !== 'paid' && (
+            <Button 
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 font-bold"
+              onClick={() => setIsSignatureOpen(true)}
+            >
+              <PenTool className="h-4 w-4 mr-2" />
+              Sign & Approve
+            </Button>
+          )}
         </div>
       }
     >
       <ProfessionalInvoice data={invoiceData} />
+
+      {invoice.signature_data && (
+        <div className="mt-8 p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+              <ShieldCheck className="h-6 w-6 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm font-black text-emerald-500 uppercase tracking-widest">Digitally Signed & Approved</p>
+              <p className="text-xs text-muted-foreground font-medium">
+                Signed by <span className="text-foreground font-bold">{invoice.signer_name}</span> on {invoice.signed_at ? format(new Date(invoice.signed_at), 'PPP pp') : 'N/A'}
+              </p>
+            </div>
+          </div>
+          <div className="text-right font-mono text-[10px] text-muted-foreground opacity-50">
+            Audit ID: {invoice.id.split('-')[0].toUpperCase()}
+            <br />
+            {invoice.signature_data}
+          </div>
+        </div>
+      )}
       
       <div className="mt-12 space-y-8 print:hidden">
         <Separator />
@@ -191,7 +228,33 @@ export default function InvoiceDetail() {
             />
           </div>
         </div>
+
+        <Separator />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <PaymentVerificationList invoiceId={invoice.id} />
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold">Modification History</h3>
+            <VersionHistoryTimeline entityType="invoice" entityId={invoice.id} />
+          </div>
+        </div>
       </div>
+
+      <SignatureDialog 
+        open={isSignatureOpen}
+        onOpenChange={setIsSignatureOpen}
+        documentName={`Invoice ${invoice.invoice_number}`}
+        onSign={async (data) => {
+          try {
+            await useBillingStore.getState().signInvoice(invoice.id, data)
+            const updated = await getInvoiceById(invoice.id)
+            setInvoice(updated)
+            toast.success("Invoice signed and approved successfully!")
+          } catch (err) {
+            toast.error("Failed to sign invoice")
+          }
+        }}
+      />
     </PageWrapper>
   )
 }

@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useTimeStore } from "../timeStore"
-import { useTasksStore } from "@/modules/tasks/tasksStore"
+import { useTasksStore } from "@/modules/tasks"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { differenceInMinutes } from "date-fns"

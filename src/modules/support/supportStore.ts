@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import type { SupportTicket, TicketMessage, KnowledgeArticle } from './types'
+import type { SupportTicket, TicketMessage, KnowledgeArticle } from '../types/types'
 import { addHours } from 'date-fns'
 
 interface SupportState {
@@ -190,3 +190,4 @@ export const useSupportStore = create<SupportState>((set, get) => ({
     }
   }
 }))
+

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { LeadList } from "../components/LeadList"
 import { LeadForm } from "../components/LeadForm"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import { Users } from "lucide-react"
 import {
   Dialog,
@@ -22,13 +22,15 @@ import {
 import type { Contact as Lead, Client } from "../types"
 import { LeadDetails } from "../components/LeadDetails"
 
-import { LayoutGrid, List } from "lucide-react"
+import { LayoutGrid, List, FileSpreadsheet } from "lucide-react"
 import { LeadKanban } from "../components/LeadKanban"
+import { ImportWizard } from "@/components/shared/ImportWizard"
 
 export default function CRMPage() {
   const { fetchLeads } = useCRMStore()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | undefined>()
   const [detailedLead, setDetailedLead] = useState<Lead | undefined>()
   const [view, setView] = useState<'list' | 'kanban'>('kanban')
@@ -76,6 +78,10 @@ export default function CRMPage() {
               <LayoutGrid className="h-4 w-4" />
             </Button>
           </div>
+          <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+            Bulk Import
+          </Button>
           <Button className="gap-2 font-bold" onClick={handleAddLead}>
             <Plus className="h-4 w-4" />
             Add Lead
@@ -83,6 +89,12 @@ export default function CRMPage() {
         </div>
       }
     >
+      <ImportWizard 
+        module="leads" 
+        open={isImportOpen} 
+        onOpenChange={setIsImportOpen} 
+        onComplete={() => fetchLeads()} 
+      />
       <div className="mt-6">
         {view === 'list' ? (
           <LeadList onEdit={handleEditLead} onViewDetails={handleViewDetails} />

@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import type { TimeLog, ActiveTimer } from './types'
+import type { TimeLog, ActiveTimer } from '../types/types'
 import { differenceInMinutes } from 'date-fns'
 
 interface TimeState {
@@ -9,6 +9,7 @@ interface TimeState {
   activeTimer: ActiveTimer | null
   isLoading: boolean
   hasFetched: boolean
+  error: string | null
   fetchLogs: (force?: boolean) => Promise<void>
   startTimer: (timer: ActiveTimer) => void
   stopTimer: () => Promise<void>
@@ -28,9 +29,14 @@ export const useTimeStore = create<TimeState>((set, get) => ({
     if (!force && get().hasFetched) return;
     set({ isLoading: true })
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
       const { data, error } = await supabase
         .from('time_logs')
         .select('*, task:tasks(title, project:projects(name))')
+        .eq('organization_id', orgId)
         .order('start_time', { ascending: false })
 
       if (error) throw error
@@ -51,6 +57,10 @@ export const useTimeStore = create<TimeState>((set, get) => ({
     const { activeTimer } = get()
     if (!activeTimer) return
 
+    const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+    const orgId = profile?.organization_id
+    if (!orgId) throw new Error("No organization context found.")
+
     const end_time = new Date().toISOString()
     const duration_minutes = differenceInMinutes(new Date(end_time), new Date(activeTimer.start_time))
 
@@ -58,7 +68,9 @@ export const useTimeStore = create<TimeState>((set, get) => ({
       const { data, error } = await supabase
         .from('time_logs')
         .insert({
-          task_id: activeTimer.task_id || null, // Ensure empty strings become null
+          organization_id: orgId,
+          user_id: profile?.id,
+          task_id: activeTimer.task_id || null,
           description: activeTimer.description,
           start_time: activeTimer.start_time,
           end_time,
@@ -83,13 +95,21 @@ export const useTimeStore = create<TimeState>((set, get) => ({
 
   addManualLog: async (log) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const payload = { 
+        ...log, 
+        organization_id: orgId, 
+        user_id: profile?.id,
+        task_id: log.task_id || null, 
+        is_billable: log.is_billable ?? true 
+      }
+
       const { data, error } = await supabase
         .from('time_logs')
-        .insert({
-          ...log,
-          task_id: log.task_id || null, // Ensure empty string becomes null
-          is_billable: log.is_billable ?? true
-        })
+        .insert(payload)
         .select('*, task:tasks(title, project:projects(name))')
         .single()
 
@@ -104,14 +124,21 @@ export const useTimeStore = create<TimeState>((set, get) => ({
 
   deleteLog: async (id) => {
     const previousLogs = get().logs
-    // Optimistic UI update
     set({ logs: previousLogs.filter(l => l.id !== id) })
 
     try {
-      const { error } = await supabase.from('time_logs').delete().eq('id', id)
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const { error } = await supabase
+        .from('time_logs')
+        .delete()
+        .eq('id', id)
+        .eq('organization_id', orgId)
+
       if (error) throw error
     } catch (err: any) {
-      // Rollback
       const friendlyError = toFriendlyError(err, "Failed to delete time log.")
       set({ logs: previousLogs, error: friendlyError.message })
       throw friendlyError
@@ -120,11 +147,15 @@ export const useTimeStore = create<TimeState>((set, get) => ({
 
   markLogsAsBilled: async (logIds, invoiceId) => {
     try {
-      const { data, error } = await supabase
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const { error } = await supabase
         .from('time_logs')
         .update({ is_billed: true, invoice_id: invoiceId })
         .in('id', logIds)
-        .select('*, task:tasks(title, project:projects(name))')
+        .eq('organization_id', orgId)
 
       if (error) throw error
 
@@ -138,3 +169,4 @@ export const useTimeStore = create<TimeState>((set, get) => ({
     }
   }
 }))
+

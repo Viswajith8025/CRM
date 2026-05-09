@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Contact as Lead } from "../types"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import { toast } from "sonner"
 
 const formSchema = z.object({
@@ -32,7 +32,7 @@ const formSchema = z.object({
   company: z.string().optional(),
   phone: z.string().optional(),
   job_title: z.string().optional(),
-  status: z.enum(['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost']),
+  status: z.enum(['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'awaiting_payment', 'active_client', 'closed_lost']),
   source: z.string().optional(),
 })
 
@@ -222,9 +222,10 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                           <SelectItem value="new">New Lead</SelectItem>
                           <SelectItem value="contacted">Contacted</SelectItem>
                           <SelectItem value="qualified">Qualified</SelectItem>
-                          <SelectItem value="proposal">Proposal Sent</SelectItem>
+                          <SelectItem value="proposal_sent">Proposal Sent</SelectItem>
                           <SelectItem value="negotiation">Negotiation</SelectItem>
-                          <SelectItem value="closed_won">Closed Won</SelectItem>
+                          <SelectItem value="awaiting_payment">Awaiting Payment</SelectItem>
+                          <SelectItem value="active_client">Active Client</SelectItem>
                           <SelectItem value="closed_lost">Closed Lost</SelectItem>
                         </SelectContent>
                       </Select>

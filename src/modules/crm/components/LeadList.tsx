@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye } from "lucide-react"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import type { Contact as Lead } from "../types"
 import {
   AlertDialog,
@@ -31,13 +31,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 
-const statusColors: Record<string, string> = {
+const statusColors: Record<LeadStatus, string> = {
   new: "bg-blue-500/10 text-blue-500",
   contacted: "bg-amber-500/10 text-amber-500",
   qualified: "bg-purple-500/10 text-purple-500",
-  proposal: "bg-indigo-500/10 text-indigo-500",
+  proposal_sent: "bg-indigo-500/10 text-indigo-500",
   negotiation: "bg-orange-500/10 text-orange-500",
-  closed_won: "bg-emerald-500/10 text-emerald-500",
+  awaiting_payment: "bg-yellow-500/10 text-yellow-600",
+  active_client: "bg-emerald-500/10 text-emerald-500",
   closed_lost: "bg-rose-500/10 text-rose-500",
 }
 

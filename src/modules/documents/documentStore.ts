@@ -1,13 +1,15 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import type { DocumentRecord } from './types'
+import type { DocumentRecord } from '../types/types'
 
 interface UploadParams {
   file: File
   bucket: 'task-attachments' | 'invoices' | 'documents'
   relatedId: string
   relatedType: DocumentRecord['related_entity_type']
+  folder?: string
+  clientId?: string
 }
 
 interface DocumentState {
@@ -15,10 +17,12 @@ interface DocumentState {
   isLoading: boolean
   error: string | null
 
-  fetchDocuments: (relatedId?: string, relatedType?: string) => Promise<void>
+  fetchDocuments: (relatedId?: string, relatedType?: string, clientId?: string) => Promise<void>
+  fetchVersions: (documentId: string) => Promise<any[]>
   uploadFile: (params: UploadParams) => Promise<DocumentRecord>
-  bulkUpload: (files: File[], bucket: UploadParams['bucket'], relatedId: string, relatedType: UploadParams['relatedType']) => Promise<void>
+  bulkUpload: (files: File[], bucket: UploadParams['bucket'], relatedId: string, relatedType: UploadParams['relatedType'], folder?: string, clientId?: string) => Promise<void>
   deleteDocument: (id: string) => Promise<void>
+  trackAccess: (id: string) => Promise<void>
 }
 
 export const useDocumentStore = create<DocumentState>((set, get) => ({
@@ -26,7 +30,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchDocuments: async (relatedId, relatedType) => {
+  fetchDocuments: async (relatedId, relatedType, clientId) => {
     set({ isLoading: true })
     try {
       let query = supabase
@@ -36,6 +40,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       
       if (relatedId) query = query.eq('related_entity_id', relatedId)
       if (relatedType) query = query.eq('related_entity_type', relatedType)
+      if (clientId) query = query.eq('client_id', clientId)
 
       const { data, error } = await query
       
@@ -48,7 +53,23 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }
   },
 
-  uploadFile: async ({ file, bucket, relatedId, relatedType }) => {
+  fetchVersions: async (documentId) => {
+    try {
+      const { data, error } = await supabase
+        .from('document_versions')
+        .select('*, profile:profiles(full_name, avatar_url)')
+        .eq('document_id', documentId)
+        .order('version_number', { ascending: false })
+      
+      if (error) throw error
+      return data
+    } catch (err) {
+      console.error("Failed to fetch document versions:", err)
+      return []
+    }
+  },
+
+  uploadFile: async ({ file, bucket, relatedId, relatedType, folder, clientId }) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!profile) throw new Error("Unauthorized")
@@ -83,7 +104,9 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
           related_entity_id: relatedId,
           related_entity_type: relatedType,
           organization_id: orgId,
-          user_id: profile.id
+          user_id: profile.id,
+          folder: folder || 'Assets',
+          client_id: clientId
         })
         .select('*, profile:profiles(full_name, avatar_url)')
         .single()
@@ -103,13 +126,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     }
   },
 
-  bulkUpload: async (files, bucket, relatedId, relatedType) => {
+  bulkUpload: async (files, bucket, relatedId, relatedType, folder, clientId) => {
     set({ isLoading: true })
     try {
-      // Upload sequentially or in parallel? 
-      // Parallel is faster but might hit rate limits. Let's do sequential for robustness in this ERP context.
       for (const file of files) {
-        await get().uploadFile({ file, bucket, relatedId, relatedType })
+        await get().uploadFile({ file, bucket, relatedId, relatedType, folder, clientId })
       }
     } finally {
       set({ isLoading: false })
@@ -140,5 +161,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
     } catch (err) {
       throw toFriendlyError(err, "Failed to delete file.")
     }
+  },
+
+  trackAccess: async (id) => {
+    try {
+      await supabase.rpc('track_document_access', { p_doc_id: id })
+    } catch (err) {
+      console.warn("Failed to track document access")
+    }
   }
 }))
+

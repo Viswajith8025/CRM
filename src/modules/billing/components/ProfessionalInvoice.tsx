@@ -30,6 +30,7 @@ export interface ProfessionalInvoiceProps {
     items: InvoiceItem[];
     discount?: number;
     notes?: string;
+    paid_amount?: number;
     client: {
       name: string;
       company?: string;
@@ -59,6 +60,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case 'partially_paid': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       case 'overdue': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
       default: return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
     }
@@ -67,6 +69,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid': return <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />;
+      case 'partially_paid': return <CreditCard className="w-3.5 h-3.5 mr-1.5" />;
       case 'overdue': return <AlertCircle className="w-3.5 h-3.5 mr-1.5" />;
       default: return <Clock className="w-3.5 h-3.5 mr-1.5" />;
     }
@@ -253,11 +256,17 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
                 <span className="font-bold">-{currencySymbol}{discountAmount.toLocaleString()}</span>
               </div>
             )}
+            {data.paid_amount !== undefined && data.paid_amount > 0 && (
+              <div className="flex justify-between items-center text-sm text-blue-500">
+                <span className="font-medium">Amount Paid</span>
+                <span className="font-bold">-{currencySymbol}{data.paid_amount.toLocaleString()}</span>
+              </div>
+            )}
             <div className="h-px bg-border my-2" />
             <div className="flex justify-between items-center pt-2">
-              <span className="text-lg font-black text-foreground">Amount Due</span>
+              <span className="text-lg font-black text-foreground">Balance Due</span>
               <span className="text-3xl font-black text-primary">
-                {currencySymbol}{grandTotal.toLocaleString()}
+                {currencySymbol}{Math.max(0, grandTotal - (data.paid_amount || 0)).toLocaleString()}
               </span>
             </div>
           </div>

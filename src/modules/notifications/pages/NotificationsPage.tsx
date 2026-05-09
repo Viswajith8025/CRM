@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Card, CardContent } from "@/components/ui/card"
-import { Bell, CheckCircle2, AlertCircle, Info, Trash2, Ghost } from "lucide-react"
+import { Bell, CheckCircle2, AlertCircle, Info, Trash2, Ghost, AtSign, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
@@ -12,14 +12,18 @@ const iconMap = {
   assignment: Bell,
   billing: CheckCircle2,
   system: AlertCircle,
-  project: Info
+  project: Info,
+  mention: AtSign,
+  reply: MessageSquare
 }
 
 const colorMap = {
   assignment: "text-blue-500 bg-blue-500/10",
   billing: "text-emerald-500 bg-emerald-500/10",
   system: "text-rose-500 bg-rose-500/10",
-  project: "text-amber-500 bg-amber-500/10"
+  project: "text-amber-500 bg-amber-500/10",
+  mention: "text-indigo-500 bg-indigo-500/10",
+  reply: "text-cyan-500 bg-cyan-500/10"
 }
 
 export default function NotificationsPage() {
@@ -102,7 +106,7 @@ export default function NotificationsPage() {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      {notification.description}
+                      {notification.message}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
                       <Badge variant="outline" className="text-[9px] uppercase font-bold tracking-wider px-1.5 h-4">

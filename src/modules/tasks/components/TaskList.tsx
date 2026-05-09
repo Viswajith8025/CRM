@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 import type { Task } from "../types"
 import { useTasksStore } from "../tasksStore"
-import { TaskDetailsDialog } from "./TaskDetailsDialog"
+import TaskDetailsDialog from "./TaskDetailsDialog"
 import { useState } from "react"
 
 interface TaskListProps {

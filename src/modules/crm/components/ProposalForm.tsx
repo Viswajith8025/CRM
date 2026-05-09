@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 import type { Client, Proposal } from "../types"
@@ -43,7 +43,7 @@ const formSchema = z.object({
   gst_percent: z.coerce.number().min(0).max(100).default(18),
   terms: z.array(z.string()).min(1, "At least one term is required"),
   valid_until: z.string().min(1, "Validity date is required"),
-  status: z.enum(['draft', 'sent', 'accepted', 'rejected']).default('draft'),
+  status: z.enum(['draft', 'sent', 'approved', 'rejected']).default('draft'),
 })
 
 interface ProposalFormProps {
@@ -113,7 +113,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
         company_phone: profile?.phone || "+91 98765 43210",
         company_gstin: "27AAAAA0000A1Z5",
         client_name: client?.name || savedContent.client_name,
-        client_company: client?.service || savedContent.client_company || "Business Partner",
+        client_company: savedContent.client_company || "Business Partner",
         client_email: client?.email || savedContent.client_email,
         client_phone: client?.phone || savedContent.client_phone,
         date: new Date().toLocaleDateString(),
@@ -196,7 +196,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                         <SelectContent>
                           <SelectItem value="draft">Draft</SelectItem>
                           <SelectItem value="sent">Sent</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="rejected">Rejected</SelectItem>
                         </SelectContent>
                       </Select>

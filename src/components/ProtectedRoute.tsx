@@ -18,6 +18,33 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />
   }
 
+  // 2.5 ORGANIZATION SUSPENDED - block access
+  if (profile?.is_org_suspended) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
+        <div className="max-w-md space-y-6">
+          <div className="bg-rose-500/10 w-24 h-24 rounded-[2rem] flex items-center justify-center mx-auto border border-rose-500/20 shadow-2xl shadow-rose-500/10">
+            <ShieldX className="h-12 w-12 text-rose-500" />
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter text-white">Access Suspended</h1>
+          <p className="text-slate-400 font-medium">
+            Organization access suspended
+          </p>
+          <div className="p-4 rounded-2xl bg-rose-500/5 border border-rose-500/10 text-sm text-rose-200/60">
+            Your organization's subscription has been suspended or is past due. Please contact your administrator.
+          </div>
+          <button
+            onClick={() => useAuthStore.getState().signOut()}
+            className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white text-black font-black text-sm hover:bg-slate-200 transition-all active:scale-95"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   // 3. DENIED — hard block
   if (profile?.status === 'denied') {
     return (

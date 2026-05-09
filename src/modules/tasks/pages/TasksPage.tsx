@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
+import { usePerfGuard } from '@/hooks/usePerfGuard'
 import { PageWrapper } from "@/components/shared/PageWrapper"
-import { Plus, LayoutGrid, List as ListIcon, Filter, Search } from "lucide-react"
+import { Plus, LayoutGrid, List as ListIcon, Filter, Search, FileSpreadsheet } from "lucide-react"
+import { ImportWizard } from "@/components/shared/ImportWizard"
 import { Button } from "@/components/ui/button"
 import { KanbanBoard } from "../components/KanbanBoard"
 import { TaskList } from "../components/TaskList"
@@ -13,7 +15,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { TaskForm } from "../components/TaskForm"
+import TaskForm from "../components/TaskForm"
 import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
@@ -26,6 +28,7 @@ import {
 } from "@/components/ui/select"
 
 export default function TasksPage() {
+  usePerfGuard('TasksPage')
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
   const [view, setView] = useState<'kanban' | 'list'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
@@ -33,11 +36,32 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [isFormOpen, setIsFormOpen] = useState(false)
 
+  const [isImportOpen, setIsImportOpen] = useState(false)
+
   useEffect(() => {
     fetchTasks()
     const unsubscribe = subscribeToTasks()
     return () => unsubscribe()
   }, [])
+
+  const filteredTasks = useMemo(() => tasks.filter(task => {
+    let matchesStatus = statusFilter === "all" || task.status === statusFilter
+    
+    if (statusFilter === "overdue") {
+      matchesStatus = task.status !== 'done' && 
+                      task.due_date !== null && 
+                      new Date(task.due_date) < new Date()
+    }
+
+    const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
+    
+    const query = searchQuery.toLowerCase()
+    const matchesSearch = query === "" || 
+                          task.title.toLowerCase().includes(query) || 
+                          (task.description && task.description.toLowerCase().includes(query))
+
+    return matchesStatus && matchesPriority && matchesSearch
+  }), [tasks, statusFilter, priorityFilter, searchQuery])
 
   const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all"
 
@@ -52,6 +76,10 @@ export default function TasksPage() {
       description="Collaborate and track progress across all project tasks."
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+            Bulk Import
+          </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className={cn("gap-2 font-bold", hasActiveFilters && "border-primary text-primary bg-primary/5")}>
@@ -128,6 +156,12 @@ export default function TasksPage() {
         </div>
       }
     >
+      <ImportWizard 
+        module="tasks" 
+        open={isImportOpen} 
+        onOpenChange={setIsImportOpen} 
+        onComplete={() => fetchTasks()} 
+      />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-2 bg-muted p-1 rounded-lg w-fit shrink-0">
@@ -181,24 +215,7 @@ export default function TasksPage() {
         />
       ) : (
         <TaskList 
-          tasks={tasks.filter(task => {
-            let matchesStatus = statusFilter === "all" || task.status === statusFilter
-            
-            if (statusFilter === "overdue") {
-              matchesStatus = task.status !== 'done' && 
-                              task.due_date !== null && 
-                              new Date(task.due_date) < new Date()
-            }
-
-            const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
-            
-            const query = searchQuery.toLowerCase()
-            const matchesSearch = query === "" || 
-                                  task.title.toLowerCase().includes(query) || 
-                                  (task.description && task.description.toLowerCase().includes(query))
-
-            return matchesStatus && matchesPriority && matchesSearch
-          })}
+          tasks={filteredTasks}
         />
       )}
 

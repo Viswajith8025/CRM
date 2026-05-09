@@ -4,7 +4,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import type { Project, ProjectStatus } from '../types'
-import { ProjectCard } from './ProjectCard'
+import ProjectCard from './ProjectCard'
 import { cn } from '@/lib/utils'
 
 interface KanbanColumnProps {

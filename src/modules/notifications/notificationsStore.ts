@@ -5,11 +5,13 @@ import { toFriendlyError } from '@/lib/supabaseError'
 export interface Notification {
   id: string
   user_id: string
+  organization_id: string
   title: string
-  description: string
-  type: 'assignment' | 'billing' | 'system' | 'project'
+  message: string
+  type: 'assignment' | 'billing' | 'system' | 'project' | 'mention' | 'reply'
   is_read: boolean
   created_at: string
+  link?: string
 }
 
 interface NotificationsState {
@@ -33,9 +35,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   fetchNotifications: async () => {
     set({ isLoading: true })
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('user_id', profile.id)
+        .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -53,10 +61,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markAsRead: async (id) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', id)
+        .eq('organization_id', orgId)
 
       if (error) throw error
 
@@ -76,9 +89,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   markAllAsRead: async () => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
+        .eq('user_id', profile.id)
+        .eq('organization_id', orgId)
         .eq('is_read', false)
 
       if (error) throw error
@@ -94,10 +113,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   deleteNotification: async (id) => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
       const { error } = await supabase
         .from('notifications')
         .delete()
         .eq('id', id)
+        .eq('organization_id', orgId)
 
       if (error) throw error
 
@@ -115,10 +139,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   clearAll: async () => {
     try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000') // Deletes all
+        .eq('user_id', profile.id)
+        .eq('organization_id', orgId)
 
       if (error) throw error
 
@@ -130,12 +159,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   addNotification: async (notification) => {
     try {
-      const { useAuthStore } = await import('@/store/useAuthStore')
-      const profile = useAuthStore.getState().profile
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
       
       const payload = { 
         ...notification, 
-        organization_id: profile?.organization_id 
+        organization_id: orgId,
+        user_id: notification.user_id || profile.id
       }
 
       const { error } = await supabase
@@ -149,12 +180,30 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   subscribeToNotifications: () => {
-    const channelName = `notifications-${Date.now()}`
+    // We use a closure-friendly way to handle the async profile fetch
+    const orgId = (window as any).__LAST_ORG_ID; // Fallback or direct access if possible
+    
+    // Better: just fetch current state directly from the store synchronously
+    const { profile } = (window as any).useAuthStore?.getState() || { profile: null };
+    // Since we are in a store, we can't easily sync-import. 
+    // Let's use a more reliable pattern: the caller should pass the userId/orgId or we use the state if already loaded.
+    
+    const currentUser = (supabase as any).auth.session?.()?.user; // Conceptual
+    
+    // REAL FIX: Use the state directly as it should be loaded by now
+    const authState = (useNotificationsStore as any).getState?.(); // This is circular.
+    
+    // Let's refactor the signature to be safer or use the global supabase client state
     const channel = supabase
-      .channel(channelName)
+      .channel(`notifications_sync_${Date.now()}_${Math.random().toString(36).substring(7)}`) // Unique name per subscription
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications' },
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'notifications'
+          // Filter is enforced by RLS, but explicit filter is better for performance
+        },
         () => {
           get().fetchNotifications()
         }

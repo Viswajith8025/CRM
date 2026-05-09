@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import type { Client } from "../types"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import { toast } from "sonner"
 
 const formSchema = z.object({

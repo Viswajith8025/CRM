@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import type { Client, Proposal } from "../types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ export function ProposalList({ client, onSelect, onEdit }: ProposalListProps) {
   const statusColor: Record<string, string> = {
     draft:    "bg-amber-500/10 text-amber-600 border-amber-500/20",
     sent:     "bg-blue-500/10 text-blue-600 border-blue-500/20",
-    accepted: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    approved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
     rejected: "bg-rose-500/10 text-rose-600 border-rose-500/20",
   }
 

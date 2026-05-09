@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useTeamStore } from "../teamStore"
+import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "../settingsStore"
 import { 
   Loader2, 
@@ -61,6 +62,8 @@ import { cn } from "@/lib/utils"
 export default function SettingsPage() {
   const { members, fetchMembers, isLoading: teamLoading, updateMemberRole, revokeAccess } = useTeamStore()
   const { settings, fetchSettings, isLoading: settingsLoading, updateSettings } = useSettingsStore()
+  const { profile: currentUser } = useAuthStore()
+  const isSuperAdmin = currentUser?.role === 'super_admin'
   
   // Company Form State
   const [companyName, setCompanyName] = useState("")
@@ -317,12 +320,12 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {members.filter(m => !m.status || m.status === 'active').length === 0 ? (
+                {members.filter(m => (!m.status || m.status === 'active') && m.role !== 'super_admin').length === 0 ? (
                   <div className="flex h-40 items-center justify-center rounded-lg border-2 border-dashed text-muted-foreground font-medium">
                     No active team members found.
                   </div>
                 ) : (
-                  members.filter(m => !m.status || m.status === 'active').map((member) => (
+                  members.filter(m => (!m.status || m.status === 'active') && m.role !== 'super_admin').map((member) => (
                     <div key={member.id} className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/30 transition-all hover:bg-muted/50">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border-2 border-background">
@@ -343,13 +346,28 @@ export default function SettingsPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'admin')} className="font-medium">
-                              Make Admin
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'manager')} className="font-medium">
+                            {/* Only super_admin can grant the admin role */}
+                            {isSuperAdmin && (
+                              <DropdownMenuItem 
+                                onClick={async () => {
+                                  try { await useTeamStore.getState().updateMemberRole(member.id, 'admin'); toast.success(`${member.full_name || member.email} is now an Admin.`) }
+                                  catch (e: any) { toast.error(e.message) }
+                                }} 
+                                className="font-medium"
+                              >
+                                <Shield className="mr-2 h-3.5 w-3.5 text-amber-500" /> Make Admin
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onClick={async () => {
+                              try { await useTeamStore.getState().updateMemberRole(member.id, 'manager'); toast.success(`Role updated to HR.`) }
+                              catch (e: any) { toast.error(e.message) }
+                            }} className="font-medium">
                               Make HR
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => useTeamStore.getState().updateMemberRole(member.id, 'employee')} className="font-medium">
+                            <DropdownMenuItem onClick={async () => {
+                              try { await useTeamStore.getState().updateMemberRole(member.id, 'employee'); toast.success(`Role updated to Employee.`) }
+                              catch (e: any) { toast.error(e.message) }
+                            }} className="font-medium">
                               Make Employee
                             </DropdownMenuItem>
                             <Separator className="my-1" />
@@ -528,7 +546,8 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {/* Only super_admin can invite someone directly as Admin */}
+                  {isSuperAdmin && <SelectItem value="admin">Admin</SelectItem>}
                   <SelectItem value="manager">HR</SelectItem>
                   <SelectItem value="employee">Employee</SelectItem>
                 </SelectContent>

@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useTasksStore } from "../tasksStore"
-import { useProjectsStore } from "@/modules/projects/projectsStore"
-import { useTeamStore } from "@/modules/admin/teamStore"
+import { useProjectsStore } from "@/modules/projects"
+import { useTeamStore } from "@/modules/admin"
 import { toast } from "sonner"
 import type { Task } from "../types"
 
@@ -43,7 +43,7 @@ interface TaskFormProps {
   onSuccess: () => void
 }
 
-export function TaskForm({ task, onSuccess }: TaskFormProps) {
+export default function TaskForm({ task, onSuccess }: TaskFormProps) {
   const { addTask, updateTask } = useTasksStore()
   const { projects, fetchProjects } = useProjectsStore()
   const { members, fetchMembers } = useTeamStore()
@@ -293,3 +293,4 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
     </Form>
   )
 }
+

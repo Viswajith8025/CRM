@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable'
 import type { Project, ProjectStatus } from '../types'
 import { KanbanColumn } from './KanbanColumn'
-import { ProjectCard } from './ProjectCard'
+import ProjectCard from './ProjectCard'
 import { useProjectsStore } from '../projectsStore'
 
 const COLUMNS: { id: ProjectStatus; title: string }[] = [

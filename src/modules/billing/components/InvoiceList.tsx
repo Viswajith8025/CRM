@@ -31,10 +31,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { AdvancedInvoiceFilter } from "./AdvancedInvoiceFilter"
+
+interface FilterCriteria {
+  minAmount?: number
+  maxAmount?: number
+  status?: string
+  clientName?: string
+  dateFrom?: string
+  dateTo?: string
+}
 
 const statusColors: Record<string, string> = {
   draft: "bg-slate-500/10 text-slate-500",
   sent: "bg-blue-500/10 text-blue-500",
+  partially_paid: "bg-amber-500/10 text-amber-500",
   paid: "bg-emerald-500/10 text-emerald-500",
   overdue: "bg-rose-500/10 text-rose-500",
   cancelled: "bg-rose-500/10 text-rose-500",
@@ -52,22 +63,33 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
   const [search, setSearch] = useState("")
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [advancedCriteria, setAdvancedCriteria] = useState<FilterCriteria>({})
 
   const filteredInvoices = invoices
     .filter((inv) => {
       const matchesSearch = inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
                            inv.client?.name?.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus = filterStatus === "all" || inv.status === filterStatus
+      const matchesStatus = filterStatus === "all" ? 
+        (!advancedCriteria.status || inv.status === advancedCriteria.status) : 
+        inv.status === filterStatus
       
+      const matchesAmount = 
+        (!advancedCriteria.minAmount || Number(inv.amount) >= advancedCriteria.minAmount) &&
+        (!advancedCriteria.maxAmount || Number(inv.amount) <= advancedCriteria.maxAmount)
+      
+      const matchesAdvancedClient = !advancedCriteria.clientName || 
+        inv.client?.name?.toLowerCase().includes(advancedCriteria.clientName.toLowerCase())
+
       let matchesDate = true
-      if (startDate) {
-        matchesDate = matchesDate && !isBefore(new Date(inv.issued_at), startOfDay(new Date(startDate)))
+      if (startDate || advancedCriteria.dateFrom) {
+        const fromDate = advancedCriteria.dateFrom ? new Date(advancedCriteria.dateFrom) : new Date(startDate!)
+        matchesDate = matchesDate && !isBefore(new Date(inv.issued_at), startOfDay(fromDate))
       }
       if (endDate) {
         matchesDate = matchesDate && !isAfter(new Date(inv.issued_at), endOfDay(new Date(endDate)))
       }
 
-      return matchesSearch && matchesStatus && matchesDate
+      return matchesSearch && matchesStatus && matchesDate && matchesAmount && matchesAdvancedClient
     })
     .sort((a, b) => {
       const valA = new Date(a.due_date).getTime()
@@ -99,6 +121,7 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <AdvancedInvoiceFilter onFilterChange={setAdvancedCriteria} />
         <Button 
           variant="outline" 
           className="gap-2"

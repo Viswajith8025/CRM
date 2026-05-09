@@ -1,7 +1,8 @@
+import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Calendar, Layout, MoreHorizontal, Edit2, Trash2, Eye, Archive } from "lucide-react"
+import { Calendar, Layout, MoreHorizontal, Edit2, Trash2, Eye, Archive, Activity, AlertTriangle, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Project } from "../types"
 import { useNavigate } from "react-router-dom"
@@ -29,12 +30,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ProjectForm } from "./ProjectForm"
+import ProjectForm from "./ProjectForm"
 import { toast } from "sonner"
 import { useProjectsStore } from "../projectsStore"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useState } from "react"
 
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -48,6 +48,18 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-rose-500/10 text-rose-500",
 }
 
+const healthColors: Record<string, string> = {
+  'on-track': 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20',
+  'at-risk': 'text-amber-500 bg-amber-500/10 border-amber-500/20',
+  'delayed': 'text-rose-500 bg-rose-500/10 border-rose-500/20',
+}
+
+const healthIcons: Record<string, any> = {
+  'on-track': Activity,
+  'at-risk': TrendingUp,
+  'delayed': AlertTriangle,
+}
+
 interface ProjectCardProps {
   project: Project
   isDraggable?: boolean
@@ -55,7 +67,7 @@ interface ProjectCardProps {
   isSyncing?: boolean
 }
 
-export function ProjectCard({ project, isDraggable, isOverlay, isSyncing }: ProjectCardProps) {
+export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing }: ProjectCardProps) {
   const navigate = useNavigate()
   const { deleteProject, updateProject } = useProjectsStore()
   const [isEditOpen, setIsEditOpen] = useState(false)
@@ -132,9 +144,23 @@ export function ProjectCard({ project, isDraggable, isOverlay, isSyncing }: Proj
         >
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <Badge variant="secondary" className={cn(statusColors[project.status])}>
-                {project.status.replace('_', ' ')}
-              </Badge>
+              <div className="flex gap-2">
+                <Badge variant="secondary" className={cn(statusColors[project.status])}>
+                  {project.status.replace('_', ' ')}
+                </Badge>
+                {project.health && (
+                  <Badge variant="outline" className={cn("gap-1 font-bold", healthColors[project.health.status])}>
+                    {React.createElement(healthIcons[project.health.status], { className: "h-3 w-3" })}
+                    {project.health.status.replace('-', ' ')}
+                  </Badge>
+                )}
+                {project.financials && project.financials.profit_margin < 10 && project.financials.revenue > 0 && (
+                  <Badge variant="outline" className="text-rose-500 bg-rose-500/10 border-rose-500/20 font-bold gap-1">
+                    <TrendingDown className="h-3 w-3" />
+                    Low Margin
+                  </Badge>
+                )}
+              </div>
               {!isOverlay && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

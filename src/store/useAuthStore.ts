@@ -7,12 +7,13 @@ export interface UserProfile {
   id: string
   full_name: string | null
   avatar_url: string | null
-  role: 'admin' | 'manager' | 'employee' | 'client'
+  role: 'super_admin' | 'admin' | 'manager' | 'employee' | 'client'
   status: 'pending' | 'active' | 'denied'
   organization_id: string | null
   email: string | null
   created_at: string
   permissions: string[]
+  is_org_suspended?: boolean
 }
 
 interface AuthState {
@@ -87,6 +88,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       if (error) throw error
       
+      let is_org_suspended = false
+      if (profile && profile.role !== 'super_admin') {
+        const { data: orgStatus } = await supabase.rpc('check_org_status')
+        if (orgStatus && orgStatus.status === 'suspended') {
+          is_org_suspended = true
+        }
+      }
+
       if (!profile) {
         // Create if missing (failsafe)
         const { data: newProfile } = await supabase
@@ -100,9 +109,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .select()
           .single()
         
-        set({ profile: { ...newProfile, permissions: [] } as UserProfile, isLoading: false })
+        // Fetch permissions for the user
+        const { data: perms } = await supabase.rpc('get_user_permissions', { p_user_id: user.id })
+        
+        set({ profile: { ...newProfile, permissions: perms || [], is_org_suspended } as UserProfile, isLoading: false })
       } else {
-        set({ profile: { ...profile, permissions: [] } as UserProfile, isLoading: false })
+        // Fetch permissions for the existing user
+        const { data: perms } = await supabase.rpc('get_user_permissions', { p_user_id: user.id })
+        
+        set({ profile: { ...profile, permissions: perms || [], is_org_suspended } as UserProfile, isLoading: false })
       }
     } catch (err) {
       console.error("Profile fetch error:", err)

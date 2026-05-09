@@ -1,6 +1,6 @@
 import { CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Briefcase, BarChart3 } from 'lucide-react'
-import { useProjectsStore } from '@/modules/projects/projectsStore'
+import { useProjectsStore } from '@/modules/projects'
 import { useEffect } from 'react'
 import { Progress } from '@/components/ui/progress'
 

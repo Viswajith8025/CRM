@@ -1,6 +1,6 @@
 import { CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { CheckCircle2, Clock } from 'lucide-react'
-import { useTasksStore } from '@/modules/tasks/tasksStore'
+import { useTasksStore } from '@/modules/tasks'
 import { useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 

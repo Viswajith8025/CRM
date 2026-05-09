@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
-import { useBillingStore } from "@/modules/billing/billingStore"
+import { useBillingStore } from "@/modules/billing"
 import { InvoiceList } from "@/modules/billing/components/InvoiceList"
 
 export default function ClientInvoices() {

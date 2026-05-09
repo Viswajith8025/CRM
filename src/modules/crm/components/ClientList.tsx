@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, MoreHorizontal, FileText, Loader2, Eye } from "lucide-react"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 
 import type { Client } from "../types"
 import {
@@ -31,6 +31,15 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import { useNavigate } from "react-router-dom"
+import { ActivityTimeline } from "@/components/shared/ActivityTimeline"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface ClientListProps {
   onEdit: (client: Client) => void
@@ -42,6 +51,7 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
   const { clients, isLoading, deleteClient, fetchClients } = useCRMStore()
   const [search, setSearch] = useState("")
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [timelineClient, setTimelineClient] = useState<Client | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -153,7 +163,14 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                             <FileText className="h-4 w-4" />
                             Create Proposal
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => setTimelineClient(client)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            View History
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             className="gap-2 cursor-pointer"
                             onClick={() => onViewProposals(client)}
                           >
@@ -196,6 +213,30 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Activity Timeline Sheet */}
+      <Sheet open={!!timelineClient} onOpenChange={(open) => !open && setTimelineClient(null)}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
+          <SheetHeader className="p-6 pb-4 border-b">
+            <SheetTitle className="flex items-center gap-2 text-lg font-black">
+              {timelineClient?.name}
+            </SheetTitle>
+            <SheetDescription>
+              Full activity history for this client relationship.
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="flex-1 p-6">
+            {timelineClient && (
+              <ActivityTimeline
+                entityId={timelineClient.id}
+                relatedEntityId={timelineClient.lead_id ?? undefined}
+                showEntityBadge={true}
+                limit={50}
+              />
+            )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

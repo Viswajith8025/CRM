@@ -4,7 +4,8 @@ import {
   Briefcase, 
   FileText, 
   Settings,
-  HelpCircle
+  HelpCircle,
+  FolderLock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +13,7 @@ const navigation = [
   { name: 'Overview', href: '/portal', icon: LayoutDashboard },
   { name: 'My Projects', href: '/portal/projects', icon: Briefcase },
   { name: 'Invoices', href: '/portal/invoices', icon: FileText },
+  { name: 'File Vault', href: '/portal/vault', icon: FolderLock },
   { name: 'Settings', href: '/portal/settings', icon: Settings },
   { name: 'Support', href: '/portal/support', icon: HelpCircle },
 ]

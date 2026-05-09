@@ -9,11 +9,15 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
+import { rateLimiter } from "@/lib/rateLimiter"
+import { AlertCircle, Clock } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [lockout, setLockout] = useState<{ isLocked: boolean, message: string, seconds: number } | null>(null)
   const navigate = useNavigate()
   const { user } = useAuthStore()
 
@@ -23,17 +27,57 @@ export default function LoginPage() {
     }
   }, [user, navigate])
 
+  // Cooldown timer for lockouts
+  useEffect(() => {
+    if (lockout && lockout.seconds > 0) {
+      const timer = setInterval(() => {
+        setLockout(prev => {
+          if (!prev || prev.seconds <= 1) {
+            clearInterval(timer)
+            return null
+          }
+          return { ...prev, seconds: prev.seconds - 1 }
+        })
+      }, 1000)
+      return () => clearInterval(timer)
+    }
+  }, [lockout])
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
     
     try {
+      // 1. Check for existing lockout
+      const status = await rateLimiter.checkLockout(email)
+      if (status.isLocked) {
+        setLockout({ isLocked: true, message: status.message, seconds: status.remainingSeconds })
+        setIsLoading(false)
+        return
+      }
+
+      // 2. Log attempt
+      await rateLimiter.logAuthEvent(email, 'LOGIN_ATTEMPT', false)
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        // 3. Log failure and check if this attempt triggered a new lockout
+        await rateLimiter.logAuthEvent(email, 'LOGIN_FAILURE', false, { error: error.message })
+        
+        const newStatus = await rateLimiter.checkLockout(email)
+        if (newStatus.isLocked) {
+          setLockout({ isLocked: true, message: newStatus.message, seconds: newStatus.remainingSeconds })
+        }
+        
+        throw error
+      }
+
+      // 4. Log success
+      await rateLimiter.logAuthEvent(email, 'LOGIN_SUCCESS', true)
 
       toast.success("Welcome back!")
       navigate("/")
@@ -70,7 +114,17 @@ export default function LoginPage() {
               Enter your email and password to access your ECRAFTZ dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {lockout && (
+              <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle className="font-black uppercase tracking-widest text-[10px]">Access Blocked</AlertTitle>
+                <AlertDescription className="text-xs font-medium">
+                  {lockout.message.split('locked for')[0]} locked for <span className="font-bold underline">{lockout.seconds}s</span>.
+                </AlertDescription>
+              </Alert>
+            )}
+
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

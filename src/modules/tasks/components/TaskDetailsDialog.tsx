@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CommentSection } from "@/components/shared/comments/CommentSection"
 
 interface TaskDetailsDialogProps {
   task: Task | null
@@ -29,7 +30,7 @@ interface TaskDetailsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialogProps) {
+export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialogProps) {
   const { subtasks, comments, fetchSubtasks, addSubtask, updateSubtask, fetchComments, addComment, updateTask } = useTasksStore()
   const { profile } = useAuthStore()
   
@@ -218,81 +219,8 @@ export function TaskDetailsDialog({ task, open, onOpenChange }: TaskDetailsDialo
             </div>
 
             {/* Comments Area */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="p-3 border-b bg-muted/20">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Team Discussion</h4>
-              </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
-                  {taskComments.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-muted-foreground italic">
-                      No comments yet. Start the discussion!
-                    </div>
-                  ) : (
-                    taskComments.map(comment => (
-                      <div key={comment.id} className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarImage src={comment.user?.avatar_url} />
-                            <AvatarFallback>{comment.user?.full_name?.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs font-bold">{comment.user?.full_name}</span>
-                          <span className="text-[10px] text-muted-foreground">{format(new Date(comment.created_at), 'p')}</span>
-                        </div>
-                        <div className="pl-7">
-                          <div className="bg-muted p-2 rounded-lg text-sm rounded-tl-none">
-                            {comment.content}
-                          </div>
-                          {comment.attachment_url && (
-                            <a 
-                              href={comment.attachment_url} 
-                              target="_blank" 
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1 mt-1 text-[10px] text-primary hover:underline"
-                            >
-                              <Paperclip className="h-3 w-3" /> View Attachment
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-
-              {/* Comment Input */}
-              <div className="p-4 border-t bg-muted/10">
-                <form onSubmit={handleAddComment} className="space-y-2">
-                  <div className="relative">
-                    <Textarea 
-                      placeholder="Write a comment..." 
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      className="min-h-[80px] resize-none pr-10 text-sm"
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault()
-                          handleAddComment(e)
-                        }
-                      }}
-                    />
-                    <div className="absolute right-2 bottom-2 flex flex-col gap-1">
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 text-muted-foreground"
-                        onClick={() => setActiveTab("attachments")}
-                      >
-                        <Paperclip className="h-4 w-4" />
-                      </Button>
-                      <Button type="submit" size="icon" className="h-6 w-6 rounded-full" disabled={!newComment.trim()}>
-                        <Send className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </div>
+            <div className="flex-1 flex flex-col min-h-0 border-l">
+              <CommentSection entityId={task.id} entityType="task" />
             </div>
           </div>
         </div>

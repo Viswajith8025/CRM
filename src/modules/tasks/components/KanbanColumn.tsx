@@ -1,16 +1,19 @@
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Task } from '../types'
-import { TaskCard } from './TaskCard'
+import TaskCard from './TaskCard'
 
 interface KanbanColumnProps {
   id: string
   title: string
   tasks: Task[]
   syncingTaskId: string | null
+  onEdit: (task: Task) => void
+  onDelete: (id: string) => void
+  onOpenDetails: (task: Task) => void
 }
 
-export function KanbanColumn({ id, title, tasks, syncingTaskId }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, tasks, syncingTaskId, onEdit, onDelete, onOpenDetails }: KanbanColumnProps) {
   const { setNodeRef } = useDroppable({
     id: id,
   })
@@ -31,6 +34,9 @@ export function KanbanColumn({ id, title, tasks, syncingTaskId }: KanbanColumnPr
               key={task.id} 
               task={task} 
               isSyncing={syncingTaskId === task.id}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onOpenDetails={onOpenDetails}
             />
           ))}
         </SortableContext>

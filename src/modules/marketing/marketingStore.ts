@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
-import type { Campaign, SEOKeyword, SocialPost } from './types'
+import type { Campaign, SEOKeyword, SocialPost } from '../types/types'
 
 interface MarketingState {
   campaigns: Campaign[]
@@ -205,3 +205,4 @@ export const useMarketingStore = create<MarketingState>((set, get) => ({
     }
   }
 }))
+

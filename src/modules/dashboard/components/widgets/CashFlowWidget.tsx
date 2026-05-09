@@ -1,6 +1,6 @@
 import { CardHeader, CardContent } from '@/components/ui/card'
 import { Activity, DollarSign } from 'lucide-react'
-import { useBillingStore } from '@/modules/billing/billingStore'
+import { useBillingStore } from '@/modules/billing'
 import { useEffect, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 

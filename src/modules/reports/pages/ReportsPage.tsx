@@ -1,10 +1,10 @@
 import { useMemo, useEffect, useState } from "react"
-import { useTasksStore } from "@/modules/tasks/tasksStore"
-import { useBillingStore } from "@/modules/billing/billingStore"
-import { useProjectsStore } from "@/modules/projects/projectsStore"
-import { useTeamStore } from "@/modules/admin/teamStore"
-import { useCRMStore } from "@/modules/crm/store/crmStore"
-import { useTimeStore } from "@/modules/time-tracking/timeStore"
+import { useTasksStore } from "@/modules/tasks"
+import { useBillingStore } from "@/modules/billing"
+import { useProjectsStore } from "@/modules/projects"
+import { useTeamStore } from "@/modules/admin"
+import { useCRMStore } from "@/modules/crm"
+import { useTimeStore } from "@/modules/time-tracking"
 import { useActivityStore } from "../activityStore"
 import { 
   format, 
@@ -61,6 +61,7 @@ export default function ReportsPage() {
   const { leads, fetchLeads } = useCRMStore()
   const { logs, fetchLogs } = useTimeStore()
   const { activities, fetchActivities, subscribeToActivities, isLoading: isActivityLoading } = useActivityStore()
+  const [isMounted, setIsMounted] = useState(false)
   
   const [dateRange, setDateRange] = useState({
     start: format(subMonths(new Date(), 5), 'yyyy-MM-dd'),
@@ -75,6 +76,7 @@ export default function ReportsPage() {
     fetchLeads()
     fetchLogs()
     fetchActivities()
+    setIsMounted(true)
     
     const unsubscribe = subscribeToActivities()
     return () => unsubscribe()
@@ -96,13 +98,19 @@ export default function ReportsPage() {
     })
 
     return months.map(month => {
-      const monthRevenue = invoices
-        .filter(inv => isSameMonth(parseISO(inv.issued_at), month) && inv.status === 'paid')
+      const monthInvoices = invoices.filter(inv => isSameMonth(parseISO(inv.issued_at), month))
+      
+      const paidRevenue = monthInvoices
+        .filter(inv => inv.status === 'paid')
+        .reduce((sum, inv) => sum + Number(inv.amount), 0)
+
+      const totalInvoiced = monthInvoices
         .reduce((sum, inv) => sum + Number(inv.amount), 0)
       
       return {
         month: format(month, 'MMM yyyy'),
-        revenue: monthRevenue
+        revenue: paidRevenue,
+        projected: totalInvoiced
       }
     })
   }, [invoices, dateRange])
@@ -146,10 +154,29 @@ export default function ReportsPage() {
     return {
       revenue: rangeInvoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + Number(i.amount), 0),
       pending: rangeInvoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + Number(i.amount), 0),
+      totalInvoiced: rangeInvoices.reduce((sum, i) => sum + Number(i.amount), 0),
       projects: projects.filter(p => p.status === 'in_progress').length,
       members: members.filter(m => m.status === 'active').length
     }
   }, [invoices, projects, members, dateRange])
+
+  const refreshAll = async () => {
+    const toastId = toast.loading("Syncing latest workspace data...")
+    try {
+      await Promise.all([
+        fetchTasks(true),
+        fetchInvoices(true),
+        fetchProjects(true),
+        fetchMembers(true),
+        fetchLeads(true),
+        fetchLogs(true),
+        fetchActivities()
+      ])
+      toast.success("Intelligence data synchronized", { id: toastId })
+    } catch (err) {
+      toast.error("Failed to sync some modules", { id: toastId })
+    }
+  }
 
   return (
     <PageWrapper 
@@ -157,6 +184,10 @@ export default function ReportsPage() {
       description="Real-time analytics and chronological workspace activity stream."
       actions={
         <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={refreshAll} title="Refresh Data">
+            <Activity className="h-4 w-4" />
+          </Button>
+
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5">
@@ -182,7 +213,10 @@ export default function ReportsPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={() => toast.success("Analytics recalculated for new range")}>Update Dashboard</Button>
+                <Button onClick={() => {
+                  refreshAll()
+                  toast.success("Analytics recalculated for new range")
+                }}>Update Dashboard</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -191,13 +225,12 @@ export default function ReportsPage() {
             className="gap-2 font-bold" 
             onClick={() => {
               import('@/lib/exportUtils').then(({ exportToCSV }) => {
-                // Determine which data to export based on some logic or just export a combined summary
                 const exportData = invoices.map(inv => ({
                   Invoice_Number: inv.invoice_number,
                   Client: inv.client?.name || 'Unknown',
                   Amount: inv.amount,
                   Status: inv.status,
-                  Issued_Date: format(new Date(inv.issued_at), 'yyyy-MM-dd')
+                  Issued_Date: inv.issued_at ? format(new Date(inv.issued_at), 'yyyy-MM-dd') : 'N/A'
                 }))
                 exportToCSV(exportData, `Financial_Report_${format(new Date(), 'yyyy-MM-dd')}`)
                 toast.success('Report exported to CSV successfully.')
@@ -210,10 +243,10 @@ export default function ReportsPage() {
       }
     >
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <MetricCard title="Total Invoiced" value={`$${totals.totalInvoiced.toLocaleString()}`} icon={DollarSign} label="Overall billables" />
         <MetricCard title="Revenue (Paid)" value={`$${totals.revenue.toLocaleString()}`} icon={TrendingUp} label="Actual collections" />
-        <MetricCard title="Pending Invoices" value={`$${totals.pending.toLocaleString()}`} icon={DollarSign} label="Outstanding balance" />
+        <MetricCard title="Pending" value={`$${totals.pending.toLocaleString()}`} icon={Activity} label="Outstanding balance" />
         <MetricCard title="Active Projects" value={totals.projects.toString()} icon={Briefcase} label="Current engagements" />
-        <MetricCard title="Team Size" value={totals.members.toString()} icon={Users} label="Active contributors" />
       </div>
 
       <Tabs defaultValue="activity" className="space-y-6">
@@ -304,21 +337,31 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
               <div className="h-[350px] w-full aspect-video min-h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={revenueData}>
-                    <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={600} />
-                    <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => `$${v}`} />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={revenueData}>
+                      <defs>
+                        <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorProj" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={600} />
+                      <YAxis axisLine={false} tickLine={false} fontSize={10} tickFormatter={(v) => `$${v}`} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                      />
+                      <Area type="monotone" dataKey="revenue" name="Actual (Paid)" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                      <Area type="monotone" dataKey="projected" name="Projected (Total)" stroke="#3b82f6" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorProj)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -330,24 +373,26 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[350px] w-full aspect-square min-h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={taskStats}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={70}
-                      outerRadius={100}
-                      paddingAngle={8}
-                      dataKey="value"
-                    >
-                      {taskStats.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={taskStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={100}
+                        paddingAngle={8}
+                        dataKey="value"
+                      >
+                        {taskStats.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -363,20 +408,22 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[350px] w-full aspect-video min-h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { name: 'Planning', count: projects.filter(p => p.status === 'planning').length },
-                    { name: 'Active', count: projects.filter(p => p.status === 'in_progress').length },
-                    { name: 'Hold', count: projects.filter(p => p.status === 'on_hold').length },
-                    { name: 'Done', count: projects.filter(p => p.status === 'completed').length },
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[
+                      { name: 'Planning', count: projects.filter(p => p.status === 'planning').length },
+                      { name: 'Active', count: projects.filter(p => p.status === 'in_progress').length },
+                      { name: 'Hold', count: projects.filter(p => p.status === 'on_hold').length },
+                      { name: 'Done', count: projects.filter(p => p.status === 'completed').length },
+                    ]}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -388,15 +435,17 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[350px] w-full aspect-video min-h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={leadData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} fontWeight={700} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Line type="stepAfter" dataKey="count" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 6, fill: '#8b5cf6' }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={leadData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={9} fontWeight={700} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Line type="stepAfter" dataKey="count" stroke="#8b5cf6" strokeWidth={4} dot={{ r: 6, fill: '#8b5cf6' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -411,16 +460,18 @@ export default function ReportsPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[450px] w-full aspect-video min-h-[450px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={employeeProductivity} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" axisLine={false} tickLine={false} />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} fontSize={11} fontWeight={600} />
-                  <Tooltip />
-                  <Bar dataKey="hours" name="Logged Hours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
-                  <Bar dataKey="tasks" name="Tasks Closed" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
-                </BarChart>
-              </ResponsiveContainer>
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={employeeProductivity} layout="vertical" margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                    <XAxis type="number" axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={120} fontSize={11} fontWeight={600} />
+                    <Tooltip />
+                    <Bar dataKey="hours" name="Logged Hours" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={24} />
+                    <Bar dataKey="tasks" name="Tasks Closed" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -456,4 +507,5 @@ function ActivityIcon({ type }: { type: string }) {
     default: return <Activity className="h-4 w-4 text-muted-foreground" />
   }
 }
+
 

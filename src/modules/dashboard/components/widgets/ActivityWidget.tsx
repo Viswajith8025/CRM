@@ -1,6 +1,6 @@
 import { CardHeader, CardContent } from '@/components/ui/card'
 import { Clock } from 'lucide-react'
-import { useActivityStore } from '@/modules/reports/activityStore'
+import { useActivityStore } from '@/modules/reports'
 import { useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -50,3 +50,4 @@ export function ActivityWidget() {
     </div>
   )
 }
+

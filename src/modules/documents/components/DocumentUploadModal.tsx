@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useDocumentStore } from "../documentStore"
-import { useProjectsStore } from "@/modules/projects/projectsStore"
+import { useProjectsStore } from "@/modules/projects"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Loader2, UploadCloud } from "lucide-react"

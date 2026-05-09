@@ -1,4 +1,4 @@
-import { useNotificationsStore } from '@/modules/notifications/notificationsStore'
+import { useNotificationsStore } from '@/modules/notifications'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -97,3 +97,4 @@ export const notificationService = {
     }
   }
 }
+

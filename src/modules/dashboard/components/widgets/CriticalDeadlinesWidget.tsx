@@ -1,6 +1,6 @@
 import { CardHeader, CardContent } from '@/components/ui/card'
 import { AlertCircle, Calendar } from 'lucide-react'
-import { useTasksStore } from '@/modules/tasks/tasksStore'
+import { useTasksStore } from '@/modules/tasks'
 import { useEffect, useMemo } from 'react'
 import { format, isBefore, addDays } from 'date-fns'
 import { cn } from '@/lib/utils'

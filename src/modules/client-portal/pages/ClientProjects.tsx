@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
-import { useProjectsStore } from "@/modules/projects/projectsStore"
-import { ProjectCard } from "@/modules/projects/components/ProjectCard"
+import { useProjectsStore } from "@/modules/projects"
+import ProjectCard from "@/modules/projects/components/ProjectCard"
 
 export default function ClientProjects() {
   const { fetchProjects, projects } = useProjectsStore()

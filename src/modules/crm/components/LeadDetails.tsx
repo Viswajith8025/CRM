@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useCRMStore } from "../store/crmStore"
+import { useCRMStore } from "../crmStore"
 import type { Contact as Lead, Interaction } from "../types"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,8 +19,9 @@ import {
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { Textarea } from "@/components/ui/textarea"
-import { useBillingStore } from "@/modules/billing/billingStore"
-import { FileCheck } from "lucide-react"
+import { useBillingStore } from "@/modules/billing"
+import { FileCheck, Activity } from "lucide-react"
+import { ActivityTimeline } from "@/components/shared/ActivityTimeline"
 
 interface LeadDetailsProps {
   lead: Lead
@@ -92,11 +93,23 @@ export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="activity" className="w-full flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="activity">Activity & Timeline</TabsTrigger>
+      <Tabs defaultValue="lifecycle" className="w-full flex-1 flex flex-col">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="lifecycle" className="gap-1.5"><Activity className="h-3.5 w-3.5" />Lifecycle</TabsTrigger>
+          <TabsTrigger value="activity">Interactions</TabsTrigger>
           <TabsTrigger value="proposals">Proposals</TabsTrigger>
         </TabsList>
+
+        {/* --- LIFECYCLE TAB --- */}
+        <TabsContent value="lifecycle" className="flex-1 pt-4 min-h-0">
+          <ScrollArea className="h-[400px] pr-4">
+            <ActivityTimeline
+              entityId={lead.id}
+              showEntityBadge={true}
+              limit={30}
+            />
+          </ScrollArea>
+        </TabsContent>
         
         <TabsContent value="activity" className="flex-1 flex flex-col space-y-4 pt-4 min-h-0">
           {/* Interaction Input */}

@@ -10,7 +10,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Mail, Shield, UserCheck, UserX, ChevronDown } from "lucide-react"
+import { Search, Mail, Shield, UserCheck, UserX, ChevronDown, DollarSign } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -18,12 +18,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useTeamStore } from "@/modules/admin/teamStore"
+import { useTeamStore } from "@/modules/admin"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 
 export function TeamList() {
-  const { members, isLoading, fetchMembers, updateMemberStatus, updateMemberRole } = useTeamStore()
+  const { members, isLoading, fetchMembers, updateMemberStatus, updateMemberRole, updateMemberHourlyRate } = useTeamStore()
   const { profile: currentUser } = useAuthStore()
   const [search, setSearch] = useState("")
   const [tab, setTab] = useState<'active' | 'pending' | 'denied'>('active')
@@ -146,6 +146,7 @@ export function TeamList() {
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Member</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Role</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Registered</TableHead>
+              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Hourly Rate</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Status</TableHead>
               {isAdmin && <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Actions</TableHead>}
             </TableRow>
@@ -217,6 +218,28 @@ export function TeamList() {
                     <span className="text-xs font-medium text-muted-foreground">
                       {new Date(member.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin ? (
+                      <div className="flex items-center gap-1 group/rate">
+                        <span className="text-xs text-muted-foreground">$</span>
+                        <input 
+                          type="number" 
+                          defaultValue={member.hourly_rate || 0}
+                          className="w-16 bg-transparent border-none focus:ring-1 focus:ring-primary rounded px-1 text-xs font-bold"
+                          onBlur={(e) => {
+                            const val = parseFloat(e.target.value)
+                            if (val !== member.hourly_rate) {
+                              updateMemberHourlyRate(member.id, val)
+                                .then(() => toast.success("Rate updated"))
+                                .catch(() => toast.error("Failed to update rate"))
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold">${member.hourly_rate || 0}</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -300,3 +323,4 @@ export function TeamList() {
     </div>
   )
 }
+

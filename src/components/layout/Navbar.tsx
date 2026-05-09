@@ -21,7 +21,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Sidebar } from "./Sidebar"
-import { useNotificationsStore } from "@/modules/notifications/notificationsStore"
+import { useNotificationsStore } from "@/modules/notifications"
 import { useEffect } from "react"
 import { GlobalSearch } from "../GlobalSearch"
 
@@ -203,3 +203,4 @@ export function Navbar() {
       </div>
   )
 }
+

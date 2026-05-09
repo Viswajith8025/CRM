@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/hooks/useTheme'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
+import { GlobalErrorBoundary } from '@/components/shared/GlobalErrorBoundary'
 import { Toaster } from '@/components/ui/sonner'
 import Dashboard from '@/pages/Dashboard'
 import LoginPage from '@/pages/LoginPage'
@@ -26,13 +27,21 @@ import { ClientLayout } from '@/modules/client-portal/layout/ClientLayout'
 import ClientDashboard from '@/modules/client-portal/pages/ClientDashboard'
 import ClientProjects from '@/modules/client-portal/pages/ClientProjects'
 import ClientInvoices from '@/modules/client-portal/pages/ClientInvoices'
+import ClientVaultPage from '@/modules/client-portal/pages/ClientVaultPage'
+import ExecutiveDashboard from '@/modules/reports/pages/ExecutiveDashboard'
+import ProfitabilityReport from '@/modules/reports/pages/ProfitabilityReport'
 import ReportsPage from '@/modules/reports/pages/ReportsPage'
+import SuperAdminDashboard from '@/modules/admin/pages/SuperAdminDashboard'
 import SettingsPage from '@/modules/admin/pages/SettingsPage'
 import TeamPage from '@/modules/admin/pages/TeamPage'
+import AuditTrailPage from '@/modules/admin/pages/AuditTrailPage'
+import DocumentVault from '@/modules/documents/pages/DocumentVault'
 import NotificationsPage from '@/modules/notifications/pages/NotificationsPage'
 import HRDashboard from '@/modules/hr/pages/HRDashboard'
 import SupportDashboard from '@/modules/support/pages/SupportDashboard'
 import TicketDetailPage from '@/modules/support/pages/TicketDetailPage'
+import { CommandPalette } from '@/components/shared/CommandPalette'
+import CalendarPage from '@/modules/calendar/pages/CalendarPage'
 
 function App() {
   const { setSession, subscribeToProfile } = useAuthStore()
@@ -64,8 +73,8 @@ function App() {
   }, [])
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="erp-theme">
-      <ErrorBoundary module="ECRAFTZ Platform">
+    <GlobalErrorBoundary>
+      <ThemeProvider defaultTheme="dark" storageKey="erp-theme">
         <Router>
           <Routes>
             {/* Public Routes */}
@@ -74,7 +83,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-            {/* Standard Protected Routes (Available to all, including Employees) */}
+            {/* Standard Protected Routes */}
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 <Route path="/" element={<ErrorBoundary module="Dashboard"><Dashboard /></ErrorBoundary>} />
@@ -83,29 +92,41 @@ function App() {
                 <Route path="/projects/:id" element={<ErrorBoundary module="Project Details"><ProjectDetailPage /></ErrorBoundary>} />
                 <Route path="/profile" element={<ErrorBoundary module="Profile"><ProfilePage /></ErrorBoundary>} />
                 <Route path="/notifications" element={<ErrorBoundary module="Notifications"><NotificationsPage /></ErrorBoundary>} />
+                <Route path="/calendar" element={<ErrorBoundary module="Calendar"><CalendarPage /></ErrorBoundary>} />
               </Route>
             </Route>
 
-            {/* HR & Admin Only Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['admin', 'manager']} />}>
+            {/* Manager/Admin Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager']} />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 <Route path="/crm" element={<ErrorBoundary module="CRM"><CRMPage /></ErrorBoundary>} />
                 <Route path="/clients" element={<ErrorBoundary module="Clients"><ClientsPage /></ErrorBoundary>} />
                 <Route path="/billing" element={<ErrorBoundary module="Billing"><BillingPage /></ErrorBoundary>} />
                 <Route path="/billing/:id" element={<ErrorBoundary module="Invoice Details"><InvoiceDetail /></ErrorBoundary>} />
+                <Route path="/executive" element={<ErrorBoundary module="Executive Overview"><ExecutiveDashboard /></ErrorBoundary>} />
                 <Route path="/support" element={<ErrorBoundary module="Support"><SupportDashboard /></ErrorBoundary>} />
                 <Route path="/support/tickets/:id" element={<ErrorBoundary module="Ticket Details"><TicketDetailPage /></ErrorBoundary>} />
                 <Route path="/hr" element={<ErrorBoundary module="HR"><HRDashboard /></ErrorBoundary>} />
                 <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
+                <Route path="/reports/profitability" element={<ErrorBoundary module="Profitability"><ProfitabilityReport /></ErrorBoundary>} />
                 <Route path="/time-tracking" element={<ErrorBoundary module="Time Tracking"><TimeTrackingPage /></ErrorBoundary>} />
               </Route>
             </Route>
 
+            {/* Super Admin Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/super-admin" element={<ErrorBoundary module="Super Admin"><SuperAdminDashboard /></ErrorBoundary>} />
+              </Route>
+            </Route>
+
             {/* Admin Only Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin']} />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 <Route path="/teams" element={<ErrorBoundary module="Teams"><TeamPage /></ErrorBoundary>} />
                 <Route path="/settings" element={<ErrorBoundary module="Settings"><SettingsPage /></ErrorBoundary>} />
+                <Route path="/audit-trail" element={<ErrorBoundary module="Audit Trail"><AuditTrailPage /></ErrorBoundary>} />
+                <Route path="/documents" element={<ErrorBoundary module="Documents"><DocumentVault /></ErrorBoundary>} />
               </Route>
             </Route>
 
@@ -114,15 +135,17 @@ function App() {
               <Route index element={<ErrorBoundary module="Client Portal"><ClientDashboard /></ErrorBoundary>} />
               <Route path="projects" element={<ErrorBoundary module="Client Projects"><ClientProjects /></ErrorBoundary>} />
               <Route path="invoices" element={<ErrorBoundary module="Client Invoices"><ClientInvoices /></ErrorBoundary>} />
+              <Route path="vault" element={<ErrorBoundary module="Client Vault"><ClientVaultPage /></ErrorBoundary>} />
             </Route>
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Toaster />
+          <CommandPalette />
         </Router>
-      </ErrorBoundary>
-    </ThemeProvider>
+      </ThemeProvider>
+    </GlobalErrorBoundary>
   )
 }
 

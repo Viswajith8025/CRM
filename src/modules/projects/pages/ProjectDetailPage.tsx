@@ -29,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
-import { useTasksStore } from "@/modules/tasks/tasksStore"
+import { useTasksStore } from "@/modules/tasks"
 import { useProjectsStore } from "../projectsStore"
 import { Progress } from "@/components/ui/progress"
 import { format } from "date-fns"
@@ -42,8 +42,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { ProjectForm } from "../components/ProjectForm"
-import { TaskForm } from "@/modules/tasks/components/TaskForm"
+import ProjectForm from "../components/ProjectForm"
+import TaskForm from "@/modules/tasks/components/TaskForm"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -53,6 +53,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 import { useAuthStore } from "@/store/useAuthStore"
+import { ActivityTimeline } from "@/components/shared/ActivityTimeline"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { CommentSection } from "@/components/shared/comments/CommentSection"
+import { ProjectHealthCard } from "../components/ProjectHealthCard"
+import { ProjectProfitabilityCard } from "../components/ProjectProfitabilityCard"
 
 function LoadingState() {
   return (
@@ -88,7 +93,7 @@ export default function ProjectDetailPage() {
     const [projData, mileData] = await Promise.all([
       getProjectById(id),
       fetchMilestones(id),
-      fetchTasks(id, true),
+      fetchTasks({ projectId: id }),
       fetchSprints(id)
     ])
     setProject(projData)
@@ -98,7 +103,7 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     loadData()
-    const unsubscribe = subscribeToTasks(id)
+    const unsubscribe = subscribeToTasks() // Pass no ID to use the store's current project context if needed, or update store to support id
     return () => unsubscribe()
   }, [id])
 
@@ -221,12 +226,14 @@ export default function ProjectDetailPage() {
           </div>
 
           <Tabs defaultValue="milestones">
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className="grid grid-cols-6 w-full">
               <TabsTrigger value="milestones">Roadmap</TabsTrigger>
               <TabsTrigger value="sprints">Sprints</TabsTrigger>
               <TabsTrigger value="tasks">Backlog</TabsTrigger>
               <TabsTrigger value="team">Resource</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="chat">Discussions</TabsTrigger>
             </TabsList>
             
             <TabsContent value="milestones" className="space-y-4 pt-4">
@@ -449,11 +456,28 @@ export default function ProjectDetailPage() {
                 />
               </div>
             </TabsContent>
+
+            <TabsContent value="activity" className="pt-4">
+              <ScrollArea className="h-[500px] pr-2">
+                <ActivityTimeline
+                  entityId={project.id}
+                  showEntityBadge={true}
+                  limit={40}
+                />
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="chat" className="pt-4 h-[600px]">
+              <CommentSection entityId={project.id} entityType="project" />
+            </TabsContent>
           </Tabs>
         </div>
 
         {/* Sidebar Info */}
         <div className="space-y-6">
+          <ProjectHealthCard project={project} />
+          <ProjectProfitabilityCard project={project} />
+
           <div className="rounded-xl border bg-card p-6 space-y-4">
             <h3 className="font-bold">Project Details</h3>
             <div className="space-y-3">
@@ -509,7 +533,7 @@ export default function ProjectDetailPage() {
                 className="h-2" 
               />
               <p className="text-[10px] text-muted-foreground">
-                {tasks.filter(t => t.status === 'done').length} of {tasks.length} tasks completed
+                {tasks?.length > 0 ? `${tasks.filter(t => t.status === 'done').length} of ${tasks.length} tasks completed` : "No tasks loaded"}
               </p>
             </div>
           </div>

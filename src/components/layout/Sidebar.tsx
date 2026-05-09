@@ -9,7 +9,12 @@ import {
   BarChart3,
   Settings,
   Building2,
-  LifeBuoy
+  LifeBuoy,
+  Shield,
+  Calendar as CalendarIcon,
+  ClipboardList,
+  Files,
+  TrendingUp
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
@@ -17,19 +22,25 @@ import { useAuthStore } from "@/store/useAuthStore"
 
 const topNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'CRM Leads', href: '/crm', icon: Target, roles: ['admin', 'manager'] },
-  { name: 'Active Clients', href: '/clients', icon: Building2, roles: ['admin', 'manager'] },
-  { name: 'Projects', href: '/projects', icon: Briefcase, roles: ['admin', 'manager', 'employee'] },
+  { name: 'CRM Leads', href: '/crm', icon: Target, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Active Clients', href: '/clients', icon: Building2, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Projects', href: '/projects', icon: Briefcase, roles: ['super_admin', 'admin', 'manager', 'employee'] },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Teams', href: '/teams', icon: Users, roles: ['admin'] },
-  { name: 'Billing', href: '/billing', icon: FileText, roles: ['admin', 'manager'] },
-  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['admin', 'manager'] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['admin', 'manager'] },
+  { name: 'Teams', href: '/teams', icon: Users, roles: ['super_admin', 'admin'] },
+  { name: 'Billing', href: '/billing', icon: FileText, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Scheduler', href: '/calendar', icon: CalendarIcon, roles: ['super_admin', 'admin', 'manager', 'employee'] },
+  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Document Vault', href: '/documents', icon: Files },
+  { name: 'Executive', href: '/executive', icon: Shield, roles: ['super_admin', 'admin'] },
 ]
 
 const bottomNavigation = [
-  { name: 'Settings', href: '/settings', icon: Settings, roles: ['admin'] },
-  { name: 'Support', href: '/support', icon: LifeBuoy, roles: ['admin', 'manager'] },
+  { name: 'Super Admin', href: '/super-admin', icon: Shield, roles: ['super_admin'] },
+  { name: 'Audit Trail', href: '/audit-trail', icon: ClipboardList, roles: ['super_admin', 'admin'] },
+  { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'admin'] },
+  { name: 'Support', href: '/support', icon: LifeBuoy, roles: ['super_admin', 'admin', 'manager'] },
 ]
 
 export function Sidebar() {

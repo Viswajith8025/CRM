@@ -25,44 +25,121 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
     setIsSending(true)
     try {
       const html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-          <h2 style="color: #000;">Project Proposal: ${data.service_name}</h2>
-          <p>Dear ${data.client_name},</p>
-          <p>Please find below the project proposal for <strong>${data.service_name}</strong> from <strong>${data.company_name}</strong>.</p>
-          
-          <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin-top: 0;">Proposal Summary</h3>
-            <p><strong>Proposal ID:</strong> ${data.proposal_id}</p>
-            <p><strong>Total Amount:</strong> ₹${data.total.toLocaleString()}</p>
-            <p><strong>Valid Until:</strong> ${data.valid_until}</p>
-          </div>
-
-          <h3>Pricing Breakdown</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="background: #eee;">
-                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Item</th>
-                <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.items.map((item: any) => `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+            .container { max-width: 800px; margin: 20px auto; background: #fff; padding: 40px; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+            .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 30px; }
+            .header-table { width: 100%; border-collapse: collapse; }
+            .company-name { font-size: 24px; font-weight: bold; color: #000; margin: 0; }
+            .meta-info { text-align: right; font-size: 14px; }
+            .section-title { font-size: 16px; font-weight: bold; margin: 25px 0 10px; color: #1a202c; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #edf2f7; padding-bottom: 5px; }
+            .client-info { margin-bottom: 30px; }
+            .description { font-size: 14px; text-align: justify; color: #4a5568; margin-bottom: 30px; line-height: 1.8; }
+            .pricing-table { width: 100%; border-collapse: collapse; margin: 20px 0; border: 1px solid #000; }
+            .pricing-table th { background: #f8fafc; border: 1px solid #000; padding: 12px; text-align: left; font-size: 12px; text-transform: uppercase; font-weight: 900; }
+            .pricing-table td { border: 1px solid #000; padding: 12px; font-size: 14px; }
+            .total-row { background: #1a202c; color: #fff; font-weight: bold; }
+            .total-row td { color: #fff; border: 1px solid #000; }
+            .terms { background: #f7fafc; padding: 20px; border-radius: 6px; font-size: 12px; color: #4a5568; }
+            .terms ul { padding-left: 20px; margin: 0; }
+            .terms li { margin-bottom: 8px; }
+            .footer { margin-top: 50px; text-align: center; font-size: 10px; color: #a0aec0; text-transform: uppercase; letter-spacing: 0.1em; border-top: 1px solid #edf2f7; padding-top: 20px; }
+            .signature-table { width: 100%; margin-top: 60px; }
+            .signature-box { border-top: 1px solid #000; padding-top: 10px; text-align: center; font-size: 11px; font-weight: bold; text-transform: uppercase; width: 40%; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <table class="header-table">
                 <tr>
-                  <td style="padding: 10px; border: 1px solid #ddd;">${item.name}</td>
-                  <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₹${item.price.toLocaleString()}</td>
+                  <td>
+                    <div class="company-name">${data.company_name}</div>
+                    <div style="font-size: 14px;">${data.company_email}</div>
+                    <div style="font-size: 14px;">${data.company_phone}</div>
+                    <div style="font-size: 12px; color: #718096;">GSTIN: ${data.company_gstin}</div>
+                  </td>
+                  <td class="meta-info">
+                    <div><strong>Date:</strong> ${data.date}</div>
+                    <div><strong>Proposal ID:</strong> ${data.proposal_id}</div>
+                    <div style="color: #e53e3e;"><strong>Valid Until:</strong> ${data.valid_until}</div>
+                  </td>
                 </tr>
-              `).join('')}
-              <tr>
-                <td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>Total</strong></td>
-                <td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>₹${data.total.toLocaleString()}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+              </table>
+            </div>
 
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #888;">
-            <p>Regards,<br/><strong>${data.company_name}</strong><br/>${data.company_phone}</p>
+            <div class="client-info">
+              <div style="font-weight: bold; color: #718096; font-size: 12px; text-transform: uppercase; margin-bottom: 5px;">Prepared For:</div>
+              <div style="font-size: 18px; font-weight: bold;">${data.client_name}</div>
+              <div style="font-size: 14px;">${data.client_company}</div>
+              <div style="font-size: 14px;">${data.client_email}</div>
+            </div>
+
+            <div class="section-title">Service Requested</div>
+            <div style="font-size: 20px; font-weight: bold; color: #2d3748;">
+              ${data.service_name || (data.service_type ? data.service_type.replace('_', ' ').toUpperCase() : 'General Service')}
+            </div>
+
+            <div class="section-title">Project Description</div>
+            <div class="description">${data.description}</div>
+
+            <div class="section-title">Financial Quotation</div>
+            <table class="pricing-table">
+              <thead>
+                <tr>
+                  <th>Item / Service</th>
+                  <th>Description</th>
+                  <th style="text-align: right; width: 120px;">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.items.map((item: any) => `
+                  <tr>
+                    <td style="font-weight: bold;">${item.name}</td>
+                    <td>${item.desc || ''}</td>
+                    <td style="text-align: right; font-family: monospace;">${item.price.toLocaleString()}</td>
+                  </tr>
+                `).join('')}
+                <tr>
+                  <td colspan="2" style="text-align: right; font-weight: bold;">Subtotal</td>
+                  <td style="text-align: right; font-weight: bold;">${data.subtotal.toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td colspan="2" style="text-align: right; font-style: italic; color: #718096;">GST (${data.gst_percent}%)</td>
+                  <td style="text-align: right;">${data.gst_amount.toLocaleString()}</td>
+                </tr>
+                <tr class="total-row">
+                  <td colspan="2" style="text-align: right; font-size: 18px; text-transform: uppercase;">Total Payable</td>
+                  <td style="text-align: right; font-size: 18px;">₹${data.total.toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="section-title">Terms & Conditions</div>
+            <div class="terms">
+              <ul>
+                ${data.terms.map((term: string) => `<li>${term}</li>`).join('')}
+              </ul>
+            </div>
+
+            <table class="signature-table">
+              <tr>
+                <td class="signature-box">Client Signature</td>
+                <td style="width: 20%;"></td>
+                <td class="signature-box">Authorized Signatory</td>
+              </tr>
+            </table>
+
+            <div class="footer">
+              This is a legally binding proposal from ${data.company_name}. <br/>
+              Thank you for choosing our services.
+            </div>
           </div>
-        </div>
+        </body>
+        </html>
       `
 
       await sendEmail({
@@ -126,7 +203,9 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
           {/* SERVICE */}
           <div className="mt-6">
             <div className="font-semibold mb-1">Service Requested:</div>
-            <div className="text-lg font-medium text-primary">{data.service_name}</div>
+            <div className="text-lg font-medium text-primary">
+              {data.service_name || (data.service_type ? data.service_type.replace('_', ' ').toUpperCase() : 'General Service')}
+            </div>
           </div>
 
           {/* DESCRIPTION */}

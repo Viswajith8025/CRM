@@ -16,16 +16,17 @@ import {
 import type { Contact as Lead, LeadStatus } from '../types'
 import { LeadKanbanColumn } from './LeadKanbanColumn'
 import { LeadKanbanCard } from './LeadKanbanCard'
-import { useCRMStore } from '../store/crmStore'
+import { useCRMStore } from "../crmStore"
 import { toast } from 'sonner'
 
 const COLUMNS: { id: LeadStatus; title: string }[] = [
   { id: 'new', title: 'New Leads' },
   { id: 'contacted', title: 'Contacted' },
   { id: 'qualified', title: 'Qualified' },
-  { id: 'proposal', title: 'Proposal' },
+  { id: 'proposal_sent', title: 'Proposal Sent' },
   { id: 'negotiation', title: 'Negotiation' },
-  { id: 'closed_won', title: 'Closed Won' },
+  { id: 'awaiting_payment', title: 'Awaiting Payment' },
+  { id: 'active_client', title: 'Active Client' },
   { id: 'closed_lost', title: 'Closed Lost' },
 ]
 

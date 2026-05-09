@@ -23,9 +23,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useProjectsStore } from "../projectsStore"
-import { useTeamStore } from "@/modules/admin/teamStore"
+import { useTeamStore } from "@/modules/admin"
 import { toast } from "sonner"
-import { useCRMStore } from "@/modules/crm/store/crmStore"
+import { useCRMStore } from "@/modules/crm"
 import type { Project } from "../types"
 
 const formSchema = z.object({
@@ -45,7 +45,7 @@ interface ProjectFormProps {
   onSuccess: () => void
 }
 
-export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
+export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
   const { addProject, updateProject } = useProjectsStore()
   const { members, fetchMembers } = useTeamStore()
   const { clients, fetchClients } = useCRMStore()
@@ -364,3 +364,4 @@ export function ProjectForm({ project, onSuccess }: ProjectFormProps) {
     </Form>
   )
 }
+

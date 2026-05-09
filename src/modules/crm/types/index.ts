@@ -1,4 +1,4 @@
-export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost';
+export type LeadStatus = 'new' | 'contacted' | 'qualified' | 'proposal_sent' | 'negotiation' | 'awaiting_payment' | 'active_client' | 'closed_lost';
 
 export interface Contact {
   id: string
@@ -36,7 +36,7 @@ export interface Proposal {
   user_id: string
   title: string
   amount: number
-  status: 'draft' | 'sent' | 'accepted' | 'rejected'
+  status: 'draft' | 'sent' | 'approved' | 'rejected'
   content: any
   valid_until: string
   created_at: string
