@@ -64,29 +64,37 @@ ALTER TABLE leave_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payroll        ENABLE ROW LEVEL SECURITY;
 
 -- Attendance Policies
+DROP POLICY IF EXISTS "attendance_select" ON attendance;
 CREATE POLICY "attendance_select" ON attendance FOR SELECT TO authenticated 
 USING (organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "attendance_insert" ON attendance;
 CREATE POLICY "attendance_insert" ON attendance FOR INSERT TO authenticated 
 WITH CHECK (user_id = auth.uid() AND organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "attendance_update" ON attendance;
 CREATE POLICY "attendance_update" ON attendance FOR UPDATE TO authenticated 
 USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'manager')));
 
 -- Leave Request Policies
+DROP POLICY IF EXISTS "leaves_select" ON leave_requests;
 CREATE POLICY "leaves_select" ON leave_requests FOR SELECT TO authenticated 
 USING (organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "leaves_insert" ON leave_requests;
 CREATE POLICY "leaves_insert" ON leave_requests FOR INSERT TO authenticated 
 WITH CHECK (user_id = auth.uid() AND organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
+DROP POLICY IF EXISTS "leaves_update" ON leave_requests;
 CREATE POLICY "leaves_update" ON leave_requests FOR UPDATE TO authenticated 
 USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'manager')));
 
 -- Payroll Policies
+DROP POLICY IF EXISTS "payroll_select" ON payroll;
 CREATE POLICY "payroll_select" ON payroll FOR SELECT TO authenticated 
 USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'manager')));
 
+DROP POLICY IF EXISTS "payroll_manager_all" ON payroll;
 CREATE POLICY "payroll_manager_all" ON payroll FOR ALL TO authenticated 
 USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin', 'manager')));
 
@@ -99,8 +107,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_attendance_updated_at ON attendance;
 CREATE TRIGGER update_attendance_updated_at BEFORE UPDATE ON attendance FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_leaves_updated_at ON leave_requests;
 CREATE TRIGGER update_leaves_updated_at BEFORE UPDATE ON leave_requests FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_payroll_updated_at ON payroll;
 CREATE TRIGGER update_payroll_updated_at BEFORE UPDATE ON payroll FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 NOTIFY pgrst, 'reload schema';
