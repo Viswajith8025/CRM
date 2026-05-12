@@ -2,15 +2,18 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { ShieldX, Clock, LogOut } from 'lucide-react'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface ProtectedRouteProps {
   allowedRoles?: ('super_admin' | 'admin' | 'manager' | 'employee' | 'client')[]
+  permission?: string
 }
 
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
+export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps) => {
   const { session, profile, isLoading } = useAuthStore()
+  const { hasPermission, isLoading: isRBACLoading } = usePermissions()
 
-  if (isLoading) {
+  if (isLoading || isRBACLoading) {
     return <LoadingState />
   }
 
@@ -73,7 +76,6 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
   }
 
   // 4. PENDING or NULL PROFILE — waiting for approval
-  // If the profile is active, we continue. If not, we show the pending screen.
   if (profile?.status !== 'active') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
@@ -126,7 +128,12 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
     )
   }
 
-  // 5. ROLE CHECK
+  // 5. PERMISSION CHECK (New Priority)
+  if (permission && !hasPermission(permission)) {
+    return <Navigate to="/" replace />
+  }
+
+  // 6. ROLE CHECK (Legacy Support)
   if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
     return <Navigate to="/" replace />
   }

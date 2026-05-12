@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom" // Sidebar
+import { NavLink } from "react-router-dom"
 import {
   LayoutDashboard,
   Users,
@@ -14,41 +14,44 @@ import {
   Calendar as CalendarIcon,
   ClipboardList,
   Files,
-  TrendingUp
+  TrendingUp,
+  ShieldCheck,
+  Lock
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 
 const topNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'CRM Leads', href: '/crm', icon: Target, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Active Clients', href: '/clients', icon: Building2, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Projects', href: '/projects', icon: Briefcase, roles: ['super_admin', 'admin', 'manager', 'employee'] },
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Teams', href: '/teams', icon: Users, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Billing', href: '/billing', icon: FileText, roles: ['super_admin', 'admin'] }, // Billing is sensitive
-  { name: 'Scheduler', href: '/calendar', icon: CalendarIcon, roles: ['super_admin', 'admin', 'manager', 'employee'] },
-  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['super_admin', 'admin', 'manager'] }, // HR is sensitive
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, roles: ['super_admin', 'admin'] }, // Money stats = admin
-  { name: 'Document Vault', href: '/documents', icon: Files, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Executive', href: '/executive', icon: Shield, roles: ['super_admin', 'admin'] },
+  { name: 'CRM Leads', href: '/crm', icon: Target, permission: 'crm.view' },
+  { name: 'Active Clients', href: '/clients', icon: Building2, permission: 'crm.view' },
+  { name: 'Projects', href: '/projects', icon: Briefcase, permission: 'projects.view' },
+  { name: 'Tasks', href: '/tasks', icon: CheckSquare, permission: 'tasks.view' },
+  { name: 'Teams', href: '/teams', icon: Users, permission: 'hr.view' },
+  { name: 'Billing', href: '/billing', icon: FileText, permission: 'billing.view' },
+  { name: 'Scheduler', href: '/calendar', icon: CalendarIcon },
+  { name: 'HR & Payroll', href: '/hr', icon: Users, permission: 'hr.view' },
+  { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
+  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, permission: 'billing.view' },
+  { name: 'Document Vault', href: '/documents', icon: Files },
+  { name: 'Executive', href: '/executive', icon: Shield, permission: 'billing.view' },
 ]
 
 const bottomNavigation = [
-  { name: 'Super Admin', href: '/super-admin', icon: Shield, roles: ['super_admin'] },
-  { name: 'Audit Trail', href: '/audit-trail', icon: ClipboardList, roles: ['super_admin', 'admin'] },
-  { name: 'Settings', href: '/settings', icon: Settings, roles: ['super_admin', 'admin'] },
-  { name: 'Support', href: '/support', icon: LifeBuoy, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Roles & Access', href: '/roles', icon: Lock, permission: 'roles.manage' },
+  { name: 'Super Admin', href: '/super-admin', icon: ShieldCheck, permission: 'roles.manage' },
+  { name: 'Audit Trail', href: '/audit-trail', icon: ClipboardList, permission: 'roles.manage' },
+  { name: 'Settings', href: '/settings', icon: Settings, permission: 'roles.manage' },
+  { name: 'Support', href: '/support', icon: LifeBuoy, permission: 'support.view' },
 ]
 
 export function Sidebar() {
-  const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
 
   const filterNav = (items: typeof topNavigation) => items.filter(item => {
-    if (!item.roles) return true
-    return profile && item.roles.includes(profile.role)
+    if (!item.permission) return true
+    return hasPermission(item.permission)
   })
 
   const filteredTop = filterNav(topNavigation)

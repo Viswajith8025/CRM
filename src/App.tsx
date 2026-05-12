@@ -49,6 +49,8 @@ import SupportDashboard from '@/modules/support/pages/SupportDashboard'
 import TicketDetailPage from '@/modules/support/pages/TicketDetailPage'
 import { CommandPalette } from '@/components/shared/CommandPalette'
 import CalendarPage from '@/modules/calendar/pages/CalendarPage'
+import RolesPage from '@/modules/admin/pages/RolesPage'
+import RolePermissionEditor from '@/modules/admin/pages/RolePermissionEditor'
 
 function App() {
   const { setSession, subscribeToProfile } = useAuthStore()
@@ -61,6 +63,10 @@ function App() {
       setSession(session)
       if (session?.user) {
         unsubscribe = subscribeToProfile()
+        // Initialize RBAC
+        import('@/modules/admin/rbacStore').then(m => {
+          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
+        })
       }
     })
 
@@ -70,6 +76,10 @@ function App() {
       if (unsubscribe) unsubscribe()
       if (session?.user) {
         unsubscribe = subscribeToProfile()
+        // Initialize RBAC
+        import('@/modules/admin/rbacStore').then(m => {
+          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
+        })
       }
     })
 
@@ -122,6 +132,10 @@ function App() {
                 <Route path="/hr" element={<ErrorBoundary module="HR"><HRDashboard /></ErrorBoundary>} />
                 <Route path="/documents" element={<ErrorBoundary module="Documents"><DocumentVault /></ErrorBoundary>} />
                 <Route path="/teams" element={<ErrorBoundary module="Teams"><TeamPage /></ErrorBoundary>} />
+                <Route element={<ProtectedRoute permission="roles.manage" />}>
+                  <Route path="/roles" element={<ErrorBoundary module="Roles"><RolesPage /></ErrorBoundary>} />
+                  <Route path="/roles/:id" element={<ErrorBoundary module="Role Editor"><RolePermissionEditor /></ErrorBoundary>} />
+                </Route>
               </Route>
             </Route>
 
