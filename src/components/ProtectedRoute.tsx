@@ -88,7 +88,7 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
           </div>
 
           <p className="text-slate-500 max-w-sm mx-auto">
-            Your email is confirmed. However, <span className="text-white font-bold">ECRAFTZ ERP</span> requires a manual security review before granting access.
+            Your email is confirmed. However, <span className="text-white font-bold">The System</span> requires a manual security review before granting access.
           </p>
 
           <div className="grid gap-4 p-6 rounded-3xl bg-white/5 border border-white/10 text-left">

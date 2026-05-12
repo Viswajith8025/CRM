@@ -64,22 +64,15 @@ export default function RegisterPage() {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-2">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <div className="h-5 w-5 bg-primary-foreground rounded-sm rotate-45" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter">
-              ECRAFTZ
-            </span>
-          </div>
+        <div className="flex justify-center mb-8 overflow-hidden">
+          <img src="/logogpt.png" alt="Logo" className="h-32 w-auto object-contain brightness-110 scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]" />
         </div>
 
         <Card className="border-border/50 shadow-premium">
-          <CardHeader className="space-y-1">
+          <CardHeader className="space-y-1 text-center">
             <CardTitle className="text-2xl font-black">Create an account</CardTitle>
             <CardDescription>
-              Enter your details to get started with ECRAFTZ.
+              Enter your details to get started with your secure dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>

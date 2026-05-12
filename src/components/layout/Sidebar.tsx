@@ -55,16 +55,11 @@ export function Sidebar() {
   const filteredBottom = filterNav(bottomNavigation)
 
   return (
-    <div className="flex h-full flex-col gap-y-5 overflow-y-auto border-r border-border/50 bg-card/50 backdrop-blur-xl px-6 pb-4">
-      <div className="flex h-16 shrink-0 items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-          <div className="h-4 w-4 bg-primary-foreground rounded-sm rotate-45" />
-        </div>
-        <span className="text-xl font-black tracking-tighter text-foreground">
-          ECRAFTZ
-        </span>
+    <div className="flex h-full flex-col gap-y-5 overflow-y-auto border-r border-border/50 bg-card/50 backdrop-blur-xl pb-4">
+      <div className="flex h-32 shrink-0 items-center justify-center border-b border-white/5 overflow-hidden">
+        <img src="/logogpt.png" alt="Logo" className="h-28 w-auto object-contain brightness-125 scale-125 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" />
       </div>
-      <nav className="flex flex-1 flex-col mt-4">
+      <nav className="flex flex-1 flex-col px-6 mt-4">
         <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
             <ul role="list" className="-mx-2 space-y-1.5">

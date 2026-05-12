@@ -99,6 +99,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .from('invoices')
         .select('*, client:clients(name, email, address), project:projects(name)', { count: 'exact' })
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
 
       const result = await fetchPaginatedData<Invoice>(baseQuery, {
         page,
@@ -404,6 +405,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .select('*, client:clients(name, email, address), project:projects(name)')
         .eq('id', id)
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .single()
       if (error) throw error
       return data as Invoice

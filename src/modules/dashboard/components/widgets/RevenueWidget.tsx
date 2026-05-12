@@ -5,12 +5,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { subDays, format } from 'date-fns'
 
+import { isSameDay } from 'date-fns'
+
 export function RevenueWidget() {
   const { invoices, fetchInvoices } = useBillingStore()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
-    fetchInvoices()
+    // Force fetch with higher limit to ensure we have data for the week
+    fetchInvoices({ limit: 100, force: true }) 
     setIsMounted(true)
   }, [])
 
@@ -24,20 +27,16 @@ export function RevenueWidget() {
     })
 
     return last7Days.map(day => {
-      // Find all invoices for this specific day
       const dayInvoices = invoices.filter(inv => {
+        if (!inv.issued_at) return false
         const invDate = new Date(inv.issued_at)
-        return invDate.getDate() === day.date.getDate() &&
-          invDate.getMonth() === day.date.getMonth() &&
-          invDate.getFullYear() === day.date.getFullYear()
+        return isSameDay(invDate, day.date)
       })
 
-      // 🟢 Actual Revenue (Invoices marked as PAID)
       const dailyPaid = dayInvoices
         .filter(inv => inv.status === 'paid')
         .reduce((sum, inv) => sum + Number(inv.amount), 0)
 
-      // 🔵 Total Invoiced (All statuses for this day)
       const dailyInvoiced = dayInvoices
         .reduce((sum, inv) => sum + Number(inv.amount), 0)
 
@@ -53,29 +52,40 @@ export function RevenueWidget() {
   const totalInvoiced = useMemo(() => invoices.reduce((sum, i) => sum + Number(i.amount), 0), [invoices])
 
   return (
-    <div className="h-full flex flex-col bg-slate-950/50 rounded-xl overflow-hidden border border-white/5">
-      <CardHeader className="pb-0 pt-6 px-6">
+    <div className="h-full flex flex-col bg-slate-950/40 rounded-3xl overflow-hidden border border-white/5 backdrop-blur-xl shadow-2xl">
+      <CardHeader className="pb-4 pt-8 px-8">
         <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/40">Weekly Revenue Velocity</h3>
-            <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">Pipeline: ${totalInvoiced.toLocaleString()} total invoiced</p>
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/40 flex items-center gap-2">
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              Weekly Revenue Velocity
+            </h3>
+            <div className="flex items-center gap-4">
+              <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                Pipeline: <span className="text-white/40">${totalInvoiced.toLocaleString()}</span>
+              </p>
+              <div className="h-1 w-1 rounded-full bg-white/10" />
+              <p className="text-[10px] text-white/20 font-bold uppercase tracking-widest">
+                Last 7 Days
+              </p>
+            </div>
           </div>
           <div className="text-right">
-             <div className="text-2xl font-black tracking-tighter text-white">${totalPaid.toLocaleString()}</div>
-             <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-tighter">Paid Today</div>
+             <div className="text-3xl font-black tracking-tighter text-white">${totalPaid.toLocaleString()}</div>
+             <div className="text-[9px] text-emerald-400 font-black uppercase tracking-tighter bg-emerald-400/10 px-2 py-0.5 rounded-full inline-block">Paid Total</div>
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="flex-1 p-0 mt-4 w-full">
-        <div className="w-full h-[300px]">
+      <CardContent className="flex-1 p-0 mt-2 w-full">
+        <div className="w-full h-[280px]">
           {isMounted && (
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <AreaChart data={chartData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
               <defs>
                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
                 </linearGradient>
                 <linearGradient id="colorProj" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ffffff" stopOpacity={0.1}/>
@@ -86,22 +96,28 @@ export function RevenueWidget() {
                 dataKey="name" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fill: '#ffffff44', fontSize: 10, fontWeight: 900 }}
-                dy={10}
+                tick={{ fill: '#ffffff33', fontSize: 10, fontWeight: 800 }}
+                dy={15}
               />
-              <YAxis hide />
+              <YAxis hide domain={[0, 'auto']} padding={{ top: 40, bottom: 10 }} />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '8px' }}
-                itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}
-                labelStyle={{ color: '#ffffff44', fontSize: '10px', marginBottom: '4px' }}
+                cursor={{ stroke: '#ffffff11', strokeWidth: 2 }}
+                contentStyle={{ 
+                  backgroundColor: '#020617', 
+                  border: '1px solid #ffffff11', 
+                  borderRadius: '16px',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)' 
+                }}
+                itemStyle={{ fontSize: '12px', fontWeight: 'bold', padding: '2px 0' }}
+                labelStyle={{ color: '#ffffff44', fontSize: '10px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}
               />
               <Area 
                 type="monotone" 
                 dataKey="projected" 
                 name="Invoiced"
-                stroke="#ffffff44" 
+                stroke="#ffffff22" 
                 strokeWidth={2}
-                strokeDasharray="5 5"
+                strokeDasharray="8 8"
                 fillOpacity={1} 
                 fill="url(#colorProj)" 
                 animationDuration={1500}
@@ -111,9 +127,11 @@ export function RevenueWidget() {
                 dataKey="revenue" 
                 name="Paid"
                 stroke="#10b981" 
-                strokeWidth={3}
+                strokeWidth={5}
                 fillOpacity={1} 
                 fill="url(#colorRev)" 
+                dot={{ r: 5, fill: '#10b981', strokeWidth: 3, stroke: '#020617' }}
+                activeDot={{ r: 8, strokeWidth: 0 }}
                 animationDuration={1500}
               />
             </AreaChart>

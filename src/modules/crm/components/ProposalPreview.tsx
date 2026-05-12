@@ -62,9 +62,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
             <div class="content">
               <div class="header">
                 <div>
-                  <div class="logo-box"><div class="logo-inner"></div></div>
-                  <h1 class="brand-name">${data.company_name}</h1>
-                  <p class="brand-tag">Digital Solutions</p>
+                  <img src="/logogpt.png" alt="Logo" style="height: 60px; width: auto; object-fit: contain;" />
                 </div>
                 <div>
                   <p class="meta-title">Proposal Ref</p>
@@ -125,7 +123,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
             </div>
             <div class="footer-box">
                <h3 style="font-size: 24px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px;">Ready to start your project?</h3>
-               <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; opacity: 0.4;">Proprietary & Confidential • ECRAFTZ Digital Solutions</p>
+               <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; opacity: 0.4;">Proprietary & Confidential • Professional CRM Solutions</p>
             </div>
           </div>
         </body>
@@ -159,13 +157,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
             <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
               <div className="space-y-6">
                 <div className="flex items-center gap-5">
-                  <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center shadow-2xl">
-                    <div className="h-8 w-8 bg-white rounded-lg rotate-12" />
-                  </div>
-                  <div>
-                    <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-none">{data.company_name}</h1>
-                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary mt-1">Digital Solutions</p>
-                  </div>
+                  <img src="/logogpt.png" alt="Logo" className="h-20 w-auto object-contain" />
                 </div>
                 
                 <div className="space-y-2 text-xs text-slate-500 font-bold leading-relaxed max-w-xs">
@@ -312,7 +304,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
                 <div className="pt-8 border-t border-slate-200">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 text-center">Authorized Signatory</p>
                   <div className="h-16 flex items-end justify-center border-b-2 border-slate-950 pb-2">
-                     <p className="text-xl font-bold italic text-slate-300">ECRAFTZ Digital</p>
+                     <p className="text-xl font-bold italic text-slate-300">Authorized Signatory</p>
                   </div>
                 </div>
               </div>

@@ -84,19 +84,13 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
         <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-16">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-slate-900 flex items-center justify-center shadow-xl">
-                <div className="h-7 w-7 bg-white rounded-lg rotate-12 transition-transform hover:rotate-45 duration-500" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-black tracking-tighter text-slate-900 leading-none">ECRAFTZ</h1>
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-primary mt-1">Digital Solutions</p>
-              </div>
+              <img src="/logogpt.png" alt="Logo" className="h-16 w-auto object-contain" />
             </div>
             
             <div className="space-y-2 text-xs text-slate-500 font-medium leading-relaxed max-w-xs">
               <p className="flex items-start gap-3">
                 <Building2 className="w-4 h-4 shrink-0 text-slate-900" />
-                NV Tower, 20/265, A9, First floor, Kallai, Kozhikode, Kerala 673003
+                20/265, Kallai, Kozhikode, Kerala 673003
               </p>
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 <p className="flex items-center gap-2">
@@ -105,12 +99,12 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
                 </p>
                 <p className="flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-slate-900" />
-                  mail@ecraftz.in
+                  contact@vbecraftz.com
                 </p>
               </div>
               <p className="flex items-center gap-2">
                 <Globe className="w-3.5 h-3.5 text-slate-900" />
-                www.ecraftz.in
+                www.vbecraftz.com
               </p>
             </div>
           </div>
@@ -232,7 +226,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
                 <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">UPI Transfer</p>
-                    <p className="font-mono font-black text-lg">ecraftz@upi</p>
+                    <p className="font-mono font-black text-lg text-emerald-400">payment@upi</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank Transfer</p>
@@ -300,7 +294,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
              <span className="h-1 w-1 bg-white rounded-full hidden md:block" />
              <span>Overdue interest: 2% monthly</span>
              <span className="h-1 w-1 bg-white rounded-full hidden md:block" />
-             <span>Support: mail@ecraftz.in</span>
+             <span>Support: contact@vbecraftz.com</span>
           </div>
         </div>
       </div>
