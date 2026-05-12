@@ -284,3 +284,223 @@ export function exportInvoiceToPDF(invoice: Invoice) {
   // Save the PDF
   doc.save(`${invoice.invoice_number}.pdf`)
 }
+
+/**
+ * PDF Export Logic (Proposals)
+ */
+export function exportProposalToPDF(proposal: any) {
+  const data = proposal.content || {}
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  
+  const colors = {
+    primary: [37, 99, 235] as [number, number, number],
+    slate900: [15, 23, 42] as [number, number, number],
+    slate400: [148, 163, 184] as [number, number, number],
+    slate500: [100, 116, 139] as [number, number, number],
+    slate100: [241, 245, 249] as [number, number, number],
+    slate50: [248, 250, 252] as [number, number, number],
+    white: [255, 255, 255] as [number, number, number]
+  }
+
+  // 1. TOP DECORATIVE STRIP
+  doc.setFillColor(...colors.primary)
+  doc.rect(0, 0, pageWidth, 2, 'F')
+
+  // 2. HEADER
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, 15, 14, 14, 3, 3, 'F')
+  doc.setFillColor(...colors.white)
+  doc.roundedRect(17.5, 18.5, 7, 7, 1.5, 1.5, 'F')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(...colors.slate900)
+  doc.text(data.company_name || 'ECRAFTZ', 32, 23)
+  
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.primary)
+  doc.text('DIGITAL SOLUTIONS', 32, 27, { charSpace: 1 })
+
+  doc.setFontSize(8)
+  doc.setTextColor(...colors.slate400)
+  doc.text('PROJECT PROPOSAL', pageWidth - 14, 20, { align: 'right' })
+  
+  doc.setFontSize(32)
+  doc.setTextColor(...colors.slate900)
+  const propId = data.proposal_id || proposal.id.split('-')[0].toUpperCase()
+  doc.text(`#${propId}`, pageWidth - 14, 32, { align: 'right' })
+
+  // Company Contact (matches invoice style)
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.slate500)
+  doc.setFont('helvetica', 'normal')
+  const contactY = 38
+  doc.text(data.company_address || 'NV Tower, Kallai, Kozhikode, 673003', 14, contactY)
+  doc.text(`${data.company_phone || '+91 79949 71118'}  |  ${data.company_email || 'mail@ecraftz.in'}`, 14, contactY + 4)
+
+  // 3. INFO BAR
+  const barY = 55
+  doc.setFillColor(...colors.slate50)
+  doc.setDrawColor(...colors.slate100)
+  doc.roundedRect(14, barY, pageWidth - 28, 18, 4, 4, 'FD')
+
+  const colWidth = (pageWidth - 28) / 4
+  doc.setFontSize(6)
+  doc.setTextColor(...colors.slate400)
+  doc.text('ISSUED ON', 22, barY + 6)
+  doc.text('VALID UNTIL', 22 + colWidth, barY + 6)
+  doc.text('PROJECT TRACK', 22 + colWidth * 2, barY + 6)
+  doc.text('CURRENCY', 22 + colWidth * 3, barY + 6)
+
+  doc.setFontSize(9)
+  doc.setTextColor(...colors.slate900)
+  doc.setFont('helvetica', 'bold')
+  doc.text(data.date || 'N/A', 22, barY + 12)
+  doc.text(data.valid_until || data.expiry_date || 'N/A', 22 + colWidth, barY + 12)
+  doc.text(data.service_name || 'Software Dev', 22 + colWidth * 2, barY + 12)
+  doc.text('INR (₹)', 22 + colWidth * 3, barY + 12)
+
+  // 4. RECIPIENT
+  const recipientY = 85
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, recipientY, 25, 6, 2, 2, 'F')
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(7)
+  doc.text('RECIPIENT', 18, recipientY + 4.5)
+
+  doc.setDrawColor(...colors.slate900)
+  doc.roundedRect(14, recipientY + 6, pageWidth - 28, 25, 4, 4, 'D')
+
+  doc.setFontSize(18)
+  doc.setTextColor(...colors.slate900)
+  doc.text(data.client_name || 'Client', 20, recipientY + 18)
+  doc.setFontSize(8)
+  doc.setTextColor(...colors.slate500)
+  doc.text(data.client_company || 'Valued Partner', 20, recipientY + 23)
+  doc.text(`Email: ${data.client_email || 'N/A'}`, 110, recipientY + 18)
+
+  // 5. SCOPE
+  doc.setFontSize(8)
+  doc.setTextColor(...colors.slate400)
+  doc.text('SCOPE OF ENGAGEMENT', 14, 125)
+  doc.setDrawColor(...colors.slate100)
+  doc.line(55, 124, pageWidth - 14, 124)
+  
+  doc.setFontSize(9)
+  doc.setTextColor(...colors.slate500)
+  doc.setFont('helvetica', 'normal')
+  const splitDesc = doc.splitTextToSize(data.description || 'Project details and scope...', pageWidth - 40)
+  doc.text(splitDesc, 20, 132)
+
+  // 6. ITEMS TABLE
+  const tableData = (data.items || []).map((item: any) => [
+    { 
+      content: `${item.name}\nProfessional Service Package`, 
+      styles: { fontStyle: 'bold', fontSize: 10, cellPadding: { top: 10, bottom: 10 } } 
+    },
+    { 
+      content: `Rs.${item.price?.toLocaleString()}`, 
+      styles: { fontStyle: 'bold', fontSize: 14, halign: 'right', cellPadding: { top: 10, bottom: 10 } } 
+    }
+  ])
+
+  autoTable(doc, {
+    startY: 160,
+    head: [['Component', 'Investment']],
+    body: tableData,
+    theme: 'plain',
+    headStyles: { 
+      textColor: colors.slate400, 
+      fontSize: 7, 
+      fontStyle: 'bold',
+      cellPadding: { bottom: 5 }
+    },
+    styles: { cellPadding: 8, textColor: colors.slate900 },
+    columnStyles: { 1: { halign: 'right' } },
+    didDrawPage: (data) => {
+      doc.setDrawColor(...colors.slate900)
+      doc.setLineWidth(1.5)
+      doc.line(14, data.settings.startY + 8, pageWidth - 14, data.settings.startY + 8)
+    }
+  })
+
+  let finalY = (doc as any).lastAutoTable.finalY + 15
+
+  // Check for page overflow
+  if (finalY > pageHeight - 80) {
+    doc.addPage()
+    finalY = 20
+  }
+
+  // 7. TERMS & TOTAL SECTION
+  // Terms Box (Dark)
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, finalY, 85, 45, 8, 8, 'F')
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'bold')
+  doc.text('ENGAGEMENT TERMS', 22, finalY + 12)
+  
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(200, 200, 200)
+  const terms = data.terms || []
+  terms.slice(0, 5).forEach((term: string, i: number) => {
+    const splitTerm = doc.splitTextToSize(`• ${term}`, 70)
+    doc.text(splitTerm, 22, finalY + 20 + (i * 7))
+  })
+
+  // Totals Section (matches invoice style)
+  const totalsX = pageWidth - 90
+  doc.setFillColor(...colors.slate50)
+  doc.roundedRect(totalsX, finalY, 76, 45, 8, 8, 'F')
+
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.slate400)
+  doc.setFont('helvetica', 'normal')
+  doc.text('SUBTOTAL', totalsX + 8, finalY + 10)
+  doc.setTextColor(...colors.slate900)
+  doc.text(`Rs.${(data.subtotal || 0).toLocaleString()}`, pageWidth - 22, finalY + 10, { align: 'right' })
+
+  doc.setTextColor(...colors.slate400)
+  doc.text('TAX COMPONENT', totalsX + 8, finalY + 16)
+  doc.text(`+Rs.${(data.gst_amount || 0).toLocaleString()}`, pageWidth - 22, finalY + 16, { align: 'right' })
+
+  doc.setDrawColor(...colors.slate100)
+  doc.line(totalsX + 8, finalY + 22, pageWidth - 22, finalY + 22)
+
+  doc.setTextColor(...colors.slate400)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'bold')
+  doc.text('TOTAL INVESTMENT', totalsX + 8, finalY + 30)
+  doc.setFontSize(24)
+  doc.setTextColor(...colors.slate900)
+  doc.text(`Rs.${(data.total || 0).toLocaleString()}`, totalsX + 8, finalY + 40)
+
+  // Signatory
+  const sigY = finalY + 55
+  if (sigY < pageHeight - 30) {
+    doc.setDrawColor(...colors.slate900)
+    doc.setLineWidth(0.5)
+    doc.line(pageWidth - 80, sigY + 10, pageWidth - 14, sigY + 10)
+    doc.setFontSize(6)
+    doc.setTextColor(...colors.slate400)
+    doc.text('AUTHORIZED SIGNATORY', pageWidth - 47, sigY + 14, { align: 'center' })
+    doc.setFontSize(8)
+    doc.setTextColor(...colors.slate900)
+    doc.setFont('helvetica', 'italic')
+    doc.text('ECRAFTZ Digital Solutions', pageWidth - 47, sigY + 8, { align: 'center' })
+  }
+
+  // 8. FOOTER
+  doc.setFillColor(...colors.slate900)
+  doc.rect(0, pageHeight - 25, pageWidth, 25, 'F')
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(14)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Ready to build your digital future?', pageWidth / 2, pageHeight - 12, { align: 'center' })
+
+  doc.save(`Proposal-${propId}.pdf`)
+}
