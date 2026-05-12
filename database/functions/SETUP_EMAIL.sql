@@ -2,6 +2,9 @@
 create extension if not exists "pg_net";
 
 -- 2. Create the secure email sending function
+-- Drop old version to avoid overloading conflicts
+DROP FUNCTION IF EXISTS public.send_email_via_resend(text, text, text);
+
 create or replace function public.send_email_via_resend(
   p_to_email text,
   p_subject text,
