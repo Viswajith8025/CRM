@@ -100,28 +100,31 @@ export default function InvoiceReport() {
     return [
       {
         label: 'Total Invoiced',
-        value: `$${(totalRevenue + pendingAmount).toLocaleString()}`,
-        icon: DollarSign,
+        value: `₹${(totalRevenue + pendingAmount).toLocaleString()}`,
+        icon: FileText,
+        color: 'primary',
         description: 'Total billables in period'
       },
       {
-        label: 'Collected Revenue',
-        value: `$${totalRevenue.toLocaleString()}`,
-        icon: TrendingUp,
-        description: 'Actual paid invoices',
-        trend: { value: '12%', positive: true }
+        label: 'Total Paid',
+        value: `₹${totalRevenue.toLocaleString()}`,
+        icon: DollarSign,
+        color: 'emerald',
+        description: 'Actual collected revenue'
       },
       {
-        label: 'Outstanding',
-        value: `$${pendingAmount.toLocaleString()}`,
+        label: 'Total Pending',
+        value: `₹${pendingAmount.toLocaleString()}`,
         icon: Clock,
-        description: 'Sent & Overdue amounts'
+        color: 'blue',
+        description: 'Outstanding balance'
       },
       {
-        label: 'Overdue Count',
-        value: invoices.filter((i: any) => i.status === 'overdue').length,
+        label: 'Overdue Amount',
+        value: `₹${invoices.filter((i: any) => i.status === 'overdue').reduce((sum: number, i: any) => sum + Number(i.amount), 0).toLocaleString()}`,
         icon: AlertCircle,
-        description: 'Invoices past due date'
+        color: 'rose',
+        description: 'Critical past due'
       }
     ]
   }, [invoices])
@@ -130,19 +133,18 @@ export default function InvoiceReport() {
     const exportData = invoices.map((inv: any) => ({
       Invoice_No: inv.invoice_number,
       Client: inv.client?.full_name,
-      Email: inv.client?.email,
       Amount: inv.amount,
       Status: inv.status,
       Issued_At: inv.issued_at
     }))
-    exportToCSV(exportData, `Invoice_Report_${format(new Date(), 'yyyy-MM-dd')}`)
+    exportToCSV(exportData, `Invoice_Audit_${format(new Date(), 'yyyy-MM-dd')}`)
     toast.success("CSV Export started")
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background pb-20">
       <ReportHeader 
-        title="Invoice Audit Report"
+        title="Institutional Billing Audit"
         description="Comprehensive financial record of all generated invoices, payment statuses, and client billing history."
         onExportCSV={handleExportCSV}
         onPrint={() => window.print()}
@@ -151,14 +153,18 @@ export default function InvoiceReport() {
       <ReportSummary metrics={summaryMetrics} />
       
       <ReportFilters 
+        title="Billing Records by Client"
+        description="Detailed view and download of client invoices and payment status"
         options={filterOptions}
         activeFilters={filters}
         onFilterChange={setFilters}
         onSearch={setSearch}
-        searchPlaceholder="Search by invoice # or client name..."
+        onExportCSV={handleExportCSV}
+        onExportPDF={() => toast.info("PDF Engine initializing...")}
+        searchPlaceholder="Search invoices..."
       />
 
-      <div className="p-8">
+      <div className="px-8 py-4">
         <ReportTable 
           columns={columns}
           data={invoices}

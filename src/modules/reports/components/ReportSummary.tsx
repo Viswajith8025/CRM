@@ -7,6 +7,7 @@ export interface SummaryMetric {
   value: string | number
   icon: LucideIcon
   description?: string
+  color?: 'primary' | 'emerald' | 'rose' | 'amber' | 'blue'
   trend?: {
     value: string
     positive: boolean
@@ -18,40 +19,45 @@ interface ReportSummaryProps {
 }
 
 export function ReportSummary({ metrics }: ReportSummaryProps) {
+  const colorMap = {
+    primary: "text-primary bg-primary/10",
+    emerald: "text-emerald-600 bg-emerald-500/10",
+    rose: "text-rose-600 bg-rose-500/10",
+    amber: "text-amber-600 bg-amber-500/10",
+    blue: "text-blue-600 bg-blue-500/10",
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 p-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-muted/5">
       {metrics.map((metric) => (
-        <Card key={metric.label} className="border-border/50 bg-card/50 shadow-sm overflow-hidden relative group transition-all hover:border-primary/20 hover:shadow-lg">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <metric.icon className="h-16 w-16 text-primary" />
-          </div>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <metric.icon className="h-4 w-4 text-primary" />
-              </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+        <Card key={metric.label} className="border-border/50 bg-card shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 {metric.label}
-              </span>
-            </div>
-            
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black tracking-tight">{metric.value}</span>
-              {metric.trend && (
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                  metric.trend.positive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+              </p>
+              <div className="flex items-baseline gap-2">
+                <h3 className={cn(
+                  "text-2xl font-black tracking-tight",
+                  metric.color === 'rose' && "text-rose-600",
+                  metric.color === 'emerald' && "text-emerald-600"
                 )}>
-                  {metric.trend.positive ? "+" : ""}{metric.trend.value}
-                </span>
+                  {metric.value}
+                </h3>
+              </div>
+              {metric.description && (
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  {metric.description}
+                </p>
               )}
             </div>
-            
-            {metric.description && (
-              <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase tracking-tighter opacity-70">
-                {metric.description}
-              </p>
-            )}
+
+            <div className={cn(
+              "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
+              colorMap[metric.color || 'primary']
+            )}>
+              <metric.icon className="h-6 w-6" />
+            </div>
           </CardContent>
         </Card>
       ))}
