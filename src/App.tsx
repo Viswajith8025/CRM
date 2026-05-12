@@ -32,6 +32,12 @@ import ClientVaultPage from '@/modules/client-portal/pages/ClientVaultPage'
 import ExecutiveDashboard from '@/modules/reports/pages/ExecutiveDashboard'
 import ProfitabilityReport from '@/modules/reports/pages/ProfitabilityReport'
 import ReportsPage from '@/modules/reports/pages/ReportsPage'
+import InvoiceReport from '@/modules/reports/pages/InvoiceReport'
+import AttendanceReport from '@/modules/reports/pages/AttendanceReport'
+import TaskReport from '@/modules/reports/pages/TaskReport'
+import AuditReport from '@/modules/reports/pages/AuditReport'
+import ClientReport from '@/modules/reports/pages/ClientReport'
+import ProjectReport from '@/modules/reports/pages/ProjectReport'
 import SuperAdminDashboard from '@/modules/admin/pages/SuperAdminDashboard'
 import SettingsPage from '@/modules/admin/pages/SettingsPage'
 import TeamPage from '@/modules/admin/pages/TeamPage'
@@ -104,6 +110,12 @@ function App() {
                 <Route path="/clients" element={<ErrorBoundary module="Clients"><ClientsPage /></ErrorBoundary>} />
                 <Route path="/proposals/:id" element={<ErrorBoundary module="Proposal Details"><ProposalDetail /></ErrorBoundary>} />
                 <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
+                <Route path="/reports/invoices" element={<ErrorBoundary module="Invoice Report"><InvoiceReport /></ErrorBoundary>} />
+                <Route path="/reports/attendance" element={<ErrorBoundary module="Attendance Report"><AttendanceReport /></ErrorBoundary>} />
+                <Route path="/reports/tasks" element={<ErrorBoundary module="Task Report"><TaskReport /></ErrorBoundary>} />
+                <Route path="/reports/audit" element={<ErrorBoundary module="Audit Report"><AuditReport /></ErrorBoundary>} />
+                <Route path="/reports/clients" element={<ErrorBoundary module="Client Report"><ClientReport /></ErrorBoundary>} />
+                <Route path="/reports/projects" element={<ErrorBoundary module="Project Report"><ProjectReport /></ErrorBoundary>} />
                 <Route path="/support" element={<ErrorBoundary module="Support"><SupportDashboard /></ErrorBoundary>} />
                 <Route path="/support/tickets/:id" element={<ErrorBoundary module="Ticket Details"><TicketDetailPage /></ErrorBoundary>} />
                 <Route path="/time-tracking" element={<ErrorBoundary module="Time Tracking"><TimeTrackingPage /></ErrorBoundary>} />
