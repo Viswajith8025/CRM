@@ -331,12 +331,11 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
                  <span className="h-1.5 w-1.5 bg-white rounded-full" />
                  <span>2026</span>
               </div>
-            </div>
           </div>
         </div>
       </div>
       
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 20px; border: 3px solid transparent; background-clip: content-box; }
@@ -348,7 +347,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
           #proposal-content { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
           .no-print { display: none !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   )
 }
