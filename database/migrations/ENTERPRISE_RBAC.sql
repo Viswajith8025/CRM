@@ -79,6 +79,7 @@ INSERT INTO public.permissions (code, module, name, description) VALUES
 ON CONFLICT (code) DO NOTHING;
 
 -- 6. Helper Function to check permissions
+DROP FUNCTION IF EXISTS public.has_permission(text) CASCADE;
 CREATE OR REPLACE FUNCTION public.has_permission(permission_code TEXT)
 RETURNS BOOLEAN AS $$
 DECLARE

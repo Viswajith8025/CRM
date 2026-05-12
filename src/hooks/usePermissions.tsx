@@ -7,18 +7,21 @@ import { useAuthStore } from "@/store/useAuthStore"
  */
 export function usePermissions() {
   const { user } = useAuthStore()
-  const { userPermissions, fetchUserPermissions, hasPermission, isLoading } = useRBACStore()
+  const userPermissions = useRBACStore(state => state.userPermissions)
+  const fetchUserPermissions = useRBACStore(state => state.fetchUserPermissions)
+  const hasPermission = useRBACStore(state => state.hasPermission)
+  const isLoading = useRBACStore(state => state.isLoading)
 
   useEffect(() => {
-    if (user && userPermissions.length === 0) {
+    if (user && (!userPermissions || userPermissions.length === 0)) {
       fetchUserPermissions(user.id)
     }
-  }, [user, userPermissions.length])
+  }, [user, userPermissions?.length])
 
   return {
-    hasPermission,
+    hasPermission: typeof hasPermission === 'function' ? hasPermission : () => false,
     isLoading,
-    permissions: userPermissions
+    permissions: userPermissions || []
   }
 }
 

@@ -168,8 +168,7 @@ export const useRBACStore = create<RBACState>((set, get) => ({
 
   hasPermission: (code) => {
     const state = get()
-    // Super Admin override (if we want a bypass)
-    // if (state.userPermissions.includes('super_admin')) return true
+    if (!state.userPermissions) return false
     return state.userPermissions.includes(code)
   }
 }))
