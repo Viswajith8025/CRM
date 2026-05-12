@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { useHRStore } from "../hrStore"
+import { useAuthStore } from "@/store/useAuthStore"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
@@ -18,7 +19,13 @@ import { LeaveRequestForm } from "./LeaveRequestForm"
 
 export function AttendanceLeave() {
   const { attendance, leaves, fetchAttendance, fetchLeaves, clockIn, clockOut, updateLeaveStatus, isLoading } = useHRStore()
+  const { profile } = useAuthStore()
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
+  
+  const isEmployee = profile?.role === 'employee'
+  const isManager = profile?.role === 'manager'
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+  const canApprove = isAdmin || isManager
   
   useEffect(() => {
     fetchAttendance()
@@ -88,23 +95,25 @@ export function AttendanceLeave() {
             <Calendar className="h-5 w-5 text-primary" /> Leave Requests
           </h3>
           
-          <Dialog open={isLeaveOpen} onOpenChange={setIsLeaveOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="secondary">Request Leave</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Submit Leave Request</DialogTitle>
-                <DialogDescription>
-                  Request time off for approval by HR.
-                </DialogDescription>
-              </DialogHeader>
-              <LeaveRequestForm onSuccess={() => {
-                setIsLeaveOpen(false)
-                fetchLeaves()
-              }} />
-            </DialogContent>
-          </Dialog>
+          {isEmployee && (
+            <Dialog open={isLeaveOpen} onOpenChange={setIsLeaveOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="secondary">Request Leave</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Submit Leave Request</DialogTitle>
+                  <DialogDescription>
+                    Request time off for approval by HR.
+                  </DialogDescription>
+                </DialogHeader>
+                <LeaveRequestForm onSuccess={() => {
+                  setIsLeaveOpen(false)
+                  fetchLeaves()
+                }} />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         <div className="rounded-xl border bg-card overflow-hidden">
@@ -130,12 +139,16 @@ export function AttendanceLeave() {
                     
                     {leave.status === 'pending' ? (
                       <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => updateLeaveStatus(leave.id, 'approved')}>
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => updateLeaveStatus(leave.id, 'rejected')}>
-                          <XCircle className="h-4 w-4" />
-                        </Button>
+                        {canApprove && (
+                          <>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => updateLeaveStatus(leave.id, 'approved')}>
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => updateLeaveStatus(leave.id, 'rejected')}>
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <Badge variant={leave.status === 'approved' ? 'default' : 'destructive'} className="text-[10px] uppercase">
