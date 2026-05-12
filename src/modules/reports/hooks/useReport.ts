@@ -27,11 +27,21 @@ export function useReport<T>({
   const [sort, setSort] = useState<{ key: string; order: 'asc' | 'desc' } | null>(null)
 
   const fetchData = useCallback(async () => {
+    // PREVENT DUPES
+    if ((fetchData as any)._isFetching) return
+    (fetchData as any)._isFetching = true
+    
     setIsLoading(true)
     try {
       const { profile } = useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) return
+      
+      // ABORT if no organization context - prevents loop on logout
+      if (!orgId) {
+        setIsLoading(false)
+        (fetchData as any)._isFetching = false
+        return
+      }
 
       let query = baseQuery || supabase
         .from(tableName)
@@ -40,13 +50,13 @@ export function useReport<T>({
 
       // Apply Filters
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) query = query.eq(key, value)
+        if (value !== undefined && value !== null && value !== '') {
+          query = query.eq(key, value)
+        }
       })
 
-      // Apply Search (Generic simple search, can be customized)
+      // Apply Search
       if (search) {
-        // This is a simple ilike. For more complex search, you might need a different strategy
-        // We'll try to find a searchable column or just use name/title/description
         query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,name.ilike.%${search}%,title.ilike.%${search}%`)
       }
 
@@ -70,11 +80,11 @@ export function useReport<T>({
       setTotalCount(count || 0)
     } catch (err: any) {
       console.error(`Error fetching ${tableName} report:`, err)
-      toast.error(`Failed to load ${tableName} data.`)
     } finally {
       setIsLoading(false)
+      ;(fetchData as any)._isFetching = false
     }
-  }, [tableName, baseQuery, select, page, filters, search, sort, pageSize])
+  }, [tableName, JSON.stringify(filters), search, JSON.stringify(sort), page, pageSize, select])
 
   useEffect(() => {
     fetchData()

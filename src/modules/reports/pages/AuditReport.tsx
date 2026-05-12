@@ -20,7 +20,7 @@ export default function AuditReport() {
     setSort,
     filters 
   } = useReport<any>({
-    tableName: 'activity_logs',
+    tableName: 'activities',
     select: '*, user:profiles(full_name, email)',
     pageSize: 20
   })

@@ -180,38 +180,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   subscribeToNotifications: () => {
-    // We use a closure-friendly way to handle the async profile fetch
-    const orgId = (window as any).__LAST_ORG_ID; // Fallback or direct access if possible
-    
-    // Better: just fetch current state directly from the store synchronously
-    const { profile } = (window as any).useAuthStore?.getState() || { profile: null };
-    // Since we are in a store, we can't easily sync-import. 
-    // Let's use a more reliable pattern: the caller should pass the userId/orgId or we use the state if already loaded.
-    
-    const currentUser = (supabase as any).auth.session?.()?.user; // Conceptual
-    
-    // REAL FIX: Use the state directly as it should be loaded by now
-    const authState = (useNotificationsStore as any).getState?.(); // This is circular.
-    
-    // Let's refactor the signature to be safer or use the global supabase client state
-    const channel = supabase
-      .channel(`notifications_sync_${Date.now()}_${Math.random().toString(36).substring(7)}`) // Unique name per subscription
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'notifications'
-          // Filter is enforced by RLS, but explicit filter is better for performance
-        },
-        () => {
-          get().fetchNotifications()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    // DISABLED TEMPORARILY TO STOP LOOP
+    return () => {}
   }
 }))

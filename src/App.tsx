@@ -51,6 +51,7 @@ import { CommandPalette } from '@/components/shared/CommandPalette'
 import CalendarPage from '@/modules/calendar/pages/CalendarPage'
 import RolesPage from '@/modules/admin/pages/RolesPage'
 import RolePermissionEditor from '@/modules/admin/pages/RolePermissionEditor'
+import CRMReport from '@/modules/reports/pages/CRMReport'
 
 function App() {
   const { setSession, subscribeToProfile } = useAuthStore()
@@ -58,20 +59,14 @@ function App() {
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
 
-    // Initial session check
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      if (session?.user) {
-        unsubscribe = subscribeToProfile()
-        // Initialize RBAC
-        import('@/modules/admin/rbacStore').then(m => {
-          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
-        })
-      }
-    })
-
-    // Listen for auth changes
+    // Listen for auth changes - deduplicated to avoid rapid fire events during initialization
+    let lastProcessedSession = ""
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const sessionKey = session?.access_token || "none"
+      if (sessionKey === lastProcessedSession) return
+      lastProcessedSession = sessionKey
+
       setSession(session)
       if (unsubscribe) unsubscribe()
       if (session?.user) {
@@ -82,6 +77,21 @@ function App() {
         })
       }
     })
+
+    // Initial session check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const sessionKey = session?.access_token || "none"
+      if (sessionKey === lastProcessedSession) return
+      lastProcessedSession = sessionKey
+      
+      setSession(session)
+      if (session?.user) {
+        unsubscribe = subscribeToProfile()
+        import('@/modules/admin/rbacStore').then(m => {
+          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
+        })
+      }
+    }).catch(() => setSession(null))
 
     return () => {
       subscription.unsubscribe()
@@ -120,6 +130,7 @@ function App() {
                 <Route path="/clients" element={<ErrorBoundary module="Clients"><ClientsPage /></ErrorBoundary>} />
                 <Route path="/proposals/:id" element={<ErrorBoundary module="Proposal Details"><ProposalDetail /></ErrorBoundary>} />
                 <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
+                <Route path="/reports/crm" element={<ErrorBoundary module="CRM Analytics"><CRMReport /></ErrorBoundary>} />
                 <Route path="/reports/invoices" element={<ErrorBoundary module="Invoice Report"><InvoiceReport /></ErrorBoundary>} />
                 <Route path="/reports/attendance" element={<ErrorBoundary module="Attendance Report"><AttendanceReport /></ErrorBoundary>} />
                 <Route path="/reports/tasks" element={<ErrorBoundary module="Task Report"><TaskReport /></ErrorBoundary>} />

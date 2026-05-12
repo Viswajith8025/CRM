@@ -20,13 +20,13 @@ interface ReportHeaderProps {
 }
 
 const secondaryNav = [
-  { name: "Income Report", path: "/reports/income" },
+  { name: "CRM Analytics", path: "/reports/crm" },
+  { name: "Project Audit", path: "/reports/projects" },
+  { name: "Billing Reports", path: "/reports/billing" },
   { name: "Attendance Logs", path: "/reports/attendance" },
   { name: "Invoice Audit", path: "/reports/invoices" },
   { name: "Task Performance", path: "/reports/tasks" },
-  { name: "Client Insights", path: "/reports/clients" },
-  { name: "Project Lifecycle", path: "/reports/projects" },
-  { name: "System Audit", path: "/reports/audit" },
+  { name: "Audit Trail", path: "/reports/audit" },
 ]
 
 export function ReportHeader({

@@ -17,7 +17,16 @@ export const useAutomationStore = create<AutomationState>((set, get) => ({
   lastCheckedAt: null,
 
   runSmartReminders: async () => {
-    if (get().isChecking) return
+    // DISABLED TEMPORARILY TO STOP LOOP
+    return
+    
+    // Throttle: don't run more than once every 60 seconds
+    if (state.lastCheckedAt) {
+      const lastCheck = new Date(state.lastCheckedAt)
+      const diff = (new Date().getTime() - lastCheck.getTime()) / 1000
+      if (diff < 60) return
+    }
+
     set({ isChecking: true })
 
     try {
@@ -37,7 +46,6 @@ export const useAutomationStore = create<AutomationState>((set, get) => ({
       // Guard: if org_id is missing or the null-placeholder UUID, skip all queries.
       // This happens when JWT claims haven't been synced — user should sign out and back in.
       if (!orgId || orgId === NULL_ORG_ID) {
-        console.warn('Smart Reminders: skipping — organization_id not set in session.')
         return
       }
 

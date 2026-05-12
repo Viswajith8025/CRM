@@ -144,15 +144,28 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         const totalInvoiced = project.invoices?.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0) || 0
         const budgetBurn = project.budget ? (totalInvoiced / project.budget) * 100 : 0
         
-        let healthScore = 100
-        healthScore -= (overdueTasks * 10)
-        healthScore -= (missedMilestones * 20)
-        if (budgetBurn > 100) healthScore -= 30
-        if (profit < 0 && revenue > 0) healthScore -= 20
-        
+        // Health Calculation Logic
         let healthStatus: 'on-track' | 'at-risk' | 'delayed' = 'on-track'
-        if (healthScore < 60 || missedMilestones > 0 || overdueTasks > 3) healthStatus = 'delayed'
-        else if (healthScore < 90 || overdueTasks > 0 || budgetBurn > 90) healthStatus = 'at-risk'
+        let healthScore = 100
+
+        // 1. If project is not active, health is neutral/on-track
+        const isInactive = ['completed', 'cancelled', 'on_hold'].includes(project.status)
+        
+        if (isInactive) {
+          healthStatus = 'on-track'
+        } else {
+          healthScore -= (overdueTasks * 10)
+          healthScore -= (missedMilestones * 20)
+          if (budgetBurn > 100) healthScore -= 30
+          if (profit < 0 && revenue > 0) healthScore -= 20
+
+          // 2. Thresholds
+          if (healthScore < 60 || missedMilestones > 0 || overdueTasks > 3) {
+            healthStatus = 'delayed'
+          } else if (healthScore < 90 || overdueTasks > 0 || budgetBurn > 90) {
+            healthStatus = 'at-risk'
+          }
+        }
 
         return {
           ...project,

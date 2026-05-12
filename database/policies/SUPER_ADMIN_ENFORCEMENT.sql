@@ -60,10 +60,39 @@ BEGIN
     RAISE EXCEPTION 'FORBIDDEN: You do not have permission to change member roles.';
   END IF;
 
-  -- All checks passed: perform the update
+  -- 1. Perform legacy update
   UPDATE public.profiles
     SET role = new_role
     WHERE id = target_user_id;
+
+  -- 2. Synchronize Dynamic RBAC (user_roles table)
+  -- Find the role_id in the new dynamic system that matches the role name
+  DECLARE
+    new_role_id UUID;
+    target_org_id UUID;
+  BEGIN
+    SELECT organization_id INTO target_org_id FROM public.profiles WHERE id = target_user_id;
+    
+    -- Find the matching role in the organization
+    -- (Map 'manager' to 'HR' if that's what the UI uses, but roles table has 'HR')
+    -- Actually, the roles table has 'Administrator', 'HR', 'Employee' based on ENTERPRISE_RBAC.sql
+    -- The profiles table has 'admin', 'manager', 'employee'.
+    SELECT id INTO new_role_id 
+    FROM public.roles 
+    WHERE organization_id = target_org_id
+    AND (
+      (LOWER(name) = 'administrator' AND LOWER(new_role) = 'admin') OR
+      (LOWER(name) = 'hr' AND LOWER(new_role) = 'manager') OR
+      (LOWER(name) = LOWER(new_role))
+    )
+    LIMIT 1;
+
+    IF new_role_id IS NOT NULL THEN
+      -- Delete old roles for this user and insert the new one
+      DELETE FROM public.user_roles WHERE user_id = target_user_id;
+      INSERT INTO public.user_roles (user_id, role_id) VALUES (target_user_id, new_role_id);
+    END IF;
+  END;
 END;
 $$;
 
@@ -138,7 +167,41 @@ CREATE TRIGGER on_role_change
   FOR EACH ROW EXECUTE FUNCTION public.log_role_change();
 
 -- ============================================================
--- 5. VERIFY: Show current super_admin (sanity check)
+-- 5. SYNC TRIGGER: Keep user_roles aligned with profiles.role
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.sync_user_rbac()
+RETURNS TRIGGER AS $$
+DECLARE
+    matching_role_id UUID;
+BEGIN
+    -- Find the role in the dynamic RBAC system that matches the legacy role field
+    SELECT id INTO matching_role_id 
+    FROM public.roles 
+    WHERE organization_id = NEW.organization_id
+    AND (
+      (LOWER(name) = 'administrator' AND LOWER(NEW.role) = 'admin') OR
+      (LOWER(name) = 'hr' AND LOWER(NEW.role) = 'manager') OR
+      (LOWER(name) = LOWER(NEW.role))
+    )
+    LIMIT 1;
+
+    IF matching_role_id IS NOT NULL THEN
+      -- Synchronize the user_roles table
+      DELETE FROM public.user_roles WHERE user_id = NEW.id;
+      INSERT INTO public.user_roles (user_id, role_id) VALUES (NEW.id, matching_role_id);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_sync_user_rbac ON public.profiles;
+CREATE TRIGGER tr_sync_user_rbac
+  AFTER INSERT OR UPDATE OF role, organization_id ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.sync_user_rbac();
+
+-- ============================================================
+-- 6. VERIFY: Show current super_admin (sanity check)
 -- ============================================================
 SELECT id, email, full_name, role 
 FROM public.profiles 

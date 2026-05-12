@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { ShieldX, Clock, LogOut } from 'lucide-react'
-import { usePermissions } from '@/hooks/usePermissions'
+import { usePermissions } from '@/hooks/usePermissions.tsx'
 
 interface ProtectedRouteProps {
   allowedRoles?: ('super_admin' | 'admin' | 'manager' | 'employee' | 'client')[]
@@ -13,7 +13,12 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
   const { session, profile, isLoading } = useAuthStore()
   const { hasPermission, isLoading: isRBACLoading } = usePermissions()
 
-  if (isLoading || isRBACLoading) {
+  // Super admins skip the RBAC loading check — they have unrestricted access
+  const isSuperAdmin = profile?.role === 'super_admin'
+
+  // Block render only if auth OR permissions are still resolving
+  // (super admins don't need permission fetch to resolve)
+  if (isLoading || (isRBACLoading && !isSuperAdmin)) {
     return <LoadingState />
   }
 
@@ -129,7 +134,8 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
   }
 
   // 5. PERMISSION CHECK (New Priority)
-  if (permission && !hasPermission(permission)) {
+  // Hard bypass for Super Admin to prevent lockout
+  if (permission && !isSuperAdmin && !hasPermission(permission)) {
     return <Navigate to="/" replace />
   }
 

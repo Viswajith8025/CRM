@@ -95,7 +95,9 @@ export default function Dashboard() {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
           // Add a tiny delay to ensure paint is complete
-          setTimeout(() => setChartReady(true), 50)
+          setTimeout(() => {
+            if (chartContainerRef.current) setChartReady(true)
+          }, 100)
           observer.disconnect()
         }
       }

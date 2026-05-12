@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { usePermissions } from "@/hooks/usePermissions"
+import { usePermissions } from "@/hooks/usePermissions.tsx"
 
 const topNavigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -33,7 +33,6 @@ const topNavigation = [
   { name: 'Scheduler', href: '/calendar', icon: CalendarIcon },
   { name: 'HR & Payroll', href: '/hr', icon: Users, permission: 'hr.view' },
   { name: 'Reports', href: '/reports', icon: BarChart3, permission: 'reports.view' },
-  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, permission: 'billing.view' },
   { name: 'Document Vault', href: '/documents', icon: Files },
   { name: 'Executive', href: '/executive', icon: Shield, permission: 'billing.view' },
 ]
@@ -46,10 +45,20 @@ const bottomNavigation = [
   { name: 'Support', href: '/support', icon: LifeBuoy, permission: 'support.view' },
 ]
 
+import { useAuthStore } from "@/store/useAuthStore"
+
 export function Sidebar() {
   const { hasPermission } = usePermissions()
+  const { profile } = useAuthStore()
+  const isSuperAdmin = profile?.role === 'super_admin'
 
-  const filterNav = (items: typeof topNavigation) => items.filter(item => {
+  const filterNav = (items: any[]) => items.filter(item => {
+    // 1. Hard restriction for Admin/RBAC modules to Super Admin only
+    const adminModules = ['Roles & Access', 'Super Admin', 'Audit Trail', 'Settings']
+    if (adminModules.includes(item.name) && !isSuperAdmin) {
+      return false
+    }
+
     if (!item.permission) return true
     return hasPermission(item.permission)
   })

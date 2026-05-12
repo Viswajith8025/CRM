@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
 import { Plus, Download, TrendingUp, Calendar as CalendarIcon, X, FileSpreadsheet } from "lucide-react"
@@ -29,6 +29,7 @@ import { format } from "date-fns"
 
 export default function BillingPage() {
   const { fetchInvoices, invoices } = useBillingStore()
+  const navigate = useNavigate()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [startDate, setStartDate] = useState<string>("")
@@ -95,6 +96,10 @@ export default function BillingPage() {
             <Button variant="outline" className="gap-2 font-bold border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
               Bulk Import
+            </Button>
+            <Button variant="outline" className="gap-2 font-bold border-primary/20 hover:bg-primary/5 text-primary" onClick={() => navigate('/reports/profitability')}>
+              <TrendingUp className="h-4 w-4" />
+              Profitability
             </Button>
             <Button variant="outline" className="gap-2 font-bold" onClick={exportToCSV}>
               <Download className="h-4 w-4" />

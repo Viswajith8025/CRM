@@ -231,7 +231,12 @@ const Grainient: React.FC<GrainientProps> = ({
       cancelAnimationFrame(raf);
       ro.disconnect();
       try {
-        container.removeChild(canvas);
+        if (canvas.parentNode) {
+          container.removeChild(canvas);
+        }
+        // Force lose the context to free up hardware resources
+        const extension = gl.getExtension('WEBGL_lose_context');
+        if (extension) extension.loseContext();
       } catch {
         // Ignore
       }

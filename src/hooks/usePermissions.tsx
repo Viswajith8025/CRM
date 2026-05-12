@@ -1,32 +1,49 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useRBACStore } from "@/modules/admin/rbacStore"
 import { useAuthStore } from "@/store/useAuthStore"
 
 /**
- * Hook to check if current user has a specific permission
+ * usePermissions — resolves the current user's permission set.
+ *
+ * Design decisions:
+ * - Uses a ref to track whether we've already triggered a fetch in this
+ *   component lifecycle so we don't fire duplicate network calls.
+ * - Does NOT re-fetch when userPermissions.length changes, because that
+ *   would cause a fetch → update → fetch loop.
  */
 export function usePermissions() {
   const { user } = useAuthStore()
-  const userPermissions = useRBACStore(state => state.userPermissions)
-  const fetchUserPermissions = useRBACStore(state => state.fetchUserPermissions)
-  const hasPermission = useRBACStore(state => state.hasPermission)
-  const isLoading = useRBACStore(state => state.isLoading)
+  const userPermissions  = useRBACStore(s => s.userPermissions)
+  const fetchUserPerms   = useRBACStore(s => s.fetchUserPermissions)
+  const hasPermission    = useRBACStore(s => s.hasPermission)
+  const isLoading        = useRBACStore(s => s.isPermissionsLoading)
+  const hasFetched       = useRef(false)
 
   useEffect(() => {
-    if (user && (!userPermissions || userPermissions.length === 0)) {
-      fetchUserPermissions(user.id)
+    // Only fetch once per mount (or when user changes)
+    if (user && !hasFetched.current) {
+      hasFetched.current = true
+      fetchUserPerms(user.id)
     }
-  }, [user, userPermissions?.length])
+    if (!user) hasFetched.current = false
+  }, [user?.id])
+
+  const can    = (perm: string)   => hasPermission(perm)
+  const canAll = (perms: string[]) => perms.every(p => hasPermission(p))
+  const canAny = (perms: string[]) => perms.some(p  => hasPermission(p))
 
   return {
-    hasPermission: typeof hasPermission === 'function' ? hasPermission : () => false,
+    hasPermission,
+    can,
+    canAll,
+    canAny,
     isLoading,
-    permissions: userPermissions || []
+    permissions: userPermissions,
   }
 }
 
 /**
- * Guard component that only renders children if user has permission
+ * PermissionGuard — renders children only if the user has the required permission(s).
  */
 interface PermissionGuardProps {
   permission: string | string[]
@@ -35,22 +52,21 @@ interface PermissionGuardProps {
   fallback?: React.ReactNode
 }
 
-export function PermissionGuard({ 
-  permission, 
-  requireAll = false, 
-  children, 
-  fallback = null 
+export function PermissionGuard({
+  permission,
+  requireAll = false,
+  children,
+  fallback = null,
 }: PermissionGuardProps) {
   const { hasPermission, isLoading } = usePermissions()
 
+  // While loading, render nothing — avoids flash of wrong content
   if (isLoading) return null
 
-  const permissions = Array.isArray(permission) ? permission : [permission]
+  const perms    = Array.isArray(permission) ? permission : [permission]
   const hasAccess = requireAll
-    ? permissions.every(p => hasPermission(p))
-    : permissions.some(p => hasPermission(p))
+    ? perms.every(p => hasPermission(p))
+    : perms.some(p  => hasPermission(p))
 
-  if (!hasAccess) return <>{fallback}</>
-
-  return <>{children}</>
+  return hasAccess ? <>{children}</> : <>{fallback}</>
 }

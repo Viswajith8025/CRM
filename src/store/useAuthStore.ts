@@ -27,6 +27,7 @@ interface AuthState {
   subscribeToProfile: () => (() => void)
   signOut: () => Promise<void>
   updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<void>
+  createMissingProfile: (user: any) => Promise<any>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -64,10 +65,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setSession: async (session) => {
-    set({ session, user: session?.user ?? null, isLoading: !!session?.user })
-    if (session?.user) {
+    const currentSession = get().session
+    const currentUser = get().user
+    
+    const isUnchanged = currentSession?.access_token === session?.access_token && currentUser?.id === session?.user?.id
+    
+    set({ session, user: session?.user ?? null, isLoading: !!session?.user && !isUnchanged })
+    
+    if (session?.user && !isUnchanged) {
       await get().fetchProfile()
-    } else {
+    } else if (!session?.user) {
       set({ profile: null, isLoading: false })
     }
   },
@@ -78,6 +85,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false })
       return
     }
+
+    if ((get() as any)._isFetching) return
+    set({ isLoading: true, _isFetching: true } as any)
     
     try {
       const { data: profile, error } = await supabase
@@ -90,39 +100,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       let is_org_suspended = false
       if (profile && profile.role !== 'super_admin') {
-        const { data: orgStatus } = await supabase.rpc('check_org_status')
+        const { data: orgStatus } = await supabase.rpc('check_org_status', {}, { timeout: 5000 })
         if (orgStatus && orgStatus.status === 'suspended') {
           is_org_suspended = true
         }
       }
 
-      if (!profile) {
-        // Create if missing (failsafe)
-        const { data: newProfile } = await supabase
-          .from('profiles')
-          .insert({
-            id: user.id,
-            email: user.email,
-            role: 'employee',
-            status: 'pending'
-          })
-          .select()
-          .single()
-        
-        // Fetch permissions for the user
-        const { data: perms } = await supabase.rpc('get_user_permissions', { p_user_id: user.id })
-        
-        set({ profile: { ...newProfile, permissions: perms || [], is_org_suspended } as UserProfile, isLoading: false })
-      } else {
-        // Fetch permissions for the existing user
-        const { data: perms } = await supabase.rpc('get_user_permissions', { p_user_id: user.id })
-        
-        set({ profile: { ...profile, permissions: perms || [], is_org_suspended } as UserProfile, isLoading: false })
-      }
+      const { data: perms, error: permsError } = await supabase.rpc('get_user_permissions', { p_user_id: user.id }, { timeout: 5000 })
+      if (permsError) console.error("Permissions fetch error:", permsError)
+      
+      const finalProfile = profile || await get().createMissingProfile(user)
+      const newProfileState = { ...finalProfile, permissions: perms || [], is_org_suspended } as UserProfile
+      
+      // DEEP EQUALITY CHECK to prevent reference-based re-render loops
+      const currentProfile = get().profile
+      const hasChanged = JSON.stringify(currentProfile) !== JSON.stringify(newProfileState)
+      
+      set({ 
+        profile: hasChanged ? newProfileState : currentProfile, 
+        isLoading: false,
+        _isFetching: false
+      } as any)
     } catch (err) {
       console.error("Profile fetch error:", err)
-      set({ isLoading: false })
+      set({ isLoading: false, _isFetching: false } as any)
     }
+  },
+
+  createMissingProfile: async (user: any) => {
+    const { data: newProfile } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        email: user.email,
+        role: 'employee',
+        status: 'pending'
+      })
+      .select()
+      .single()
+    return newProfile
   },
 
   signOut: async () => {

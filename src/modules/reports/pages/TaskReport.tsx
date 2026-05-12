@@ -21,7 +21,7 @@ export default function TaskReport() {
     filters 
   } = useReport<any>({
     tableName: 'tasks',
-    select: '*, project:projects(name), assignee:profiles(full_name)',
+    select: '*, project:projects(name), assignee:profiles!assigned_to(full_name)',
     pageSize: 15
   })
 

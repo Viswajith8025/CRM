@@ -1,6 +1,19 @@
 import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { useAuthStore } from "@/store/useAuthStore"
+import { useRBACStore } from "@/modules/admin/rbacStore"
+import { Button } from "@/components/ui/button"
 
 export function LoadingState() {
+  const [showSkip, setShowSkip] = useState(false)
+  const isAuthLoading = useAuthStore(state => state.isLoading)
+  const isRBACLoading = useRBACStore(state => state.isLoading)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSkip(true), 5000)
+    return () => clearTimeout(timer)
+  }, [])
+
   return (
     <div className="flex h-[400px] w-full flex-col items-center justify-center gap-6">
       <motion.div
@@ -11,9 +24,29 @@ export function LoadingState() {
         <img src="/logogpt.png" alt="Loading" className="h-32 w-auto object-contain brightness-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" />
       </motion.div>
       <p className="text-muted-foreground animate-pulse font-bold tracking-widest text-xs uppercase">Synchronizing Data...</p>
+      
+      {showSkip && (
+        <div className="flex flex-col items-center gap-4 mt-8">
+          <div className="text-[10px] font-mono text-muted-foreground bg-muted/50 p-2 rounded">
+            Auth: {isAuthLoading ? 'WAITING' : 'OK'} | RBAC: {isRBACLoading ? 'WAITING' : 'OK'}
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => {
+              useAuthStore.setState({ isLoading: false })
+              useRBACStore.setState({ isLoading: false })
+            }}
+          >
+            Force Skip Loading
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
+
 
 export function LoadingPage() {
   return (
