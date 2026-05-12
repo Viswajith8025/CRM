@@ -24,16 +24,21 @@ export function PayrollSystem() {
     fetchEmployees()
   }, [])
 
-  const filteredPayroll = (payroll || []).filter((slip) =>
-    slip.profile?.full_name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredPayroll = (payroll || []).filter((slip) => {
+    const matchesSearch = slip.profile?.full_name?.toLowerCase().includes(search.toLowerCase())
+    const isNotDenied = slip.profile?.status !== 'denied'
+    return matchesSearch && isNotDenied
+  })
 
   const handleRunPayroll = () => {
     // Generate draft payroll for all employees based on their base salary
     const currentMonth = new Date().toLocaleString('default', { month: 'long' })
     const currentYear = new Date().getFullYear()
 
-    employees.forEach(emp => {
+    // Filter out denied employees
+    const activeEmployees = employees.filter(emp => emp.status === 'active')
+
+    activeEmployees.forEach(emp => {
       // Check if already exists for this month
       if (!payroll.find(p => p.user_id === emp.id && p.month === currentMonth && p.year === currentYear)) {
         generatePayroll({

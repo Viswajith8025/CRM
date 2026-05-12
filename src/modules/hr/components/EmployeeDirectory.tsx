@@ -36,11 +36,13 @@ export function EmployeeDirectory() {
     fetchEmployees()
   }, [])
 
-  const filteredEmployees = employees.filter((emp) =>
-    emp.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    emp.department?.toLowerCase().includes(search.toLowerCase()) ||
-    emp.designation?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch = emp.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.department?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.designation?.toLowerCase().includes(search.toLowerCase())
+    const isNotDenied = emp.profile?.status !== 'denied'
+    return matchesSearch && isNotDenied
+  })
 
   return (
     <div className="space-y-4">

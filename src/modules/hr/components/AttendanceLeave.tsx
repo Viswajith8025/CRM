@@ -46,7 +46,7 @@ export function AttendanceLeave() {
             <div className="p-8 text-center text-sm text-muted-foreground">No attendance records found.</div>
           ) : (
             <div className="divide-y">
-              {attendance.map((record) => (
+              {attendance.filter(r => r.profile?.status !== 'denied').map((record) => (
                 <div key={record.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
@@ -114,7 +114,7 @@ export function AttendanceLeave() {
             <div className="p-8 text-center text-sm text-muted-foreground">No leave requests found.</div>
           ) : (
             <div className="divide-y">
-              {leaves.map((leave) => (
+              {leaves.filter(l => l.profile?.status !== 'denied').map((leave) => (
                 <div key={leave.id} className="p-4 flex flex-col gap-3 hover:bg-muted/30 transition-colors">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">

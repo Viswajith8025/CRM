@@ -53,7 +53,7 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('attendance')
-        .select('*, profile:profiles(full_name, avatar_url)')
+        .select('*, profile:profiles(full_name, avatar_url, status)')
         .eq('organization_id', orgId)
         .order('date', { ascending: false })
         .limit(20)
@@ -76,7 +76,7 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('leave_requests')
-        .select('*, profile:profiles(full_name, avatar_url)')
+        .select('*, profile:profiles(full_name, avatar_url, status)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
 
@@ -298,7 +298,7 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('payroll')
-        .select('*, profile:profiles(full_name)')
+        .select('*, profile:profiles(full_name, status, avatar_url)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
 
