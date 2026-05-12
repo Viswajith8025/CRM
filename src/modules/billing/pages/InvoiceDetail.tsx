@@ -164,7 +164,7 @@ export default function InvoiceDetail() {
             disabled={isSending || invoice.status === 'sent' || invoice.status === 'paid'}
           >
             <Mail className="h-4 w-4 mr-2" />
-            {isSending ? "Sending..." : invoice.status === 'sent' ? "Already Sent" : "Send to Client"}
+            {isSending ? "Sending..." : invoice.status === 'sent' ? "Already Sent" : invoice.status === 'paid' ? "Already Paid" : "Send to Client"}
           </Button>
           {invoice.status !== 'paid' && (
             <Button 

@@ -26,13 +26,13 @@ const topNavigation = [
   { name: 'Active Clients', href: '/clients', icon: Building2, roles: ['super_admin', 'admin', 'manager'] },
   { name: 'Projects', href: '/projects', icon: Briefcase, roles: ['super_admin', 'admin', 'manager', 'employee'] },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Teams', href: '/teams', icon: Users, roles: ['super_admin', 'admin'] },
-  { name: 'Billing', href: '/billing', icon: FileText, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Teams', href: '/teams', icon: Users, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'Billing', href: '/billing', icon: FileText, roles: ['super_admin', 'admin'] }, // Billing is sensitive
   { name: 'Scheduler', href: '/calendar', icon: CalendarIcon, roles: ['super_admin', 'admin', 'manager', 'employee'] },
-  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['super_admin', 'admin', 'manager'] },
+  { name: 'HR & Payroll', href: '/hr', icon: Users, roles: ['super_admin', 'admin', 'manager'] }, // HR is sensitive
   { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, roles: ['super_admin', 'admin', 'manager'] },
-  { name: 'Document Vault', href: '/documents', icon: Files },
+  { name: 'Profitability', href: '/reports/profitability', icon: TrendingUp, roles: ['super_admin', 'admin'] }, // Money stats = admin
+  { name: 'Document Vault', href: '/documents', icon: Files, roles: ['super_admin', 'admin', 'manager'] },
   { name: 'Executive', href: '/executive', icon: Shield, roles: ['super_admin', 'admin'] },
 ]
 

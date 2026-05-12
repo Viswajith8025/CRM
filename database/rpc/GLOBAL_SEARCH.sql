@@ -24,10 +24,15 @@ AS $$
 DECLARE
   v_org_id UUID;
   v_query TEXT;
+  v_is_super_admin BOOLEAN;
 BEGIN
-  -- Get caller's org context
+  -- Get caller's context
   v_org_id := public.get_my_org_id();
   v_query := '%' || p_query || '%';
+  
+  SELECT (role = 'super_admin') INTO v_is_super_admin 
+  FROM public.profiles 
+  WHERE id = auth.uid();
 
   IF p_query IS NULL OR length(p_query) < 2 THEN
     RETURN;
@@ -44,7 +49,7 @@ BEGIN
     '/crm?lead=' || l.id as link,
     jsonb_build_object('email', l.email) as metadata
   FROM public.leads l
-  WHERE l.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR l.organization_id = v_org_id)
     AND (l.first_name ILIKE v_query OR l.last_name ILIKE v_query OR l.company ILIKE v_query OR l.email ILIKE v_query)
   
   UNION ALL
@@ -59,7 +64,7 @@ BEGIN
     '/clients?id=' || c.id as link,
     jsonb_build_object('email', c.email) as metadata
   FROM public.clients c
-  WHERE c.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR c.organization_id = v_org_id)
     AND (c.name ILIKE v_query OR c.email ILIKE v_query)
 
   UNION ALL
@@ -74,7 +79,7 @@ BEGIN
     '/projects/' || p.id as link,
     jsonb_build_object('budget', p.budget) as metadata
   FROM public.projects p
-  WHERE p.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR p.organization_id = v_org_id)
     AND (p.name ILIKE v_query OR p.description ILIKE v_query)
 
   UNION ALL
@@ -86,10 +91,10 @@ BEGIN
     t.title as title,
     'Task' as subtitle,
     t.status::text as status,
-    '/tasks' as link, -- Future: link to specific task modal
+    '/tasks' as link,
     jsonb_build_object('priority', t.priority) as metadata
   FROM public.tasks t
-  WHERE t.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR t.organization_id = v_org_id)
     AND (t.title ILIKE v_query OR t.description ILIKE v_query)
 
   UNION ALL
@@ -104,7 +109,7 @@ BEGIN
     '/billing/' || i.id as link,
     jsonb_build_object('amount', i.amount) as metadata
   FROM public.invoices i
-  WHERE i.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR i.organization_id = v_org_id)
     AND (i.invoice_number ILIKE v_query)
 
   UNION ALL
@@ -116,10 +121,10 @@ BEGIN
     prof.full_name as title,
     prof.email as subtitle,
     prof.role::text as status,
-    '/profile' as link, -- Future: team member profile link
+    '/profile' as link,
     jsonb_build_object('role', prof.role) as metadata
   FROM public.profiles prof
-  WHERE prof.organization_id = v_org_id 
+  WHERE (v_is_super_admin OR prof.organization_id = v_org_id)
     AND (prof.full_name ILIKE v_query OR prof.email ILIKE v_query)
 
   LIMIT p_limit;

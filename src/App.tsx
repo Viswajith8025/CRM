@@ -17,6 +17,7 @@ import ResetPasswordPage from '@/pages/ResetPasswordPage'
 
 import CRMPage from '@/modules/crm/pages/CRMPage'
 import ClientsPage from '@/modules/crm/pages/ClientsPage'
+import ProposalDetail from '@/modules/crm/pages/ProposalDetail'
 import ProjectsPage from '@/modules/projects/pages/ProjectsPage'
 import ProjectDetailPage from '@/modules/projects/pages/ProjectDetailPage'
 import TasksPage from '@/modules/tasks/pages/TasksPage'
@@ -96,20 +97,31 @@ function App() {
               </Route>
             </Route>
 
-            {/* Manager/Admin Routes */}
+            {/* Manager/Admin Routes (Operations) */}
             <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager']} />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 <Route path="/crm" element={<ErrorBoundary module="CRM"><CRMPage /></ErrorBoundary>} />
                 <Route path="/clients" element={<ErrorBoundary module="Clients"><ClientsPage /></ErrorBoundary>} />
-                <Route path="/billing" element={<ErrorBoundary module="Billing"><BillingPage /></ErrorBoundary>} />
-                <Route path="/billing/:id" element={<ErrorBoundary module="Invoice Details"><InvoiceDetail /></ErrorBoundary>} />
-                <Route path="/executive" element={<ErrorBoundary module="Executive Overview"><ExecutiveDashboard /></ErrorBoundary>} />
+                <Route path="/proposals/:id" element={<ErrorBoundary module="Proposal Details"><ProposalDetail /></ErrorBoundary>} />
+                <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
                 <Route path="/support" element={<ErrorBoundary module="Support"><SupportDashboard /></ErrorBoundary>} />
                 <Route path="/support/tickets/:id" element={<ErrorBoundary module="Ticket Details"><TicketDetailPage /></ErrorBoundary>} />
-                <Route path="/hr" element={<ErrorBoundary module="HR"><HRDashboard /></ErrorBoundary>} />
-                <Route path="/reports" element={<ErrorBoundary module="Reports"><ReportsPage /></ErrorBoundary>} />
-                <Route path="/reports/profitability" element={<ErrorBoundary module="Profitability"><ProfitabilityReport /></ErrorBoundary>} />
                 <Route path="/time-tracking" element={<ErrorBoundary module="Time Tracking"><TimeTrackingPage /></ErrorBoundary>} />
+                <Route path="/hr" element={<ErrorBoundary module="HR"><HRDashboard /></ErrorBoundary>} />
+                <Route path="/documents" element={<ErrorBoundary module="Documents"><DocumentVault /></ErrorBoundary>} />
+                <Route path="/teams" element={<ErrorBoundary module="Teams"><TeamPage /></ErrorBoundary>} />
+              </Route>
+            </Route>
+
+            {/* Admin/Super Admin Only (Sensitive/Financial) */}
+            <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin']} />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/billing" element={<ErrorBoundary module="Billing"><BillingPage /></ErrorBoundary>} />
+                <Route path="/billing/:id" element={<ErrorBoundary module="Invoice Details"><InvoiceDetail /></ErrorBoundary>} />
+                <Route path="/reports/profitability" element={<ErrorBoundary module="Profitability"><ProfitabilityReport /></ErrorBoundary>} />
+                <Route path="/executive" element={<ErrorBoundary module="Executive Overview"><ExecutiveDashboard /></ErrorBoundary>} />
+                <Route path="/settings" element={<ErrorBoundary module="Settings"><SettingsPage /></ErrorBoundary>} />
+                <Route path="/audit-trail" element={<ErrorBoundary module="Audit Trail"><AuditTrailPage /></ErrorBoundary>} />
               </Route>
             </Route>
 
@@ -120,15 +132,6 @@ function App() {
               </Route>
             </Route>
 
-            {/* Admin Only Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['super_admin', 'admin']} />}>
-              <Route element={<DashboardLayout children={<Outlet />} />}>
-                <Route path="/teams" element={<ErrorBoundary module="Teams"><TeamPage /></ErrorBoundary>} />
-                <Route path="/settings" element={<ErrorBoundary module="Settings"><SettingsPage /></ErrorBoundary>} />
-                <Route path="/audit-trail" element={<ErrorBoundary module="Audit Trail"><AuditTrailPage /></ErrorBoundary>} />
-                <Route path="/documents" element={<ErrorBoundary module="Documents"><DocumentVault /></ErrorBoundary>} />
-              </Route>
-            </Route>
 
             {/* Client Portal Routes */}
             <Route path="/portal" element={<ClientLayout />}>

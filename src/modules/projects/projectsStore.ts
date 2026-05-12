@@ -257,7 +257,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('projects')
         .update(updates)
         .eq('id', id)
-        .eq('organization_id', orgId)
         .select()
         .single()
 
@@ -309,7 +308,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('projects')
         .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
-        .eq('organization_id', orgId)
 
       if (error) throw error
 
@@ -346,7 +344,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           expenses:project_expenses(*)
         `)
         .eq('id', id)
-        .eq('organization_id', orgId)
         .single()
       if (error) throw error
 
@@ -368,7 +365,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('project_milestones')
         .select('*')
         .eq('project_id', projectId)
-        .eq('organization_id', orgId)
         .order('due_date', { ascending: true })
       if (error) throw error
       return data as Milestone[]
@@ -401,7 +397,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('project_milestones')
         .update(updates)
         .eq('id', id)
-        .eq('organization_id', orgId)
       if (error) throw error
     } catch (err) {
       throw toFriendlyError(err, "Failed to update milestone.")
@@ -418,7 +413,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('project_milestones')
         .delete()
         .eq('id', id)
-        .eq('organization_id', orgId)
       if (error) throw error
     } catch (err) {
       throw toFriendlyError(err, "Failed to delete milestone.")
@@ -504,7 +498,6 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .from('project_sprints')
         .update(updates)
         .eq('id', id)
-        .eq('organization_id', orgId)
         .select()
         .single()
 

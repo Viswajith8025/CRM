@@ -127,15 +127,25 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data, error } = await supabase
+      console.log('--- DEBUG updateTask ---');
+      console.log('ID:', id);
+      console.log('Updates:', updates);
+      console.log('OrgID:', orgId);
+
+      let query = supabase
         .from('tasks')
         .update(updates)
         .eq('id', id)
-        .eq('organization_id', orgId)
+
+      const { data, error } = await query
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('--- SUPABASE RAW ERROR ---');
+        console.error(JSON.stringify(error, null, 2));
+        throw error;
+      }
 
       logActivity({
         action: updates.status ? 'STATUS_CHANGE' : 'UPDATE',
@@ -160,11 +170,12 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { error } = await supabase
+      let query = supabase
         .from('tasks')
         .delete()
         .eq('id', id)
-        .eq('organization_id', orgId)
+
+      const { error } = await query
 
       if (error) throw error
       set({
@@ -222,11 +233,12 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('task_subtasks')
         .update(updates)
         .eq('id', id)
-        .eq('organization_id', orgId)
+
+      const { data, error } = await query
         .select()
         .single()
 
@@ -249,11 +261,12 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { error } = await supabase
+      let query = supabase
         .from('task_subtasks')
         .delete()
         .eq('id', id)
-        .eq('organization_id', orgId)
+
+      const { error } = await query
 
       if (error) throw error
     } catch (err) {

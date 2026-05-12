@@ -34,7 +34,7 @@ export function CashFlowWidget() {
       </CardHeader>
       <CardContent className="flex-1 px-6 pb-6 flex items-center justify-between">
         <div className="w-1/2 h-[150px]">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <PieChart>
               <Pie
                 data={data}

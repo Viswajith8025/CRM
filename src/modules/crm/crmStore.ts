@@ -39,8 +39,9 @@ interface CRMState {
   addInteraction: (interaction: Partial<Interaction>) => Promise<void>
   
   fetchProposals: (force?: boolean) => Promise<void>
-  addProposal: (proposal: Partial<Proposal>) => Promise<void>
-  updateProposal: (id: string, updates: Partial<Proposal>) => Promise<void>
+  getProposalById: (id: string) => Promise<Proposal | null>
+  addProposal: (proposal: Partial<Proposal>) => Promise<Proposal>
+  updateProposal: (id: string, updates: Partial<Proposal>) => Promise<Proposal>
   signProposal: (id: string, signatureData: { name: string, signature: string }) => Promise<void>
   
   ensureClientFromLead: (leadId: string) => Promise<string>
@@ -424,6 +425,27 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
+  getProposalById: async (id) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return null
+
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*')
+        .eq('id', id)
+        .eq('organization_id', orgId)
+        .single()
+
+      if (error) throw error
+      return data as Proposal
+    } catch (err) {
+      console.error("Error fetching proposal:", err)
+      return null
+    }
+  },
+
   addProposal: async (proposal) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
@@ -434,6 +456,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const { data, error } = await supabase.from('proposals').insert(payload).select().single()
       if (error) throw error
       set({ proposals: [data as Proposal, ...get().proposals] })
+      return data as Proposal
     } catch (err) {
       throw toFriendlyError(err, "Failed to add proposal.")
     }
@@ -455,6 +478,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
       if (error) throw error
       set({ proposals: get().proposals.map((p) => (p.id === id ? (data as Proposal) : p)) })
+      return data as Proposal
     } catch (err) {
       throw toFriendlyError(err, "Failed to update proposal.")
     }

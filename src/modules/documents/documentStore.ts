@@ -43,8 +43,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
       
-      if (relatedId) query = query.eq('related_entity_id', relatedId)
-      if (relatedType) query = query.eq('related_entity_type', relatedType)
+      if (relatedId) {
+        if (relatedId === 'vault-root') {
+          query = query.is('related_entity_id', null)
+        } else {
+          query = query.eq('related_entity_id', relatedId)
+        }
+      }
+      if (relatedType && relatedId !== 'vault-root') query = query.eq('related_entity_type', relatedType)
       if (clientId) query = query.eq('client_id', clientId)
 
       const { data, error } = await query
@@ -106,10 +112,11 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
           file_path: filePath,
           bucket_name: bucket,
           file_url: publicUrl,
-          related_entity_id: relatedId,
-          related_entity_type: relatedType,
+          related_entity_id: relatedId === 'vault-root' ? null : relatedId,
+          related_entity_type: relatedId === 'vault-root' ? 'organization' : relatedType,
           organization_id: orgId,
           user_id: profile.id,
+          uploaded_by: profile.id,
           folder: folder || 'Assets',
           client_id: clientId
         })

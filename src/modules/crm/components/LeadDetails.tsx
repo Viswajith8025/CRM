@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useBillingStore } from "@/modules/billing"
 import { FileCheck, Activity } from "lucide-react"
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline"
+import { ProposalList } from "./ProposalList"
 
 interface LeadDetailsProps {
   lead: Lead
@@ -33,6 +34,15 @@ export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
   const [newInteraction, setNewInteraction] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const leadInteractions = interactions[lead.id] || []
+  
+  // Create a virtual client object for ProposalList compatibility
+  const virtualClient = {
+    id: lead.id,
+    name: `${lead.first_name} ${lead.last_name}`,
+    lead_id: lead.id,
+    email: lead.email,
+    phone: lead.phone
+  } as any
 
   useEffect(() => {
     fetchInteractions(lead.id)
@@ -198,66 +208,11 @@ export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
         <TabsContent value="proposals" className="flex-1 flex flex-col space-y-4 pt-4 min-h-0">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Lead Proposals</h3>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-3.5 w-3.5" /> New Proposal
-            </Button>
           </div>
           
-          <ScrollArea className="flex-1">
-            <div className="space-y-4">
-              {/* Demo Proposal for testing conversion */}
-              <div className="p-4 rounded-xl border bg-muted/10 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-bold">Digital Marketing Retainer</h4>
-                    <p className="text-xs text-muted-foreground">Created on {format(new Date(), 'PP')}</p>
-                  </div>
-                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-500">Draft</Badge>
-                </div>
-                <div className="flex justify-between items-center pt-2 border-t border-muted">
-                  <span className="text-lg font-black">${lead.value?.toLocaleString()}</span>
-                  <Button 
-                    size="sm" 
-                    variant="secondary" 
-                    className="gap-2"
-                    onClick={async () => {
-                      try {
-                        const { clients, fetchClients } = useCRMStore.getState()
-                        if (clients.length === 0) await fetchClients()
-                        
-                        // Find the actual client record linked to this lead
-                        const realClient = useCRMStore.getState().clients.find(c => c.lead_id === lead.id)
-                        
-                        if (!realClient) {
-                          toast.error("Please convert this lead to a Client (Closed Won) before creating an invoice.")
-                          return
-                        }
-
-                        toast.info("Generating invoice from proposal...")
-                        await useBillingStore.getState().addInvoice({
-                          client_id: realClient.id,
-                          amount: lead.value || 0,
-                          status: 'sent',
-                          invoice_number: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
-                          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                        })
-                        toast.success("Converted to Invoice successfully!")
-                      } catch (err) {
-                        toast.error("Failed to convert")
-                      }
-                    }}
-                  >
-                    <FileCheck className="h-3.5 w-3.5" /> Convert to Invoice
-                  </Button>
-                </div>
-              </div>
-
-              <div className="text-center py-6 opacity-30">
-                <FileText className="h-8 w-8 mx-auto mb-2" />
-                <p className="text-[10px] uppercase font-bold tracking-widest">End of Proposals</p>
-              </div>
-            </div>
-          </ScrollArea>
+          <ProposalList 
+            client={virtualClient} 
+          />
         </TabsContent>
       </Tabs>
 

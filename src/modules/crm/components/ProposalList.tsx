@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { useCRMStore } from "../crmStore"
 import type { Client, Proposal } from "../types"
 import { Button } from "@/components/ui/button"
@@ -9,11 +10,12 @@ import { FileText, Eye, Loader2, Calendar, Pencil } from "lucide-react"
 
 interface ProposalListProps {
   client: Client
-  onSelect: (proposal: Proposal) => void
+  onSelect?: (proposal: Proposal) => void
   onEdit?: (proposal: Proposal) => void
 }
 
 export function ProposalList({ client, onSelect, onEdit }: ProposalListProps) {
+  const navigate = useNavigate()
   const { proposals, fetchProposals, isLoading } = useCRMStore()
   
   useEffect(() => {
@@ -94,7 +96,13 @@ export function ProposalList({ client, onSelect, onEdit }: ProposalListProps) {
                 size="sm"
                 variant="ghost"
                 className="gap-1.5 h-8 text-xs"
-                onClick={() => onSelect(proposal)}
+                onClick={() => {
+                  if (onSelect) {
+                    onSelect(proposal)
+                  } else {
+                    navigate(`/proposals/${proposal.id}`)
+                  }
+                }}
               >
                 <Eye className="h-3.5 w-3.5" /> View
               </Button>

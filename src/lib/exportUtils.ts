@@ -53,108 +53,233 @@ export function exportToCSV(data: any[], filename: string) {
 }
 
 /**
- * PDF Export Logic (Invoices)
+ * PDF Export Logic (Invoices) - Professional Design Version
  */
-export function exportInvoiceToPDF(invoice: Invoice, companyDetails?: any) {
+export function exportInvoiceToPDF(invoice: Invoice) {
   // Create a new PDF document (A4 portrait)
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
   
-  // Set fonts and colors
-  doc.setFont('helvetica')
-  const primaryColor = [37, 99, 235] as [number, number, number] // Blue-600
-  const textColor = [55, 65, 81] as [number, number, number] // Gray-700
-  
-  // --- HEADER ---
-  doc.setFontSize(24)
-  doc.setTextColor(...primaryColor)
-  doc.text('INVOICE', 14, 25)
-  
-  doc.setFontSize(10)
-  doc.setTextColor(...textColor)
-  doc.text(`Invoice Number: ${invoice.invoice_number}`, 14, 35)
-  doc.text(`Date Issued: ${format(new Date(invoice.issued_at), 'MMM dd, yyyy')}`, 14, 40)
-  doc.text(`Due Date: ${format(new Date(invoice.due_date), 'MMM dd, yyyy')}`, 14, 45)
-  doc.text(`Status: ${invoice.status.toUpperCase()}`, 14, 50)
-
-  // Company Details (Right aligned)
-  const rightColX = pageWidth - 14
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text(companyDetails?.name || 'ECRAFTZ', rightColX, 25, { align: 'right' })
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  if (companyDetails?.address) {
-    doc.text(companyDetails.address, rightColX, 30, { align: 'right' })
-  }
-  
-  // --- BILL TO ---
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Bill To:', 14, 65)
-  
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
-  doc.text(invoice.client?.name || 'Unknown Client', 14, 72)
-  if (invoice.client?.address) {
-    doc.text(invoice.client.address, 14, 77)
-  }
-  if (invoice.client?.email) {
-    doc.text(invoice.client.email, 14, 82)
+  // Design Constants
+  const colors = {
+    primary: [37, 99, 235] as [number, number, number], // Blue-600
+    slate900: [15, 23, 42] as [number, number, number],
+    slate400: [148, 163, 184] as [number, number, number],
+    slate500: [100, 116, 139] as [number, number, number],
+    slate100: [241, 245, 249] as [number, number, number],
+    slate50: [248, 250, 252] as [number, number, number],
+    white: [255, 255, 255] as [number, number, number],
+    emerald600: [5, 150, 105] as [number, number, number]
   }
 
-  // --- ITEMS TABLE ---
-  // In a real scenario, you'd map invoice line items here.
-  // For this example, we'll assume a single line item for the project total
-  // or a placeholder if no items array exists.
+  const currencySymbol = invoice.currency === 'INR' ? 'Rs.' : '$'
   
+  // 1. TOP DECORATIVE STRIP
+  doc.setFillColor(...colors.primary)
+  doc.rect(0, 0, pageWidth, 2, 'F')
+
+  // 2. HEADER SECTION
+  // Logo
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, 15, 14, 14, 3, 3, 'F')
+  doc.setFillColor(...colors.white)
+  doc.roundedRect(17.5, 18.5, 7, 7, 1.5, 1.5, 'F')
+
+  // Company Name
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(...colors.slate900)
+  doc.text('ECRAFTZ', 32, 23)
+  
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.primary)
+  doc.text('DIGITAL SOLUTIONS', 32, 27, { charSpace: 1 })
+
+  // Invoice Number & Status
+  doc.setFontSize(8)
+  doc.setTextColor(...colors.slate400)
+  doc.text('TAX INVOICE', pageWidth - 14, 20, { align: 'right' })
+  
+  doc.setFontSize(32)
+  doc.setTextColor(...colors.slate900)
+  doc.text(`#${invoice.invoice_number}`, pageWidth - 14, 32, { align: 'right' })
+
+  // Status Badge
+  const status = invoice.status.toUpperCase()
+  doc.setFontSize(8)
+  doc.setFillColor(...(invoice.status === 'paid' ? colors.emerald600 : [245, 158, 11]))
+  doc.roundedRect(pageWidth - 40, 36, 26, 6, 3, 3, 'F')
+  doc.setTextColor(...colors.white)
+  doc.text(status, pageWidth - 27, 40.5, { align: 'center' })
+
+  // 3. COMPANY CONTACT INFO
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.slate500)
+  const contactY = 38
+  doc.text('NV Tower, 20/265, A9, Kallai, Kozhikode, 673003', 14, contactY)
+  doc.text('+91 79949 71118  |  mail@ecraftz.in  |  www.ecraftz.in', 14, contactY + 4)
+
+  // 4. INFO BAR (Date, Project, etc)
+  const barY = 55
+  doc.setFillColor(...colors.slate50)
+  doc.setDrawColor(...colors.slate100)
+  doc.roundedRect(14, barY, pageWidth - 28, 18, 4, 4, 'FD')
+
+  const colWidth = (pageWidth - 28) / 4
+  const barLabelY = barY + 6
+  const barValueY = barY + 12
+
+  doc.setFontSize(6)
+  doc.setTextColor(...colors.slate400)
+  doc.text('ISSUED ON', 22, barLabelY)
+  doc.text('DUE BY', 22 + colWidth, barLabelY)
+  doc.text('PROJECT REF', 22 + colWidth * 2, barLabelY)
+  doc.text('CURRENCY', 22 + colWidth * 3, barLabelY)
+
+  doc.setFontSize(9)
+  doc.setTextColor(...colors.slate900)
+  doc.setFont('helvetica', 'bold')
+  doc.text(format(new Date(invoice.issued_at), 'MMM dd, yyyy'), 22, barValueY)
+  doc.text(format(new Date(invoice.due_date), 'MMM dd, yyyy'), 22 + colWidth, barValueY)
+  doc.text(invoice.project?.name || 'General', 22 + colWidth * 2, barValueY)
+  doc.text(`${invoice.currency || 'INR'} (${currencySymbol})`, 22 + colWidth * 3, barValueY)
+
+  // 5. RECIPIENT SECTION
+  const recipientY = 85
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, recipientY, 25, 6, 2, 2, 'F')
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(7)
+  doc.text('RECIPIENT', 18, recipientY + 4.5)
+
+  doc.setDrawColor(...colors.slate900)
+  doc.setLineWidth(0.5)
+  doc.roundedRect(14, recipientY + 6, pageWidth - 28, 25, 4, 4, 'D')
+
+  doc.setFontSize(18)
+  doc.setTextColor(...colors.slate900)
+  doc.text(invoice.client?.name || 'Valued Client', 20, recipientY + 18)
+  
+  doc.setFontSize(8)
+  doc.setTextColor(...colors.slate500)
+  doc.setFont('helvetica', 'normal')
+  const clientInfoX = 110
+  doc.text(`Email: ${invoice.client?.email || 'N/A'}`, clientInfoX, recipientY + 14)
+  doc.text(`Addr: ${invoice.client?.address || 'Standard Service Location'}`, clientInfoX, recipientY + 19)
+
+  // 6. ITEMS TABLE
   const tableData = []
-  if ((invoice as any).items && Array.isArray((invoice as any).items)) {
-     (invoice as any).items.forEach((item: any) => {
-        tableData.push([
-           item.description,
-           item.quantity,
-           `$${item.unit_price.toFixed(2)}`,
-           `$${(item.quantity * item.unit_price).toFixed(2)}`
-        ])
-     })
+  const items = (invoice as any).items || []
+  if (items.length > 0) {
+    items.forEach((item: any) => {
+      tableData.push([
+        { content: item.description, styles: { fontStyle: 'bold', fontSize: 10 } },
+        item.quantity,
+        `${currencySymbol}${item.rate.toLocaleString()}`,
+        `${item.taxRate}%`,
+        { content: `${currencySymbol}${(item.quantity * item.rate).toLocaleString()}`, styles: { fontStyle: 'bold', fontSize: 11 } }
+      ])
+    })
   } else {
-     // Fallback to project name
-     tableData.push([
-       invoice.project?.name ? `Project: ${invoice.project.name}` : 'Services Rendered',
-       1,
-       `$${invoice.amount.toFixed(2)}`,
-       `$${invoice.amount.toFixed(2)}`
-     ])
+    tableData.push([
+      { content: invoice.project?.name || 'Services Rendered', styles: { fontStyle: 'bold', fontSize: 10 } },
+      1,
+      `${currencySymbol}${invoice.amount.toLocaleString()}`,
+      `${invoice.tax_rate || 0}%`,
+      { content: `${currencySymbol}${invoice.amount.toLocaleString()}`, styles: { fontStyle: 'bold', fontSize: 11 } }
+    ])
   }
 
   autoTable(doc, {
-    startY: 95,
-    head: [['Description', 'Qty', 'Unit Price', 'Total']],
+    startY: 120,
+    head: [['Description', 'Qty', 'Unit Price', 'Tax', 'Line Total']],
     body: tableData,
-    theme: 'grid',
-    headStyles: { fillColor: primaryColor, textColor: 255 },
-    styles: { textColor: 50, fontSize: 10 },
+    theme: 'plain',
+    headStyles: { 
+      textColor: colors.slate400, 
+      fontSize: 7, 
+      fontStyle: 'bold',
+      cellPadding: { bottom: 5 }
+    },
+    styles: { 
+      textColor: colors.slate900, 
+      fontSize: 9,
+      cellPadding: 6
+    },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      1: { cellWidth: 20, halign: 'center' },
-      2: { cellWidth: 35, halign: 'right' },
-      3: { cellWidth: 35, halign: 'right' },
+      1: { halign: 'center' },
+      2: { halign: 'right' },
+      3: { halign: 'right' },
+      4: { halign: 'right' }
+    },
+    didDrawPage: (data) => {
+      // Add a line under the header
+      doc.setDrawColor(...colors.slate900)
+      doc.setLineWidth(0.8)
+      doc.line(14, data.settings.startY + 8, pageWidth - 14, data.settings.startY + 8)
     }
   })
 
-  // --- TOTALS ---
-  const finalY = (doc as any).lastAutoTable.finalY + 15
-  doc.setFontSize(12)
+  // 7. FOOTER SUMMARY SECTION
+  const finalY = (doc as any).lastAutoTable.finalY + 10
+  
+  // Payment Instructions Box
+  doc.setFillColor(...colors.slate900)
+  doc.roundedRect(14, finalY, 85, 40, 6, 6, 'F')
+  doc.setTextColor(...colors.slate400)
+  doc.setFontSize(6)
+  doc.text('PAYMENT INSTRUCTIONS', 20, finalY + 8)
+  
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(7)
+  doc.text('UPI TRANSFER', 20, finalY + 16)
+  doc.setFontSize(10)
   doc.setFont('helvetica', 'bold')
-  doc.text('Total Amount Due:', pageWidth - 55, finalY)
-  doc.text(`$${invoice.amount.toFixed(2)}`, rightColX, finalY, { align: 'right' })
+  doc.text('ecraftz@upi', 20, finalY + 22)
+  
+  doc.setFontSize(7)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...colors.slate400)
+  doc.text('BANK TRANSFER', 20, finalY + 28)
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(7)
+  doc.text('HDFC Bank, Kozhikode | A/C: 50200067891234', 20, finalY + 33)
+  doc.text('IFSC: HDFC0001234', 20, finalY + 37)
 
-  // --- FOOTER ---
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'italic')
-  doc.setTextColor(100)
-  doc.text('Thank you for your business!', pageWidth / 2, 280, { align: 'center' })
+  // Totals Box
+  const totalsX = pageWidth - 90
+  doc.setFillColor(...colors.slate50)
+  doc.roundedRect(totalsX, finalY, 76, 40, 6, 6, 'F')
+  
+  doc.setFontSize(7)
+  doc.setTextColor(...colors.slate400)
+  doc.text('SUBTOTAL', totalsX + 8, finalY + 10)
+  doc.setTextColor(...colors.slate900)
+  doc.text(`${currencySymbol}${invoice.amount.toLocaleString()}`, pageWidth - 22, finalY + 10, { align: 'right' })
+  
+  doc.setTextColor(...colors.slate400)
+  doc.text('TAX COMPONENT', totalsX + 8, finalY + 16)
+  doc.text(`+${currencySymbol}${(invoice as any).tax_amount || 0}`, pageWidth - 22, finalY + 16, { align: 'right' })
+  
+  doc.setDrawColor(...colors.slate100)
+  doc.line(totalsX + 8, finalY + 22, pageWidth - 22, finalY + 22)
+  
+  doc.setTextColor(...colors.slate400)
+  doc.setFontSize(6)
+  doc.text('TOTAL AMOUNT DUE', totalsX + 8, finalY + 28)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...colors.slate900)
+  doc.text(`${currencySymbol}${invoice.amount.toLocaleString()}`, totalsX + 8, finalY + 36)
+
+  // 8. FINAL FOOTER
+  doc.setFillColor(...colors.slate900)
+  doc.rect(0, pageHeight - 25, pageWidth, 25, 'F')
+  doc.setTextColor(...colors.white)
+  doc.setFontSize(14)
+  doc.text('Thank you for your business.', pageWidth / 2, pageHeight - 12, { align: 'center' })
 
   // Save the PDF
   doc.save(`${invoice.invoice_number}.pdf`)

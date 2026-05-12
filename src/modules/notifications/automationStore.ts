@@ -21,15 +21,23 @@ export const useAutomationStore = create<AutomationState>((set, get) => ({
     set({ isChecking: true })
 
     try {
-      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      if (!profile) return
+      const { profile, isLoading } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      
+      // If still loading profile, don't warn, just skip for this cycle
+      if (isLoading || !profile) return
 
       const orgId = profile.organization_id
 
+      // Super Admins are global and might not be assigned to a specific organization.
+      // We skip reminders for them without warning, as they are system-wide maintainers.
+      if (profile.role === 'super_admin' && (!orgId || orgId === NULL_ORG_ID)) {
+        return
+      }
+
       // Guard: if org_id is missing or the null-placeholder UUID, skip all queries.
-      // This happens when JWT claims haven't been synced — user must sign out and back in.
+      // This happens when JWT claims haven't been synced — user should sign out and back in.
       if (!orgId || orgId === NULL_ORG_ID) {
-        console.warn('Smart Reminders: skipping — organization_id not set in session. User should sign out and sign back in to refresh JWT claims.')
+        console.warn('Smart Reminders: skipping — organization_id not set in session.')
         return
       }
 

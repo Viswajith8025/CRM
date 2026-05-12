@@ -4,7 +4,7 @@ import { LoadingState } from '@/components/shared/LoadingState'
 import { ShieldX, Clock, LogOut } from 'lucide-react'
 
 interface ProtectedRouteProps {
-  allowedRoles?: ('admin' | 'manager' | 'employee')[]
+  allowedRoles?: ('super_admin' | 'admin' | 'manager' | 'employee' | 'client')[]
 }
 
 export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {

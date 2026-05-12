@@ -123,8 +123,9 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
         total,
       }
 
+      let result;
       if (isEditing) {
-        await updateProposal(proposal!.id, {
+        result = await updateProposal(proposal!.id, {
           title: values.title,
           amount: total,
           status: values.status,
@@ -133,7 +134,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
         })
         toast.success("Proposal updated successfully!")
       } else {
-        await addProposal({
+        result = await addProposal({
           client_id: values.client_id,
           title: values.title,
           amount: total,
@@ -144,7 +145,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
         toast.success("Proposal created successfully!")
       }
 
-      onSuccess(proposalData)
+      onSuccess(result)
     } catch (error: any) {
       toast.error(error.message || `Failed to ${isEditing ? 'update' : 'create'} proposal`)
     } finally {

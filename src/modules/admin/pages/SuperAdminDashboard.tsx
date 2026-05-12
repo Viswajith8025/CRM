@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
 import { Loader2, ShieldAlert, Building2, Users, Activity, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function SuperAdminDashboard() {
-  const { organizations, fetchOrganizations, toggleOrganizationStatus, isLoading } = useSuperAdminStore();
+  const { organizations, fetchOrganizations, toggleOrganizationStatus, generateDemoOrganization, isLoading } = useSuperAdminStore();
   const [isToggling, setIsToggling] = useState<string | null>(null);
 
   useEffect(() => {

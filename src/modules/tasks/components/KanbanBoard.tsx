@@ -1,4 +1,4 @@
-import { memo, useState, useCallback } from 'react'
+import { memo, useState, useCallback, useMemo } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -147,6 +147,13 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
     }
   }
 
+  const groupedTasks = useMemo(() => {
+    return COLUMNS.reduce((acc, col) => {
+      acc[col.id] = filteredTasks.filter(t => t.status === col.id)
+      return acc
+    }, {} as Record<TaskStatus, Task[]>)
+  }, [filteredTasks])
+
   return (
     <DndContext
       sensors={sensors}
@@ -161,7 +168,7 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
             key={col.id}
             id={col.id}
             title={col.title}
-            tasks={filteredTasks.filter((t) => t.status === col.id)}
+            tasks={groupedTasks[col.id] || []}
             syncingTaskId={syncingTaskId}
             onEdit={handleEdit}
             onDelete={handleDeleteClick}

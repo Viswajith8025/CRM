@@ -43,9 +43,11 @@ export function TeamList() {
       member.role.toLowerCase().includes(search.toLowerCase())
     )
 
-  const isAdmin = currentUser?.role === 'admin'
+  const isSuperAdmin = currentUser?.role === 'super_admin'
+  const isAdmin = currentUser?.role === 'admin' || isSuperAdmin
 
   const roleColors: Record<string, string> = {
+    super_admin: "bg-purple-500/10 text-purple-500 border-purple-500/20",
     admin: "bg-rose-500/10 text-rose-500 border-rose-500/20",
     manager: "bg-amber-500/10 text-amber-500 border-amber-500/20",
     employee: "bg-blue-500/10 text-blue-500 border-blue-500/20",
@@ -190,7 +192,7 @@ export function TeamList() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {isAdmin && member.id !== currentUser?.id ? (
+                    {isAdmin && member.id !== currentUser?.id && member.role !== 'super_admin' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-2">
@@ -201,11 +203,17 @@ export function TeamList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          {(['admin', 'manager', 'employee'] as const).map(role => (
-                            <DropdownMenuItem key={role} onClick={() => handleRoleChange(member.id, role)} className="gap-2 capitalize">
-                              {role === 'manager' ? 'HR' : role}
-                            </DropdownMenuItem>
-                          ))}
+                          {(['admin', 'manager', 'employee'] as const).map(role => {
+                            // HIERARCHY RULES:
+                            // 1. Only Super Admin can promote to Admin
+                            if (role === 'admin' && !isSuperAdmin) return null;
+                            
+                            return (
+                              <DropdownMenuItem key={role} onClick={() => handleRoleChange(member.id, role)} className="gap-2 capitalize">
+                                {role === 'manager' ? 'HR' : role}
+                              </DropdownMenuItem>
+                            );
+                          })}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
@@ -313,11 +321,13 @@ export function TeamList() {
       <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
         <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-tight">Access Control</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            New users register with <strong>Employee</strong> role and <strong>Pending</strong> status. 
-            Only admins can approve access and change roles. Denied users cannot access any system data.
-          </p>
+          <p className="text-xs font-bold text-primary uppercase tracking-tight">Hierarchical Access Control</p>
+          <div className="text-xs text-muted-foreground mt-1 space-y-1">
+            <p>• <strong>Super Admin:</strong> Full system access. Only role that can create Admins.</p>
+            <p>• <strong>Admin:</strong> Operational control. Can manage HR (Managers) and Employees.</p>
+            <p>• <strong>HR (Manager):</strong> Personnel management and core operational features.</p>
+            <p>• <strong>Employee:</strong> Basic task and project visibility.</p>
+          </div>
         </div>
       </div>
     </div>

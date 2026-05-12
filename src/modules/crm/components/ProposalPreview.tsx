@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Printer, X, Send, Loader2 } from 'lucide-react'
+import { Printer, X, Send, Loader2, Building2, Mail, Phone, Globe, CreditCard, Clock, CheckSquare } from 'lucide-react'
 import { sendEmail } from '@/lib/email'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
 
 interface ProposalPreviewProps {
   data: any
@@ -24,76 +26,106 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
 
     setIsSending(true)
     try {
+      // Use the premium HTML template (simplified for email but keeping the style)
       const html = `
         <!DOCTYPE html>
         <html>
         <head>
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #1a202c; margin: 0; padding: 0; background-color: #f7fafc; }
-            .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 60px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); border-top: 8px solid #000; }
-            .header { margin-bottom: 50px; }
-            .company-name { font-size: 32px; font-weight: 900; color: #000; letter-spacing: -1px; margin-bottom: 10px; }
-            .meta-badge { display: inline-block; padding: 4px 12px; background: #000; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border-radius: 4px; margin-top: 10px; }
-            .section-title { font-size: 12px; font-weight: 900; color: #718096; text-transform: uppercase; letter-spacing: 0.2em; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; margin: 40px 0 20px; }
-            .client-card { background: #f8fafc; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 40px; }
-            .pricing-table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 30px 0; border: 2px solid #000; border-radius: 12px; overflow: hidden; }
-            .pricing-table th { background: #000; color: #fff; padding: 16px; text-align: left; font-size: 11px; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; }
-            .pricing-table td { padding: 16px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
-            .total-row { background: #f1f5f9; font-weight: 900; }
-            .total-row td { font-size: 18px; border-top: 2px solid #000; }
-            .terms { color: #4a5568; font-size: 12px; line-height: 1.8; }
-            .footer { margin-top: 60px; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 30px; font-size: 11px; color: #a0aec0; text-transform: uppercase; letter-spacing: 1px; }
+            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.6; color: #0f172a; margin: 0; padding: 0; background-color: #f8fafc; }
+            .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 0; border-radius: 32px; overflow: hidden; box-shadow: 0 40px 80px -12px rgba(0,0,0,0.1); }
+            .top-strip { height: 8px; background: linear-gradient(to right, #2563eb, #3b82f6, #10b981); }
+            .content { padding: 60px; }
+            .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 60px; }
+            .logo-box { height: 60px; width: 60px; background: #0f172a; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+            .logo-inner { height: 30px; width: 30px; background: #fff; border-radius: 8px; transform: rotate(12deg); }
+            .brand-name { font-size: 32px; font-weight: 900; color: #0f172a; letter-spacing: -2px; margin: 0; }
+            .brand-tag { font-size: 10px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 4px; margin-top: 4px; }
+            .meta-title { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 4px; text-align: right; }
+            .meta-value { font-size: 40px; font-weight: 900; color: #0f172a; letter-spacing: -2px; text-align: right; }
+            .info-bar { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 24px; padding: 32px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-bottom: 60px; }
+            .info-item label { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 4px; }
+            .info-item value { font-size: 14px; font-weight: 900; color: #0f172a; display: block; }
+            .recipient-header { display: inline-block; padding: 4px 16px; background: #0f172a; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; border-radius: 8px 8px 0 0; }
+            .recipient-box { border: 2px solid #0f172a; border-radius: 0 24px 24px 24px; padding: 32px; display: flex; gap: 40px; margin-bottom: 60px; }
+            .recipient-name { font-size: 36px; font-weight: 900; color: #0f172a; letter-spacing: -1px; margin: 0; }
+            .pricing-table { width: 100%; border-collapse: collapse; margin-bottom: 60px; }
+            .pricing-table th { padding: 24px 0; border-bottom: 4px solid #0f172a; font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 3px; text-align: left; }
+            .pricing-table td { padding: 32px 0; border-bottom: 1px solid #f1f5f9; }
+            .pricing-table .total-row { background: #f8fafc; }
+            .footer-box { background: #0f172a; padding: 60px; text-align: center; color: #fff; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <div class="company-name">${data.company_name}</div>
-              <div style="font-size: 14px; color: #4a5568; font-weight: bold;">${data.company_email} • ${data.company_phone}</div>
-              <div class="meta-badge">OFFICIAL PROPOSAL</div>
-            </div>
+            <div class="top-strip"></div>
+            <div class="content">
+              <div class="header">
+                <div>
+                  <div class="logo-box"><div class="logo-inner"></div></div>
+                  <h1 class="brand-name">${data.company_name}</h1>
+                  <p class="brand-tag">Digital Solutions</p>
+                </div>
+                <div>
+                  <p class="meta-title">Proposal Ref</p>
+                  <p class="meta-value">#${data.proposal_id}</p>
+                </div>
+              </div>
 
-            <div class="client-card">
-              <div style="font-size: 10px; font-weight: 900; color: #718096; text-transform: uppercase; margin-bottom: 15px;">Prepared For:</div>
-              <div style="font-size: 24px; font-weight: 900; color: #000;">${data.client_name}</div>
-              <div style="font-size: 16px; color: #4a5568; margin-top: 4px;">${data.client_company}</div>
-            </div>
+              <div class="info-bar">
+                <div class="info-item"><label>Date Issued</label><value>${data.date}</value></div>
+                <div class="info-item"><label>Expiry Date</label><value>${data.expiry_date || 'N/A'}</value></div>
+                <div class="info-item"><label>Project Track</label><value>${data.service_name}</value></div>
+                <div class="info-item"><label>Currency</label><value>INR (₹)</value></div>
+              </div>
 
-            <div class="section-title">Project Overview</div>
-            <div style="font-size: 20px; font-weight: 900; color: #000; margin-bottom: 15px;">${data.service_name}</div>
-            <div style="font-size: 14px; color: #4a5568; text-align: justify; line-height: 1.8;">${data.description}</div>
+              <div class="recipient-header">Recipient</div>
+              <div class="recipient-box">
+                <div style="flex: 1;">
+                  <h2 class="recipient-name">${data.client_name}</h2>
+                  <p style="font-size: 18px; font-weight: bold; color: #64748b; margin-top: 4px;">${data.client_company}</p>
+                </div>
+                <div style="flex: 1; font-size: 14px; color: #64748b;">
+                  <p><strong>Email:</strong> ${data.client_email}</p>
+                  <p><strong>Service:</strong> ${data.service_name}</p>
+                </div>
+              </div>
 
-            <div class="section-title">Financial Quotation</div>
-            <table class="pricing-table">
-              <thead>
-                <tr>
-                  <th>Component</th>
-                  <th style="text-align: right;">Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.items.map((item: any) => `
+              <h3 style="font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 24px;">Scope of Work</h3>
+              <div style="padding: 24px; background: #fff; border-left: 4px solid #2563eb; margin-bottom: 60px; font-size: 15px; color: #475569; line-height: 1.8;">
+                ${data.description}
+              </div>
+
+              <table class="pricing-table">
+                <thead>
                   <tr>
-                    <td style="font-weight: bold; color: #000;">${item.name}<br/><span style="font-size: 11px; font-weight: normal; color: #718096;">${item.desc || ''}</span></td>
-                    <td style="text-align: right; font-weight: 900;">${item.price.toLocaleString()}</td>
+                    <th>Component</th>
+                    <th style="text-align: right;">Investment (₹)</th>
                   </tr>
-                `).join('')}
-                <tr class="total-row">
-                  <td style="text-align: right; text-transform: uppercase;">Grand Total</td>
-                  <td style="text-align: right;">₹${data.total.toLocaleString()}</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  ${data.items.map((item: any) => `
+                    <tr>
+                      <td>
+                        <div style="font-size: 18px; font-weight: 900; color: #0f172a;">${item.name}</div>
+                        <div style="font-size: 12px; font-weight: bold; color: #94a3b8; margin-top: 4px;">Professional Service</div>
+                      </td>
+                      <td style="text-align: right; font-size: 20px; font-weight: 900; color: #0f172a;">₹${item.price.toLocaleString()}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
 
-            <div class="section-title">Commitment & Terms</div>
-            <div class="terms">
-              <ul style="padding-left: 20px;">
-                ${data.terms.map((term: string) => `<li>${term}</li>`).join('')}
-              </ul>
+              <div style="background: #f8fafc; padding: 40px; border-radius: 32px; display: flex; justify-content: space-between; align-items: end;">
+                <div>
+                   <p style="font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px;">Total Investment</p>
+                   <p style="font-size: 48px; font-weight: 900; color: #0f172a; letter-spacing: -2px; margin: 0;">₹${data.total.toLocaleString()}</p>
+                </div>
+              </div>
             </div>
-
-            <div class="footer">
-              Proprietary & Confidential • Generated for ${data.client_name} • ${new Date().getFullYear()}
+            <div class="footer-box">
+               <h3 style="font-size: 24px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px;">Ready to start your project?</h3>
+               <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; opacity: 0.4;">Proprietary & Confidential • ECRAFTZ Digital Solutions</p>
             </div>
           </div>
         </body>
@@ -116,179 +148,204 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-900">
-      <div className="flex justify-between items-center p-4 border-b border-white/10 bg-black/40 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center gap-4">
-          <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center font-black text-white italic">P</div>
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white">Proposal Engine</h2>
-        </div>
-        <div className="flex gap-3">
-          <Button size="sm" onClick={handleSendEmail} disabled={isSending} className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-full px-6 shadow-lg shadow-emerald-500/20 no-print">
-            {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Dispatch Proposal
-          </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint} className="gap-2 border-white/20 text-white hover:bg-white/10 rounded-full px-6 no-print">
-            <Printer className="h-4 w-4" /> Export PDF
-          </Button>
-          <Button size="icon" variant="ghost" onClick={onClose} className="text-white hover:bg-white/10 rounded-full no-print">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+    <div className="flex-1 overflow-y-auto bg-[#020617] p-4 md:p-12 print:p-0 print:bg-white custom-scrollbar">
+        <div id="proposal-content" className="bg-white mx-auto shadow-[0_64px_128px_-24px_rgba(0,0,0,0.8)] overflow-hidden w-full max-w-5xl print:shadow-none print:w-full print:p-0 mb-20 relative" style={{ fontFamily: "'Inter', sans-serif" }}>
+          
+          {/* TOP DECORATIVE STRIP */}
+          <div className="h-2 bg-gradient-to-r from-primary via-blue-600 to-emerald-500" />
 
-      <div className="flex-1 overflow-y-auto bg-slate-800/50 p-6 md:p-12 print:p-0 print:bg-white custom-scrollbar">
-        <div id="proposal-content" className="bg-white mx-auto shadow-[0_48px_80px_-16px_rgba(0,0,0,0.4)] p-12 md:p-20 w-full max-w-[850px] min-h-[1100px] print:shadow-none print:w-full print:p-0 mb-12 relative overflow-hidden" style={{ fontFamily: "'Inter', sans-serif" }}>
-          
-          {/* DECORATIVE TOP */}
-          <div className="absolute top-0 left-0 w-full h-1 bg-slate-900" />
-          
-          {/* HEADER */}
-          <div className="flex justify-between items-start mb-20">
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <div className="text-3xl font-black tracking-tighter text-slate-900">{data.company_name}</div>
-                <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <span>{data.company_email}</span>
-                  <span>•</span>
-                  <span>{data.company_phone}</span>
+          <div className="p-12 md:p-20">
+            {/* 1. HEADER SECTION */}
+            <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
+              <div className="space-y-6">
+                <div className="flex items-center gap-5">
+                  <div className="h-16 w-16 rounded-2xl bg-slate-950 flex items-center justify-center shadow-2xl">
+                    <div className="h-8 w-8 bg-white rounded-lg rotate-12" />
+                  </div>
+                  <div>
+                    <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-none">{data.company_name}</h1>
+                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-primary mt-1">Digital Solutions</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-xs text-slate-500 font-bold leading-relaxed max-w-xs">
+                  <p className="flex items-center gap-3">
+                    <Mail className="w-4 h-4 text-slate-900" />
+                    {data.company_email}
+                  </p>
+                  <p className="flex items-center gap-3">
+                    <Phone className="w-4 h-4 text-slate-900" />
+                    {data.company_phone}
+                  </p>
+                  <p className="flex items-center gap-3">
+                    <Building2 className="w-4 h-4 text-slate-900" />
+                    GSTIN: {data.company_gstin}
+                  </p>
                 </div>
               </div>
-              <div className="inline-block px-3 py-1 bg-slate-100 text-[10px] font-black text-slate-500 uppercase tracking-widest rounded">
-                GSTIN: {data.company_gstin}
+
+              <div className="text-left md:text-right space-y-6">
+                <div className="space-y-2">
+                  <h2 className="text-[11px] font-black uppercase tracking-[0.5em] text-slate-300">Project Proposal</h2>
+                  <p className="text-6xl font-black text-slate-950 tracking-tighter">#{data.proposal_id}</p>
+                </div>
+                <div className="inline-flex items-center px-5 py-2 rounded-full bg-amber-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-amber-500/20">
+                  <Clock className="w-4 h-4 mr-2" />
+                  Valid for 7 Days
+                </div>
               </div>
             </div>
-            <div className="text-right space-y-2">
-               <div className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Quotation Ref</div>
-               <div className="text-xl font-black text-slate-900">#{data.proposal_id}</div>
-               <div className="text-[10px] font-bold text-slate-400">{data.date}</div>
-            </div>
-          </div>
 
-          {/* MAIN CONTENT TITLE */}
-          <div className="mb-16">
-            <h1 className="text-5xl font-black tracking-tighter text-slate-900 mb-4">Project Proposal</h1>
-            <div className="h-1.5 w-20 bg-primary" />
-          </div>
-
-          {/* RECIPIENT */}
-          <div className="grid grid-cols-2 gap-12 mb-20 p-8 bg-slate-50 rounded-3xl border border-slate-100">
-            <div className="space-y-4">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Client Partner</div>
-              <div className="space-y-1">
-                <div className="text-2xl font-black text-slate-900 leading-tight">{data.client_name}</div>
-                <div className="text-lg font-bold text-slate-500">{data.client_company}</div>
+            {/* 2. INFO BAR */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 p-10 rounded-[2rem] bg-slate-50 border border-slate-100 mb-20">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Issued On</p>
+                <p className="text-sm font-black text-slate-950">{data.date}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Valid Until</p>
+                <p className="text-sm font-black text-slate-950">{data.expiry_date || 'N/A'}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Project Track</p>
+                <p className="text-sm font-black text-slate-950 truncate">{data.service_name}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Currency</p>
+                <p className="text-sm font-black text-slate-950">INR (₹)</p>
               </div>
             </div>
-            <div className="space-y-4 text-right">
-              <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Project Track</div>
-              <div className="text-lg font-black text-primary leading-tight">
-                {data.service_name || (data.service_type ? data.service_type.replace('_', ' ').toUpperCase() : 'General Service')}
+
+            {/* 3. CLIENT SECTION */}
+            <div className="mb-20">
+              <div className="inline-block px-5 py-1.5 bg-slate-950 text-white text-[10px] font-black uppercase tracking-[0.4em] rounded-t-xl">
+                Prepared For
+              </div>
+              <div className="p-10 border-4 border-slate-950 rounded-b-[2rem] rounded-r-[2rem] flex flex-col md:flex-row justify-between items-center gap-12">
+                <div className="space-y-4">
+                  <p className="text-5xl font-black text-slate-950 tracking-tighter leading-none">{data.client_name}</p>
+                  <p className="text-2xl font-bold text-slate-400 tracking-tight">{data.client_company}</p>
+                </div>
+                <div className="w-full md:w-auto space-y-4 text-sm text-slate-500 font-bold border-l-2 border-slate-100 pl-12">
+                  <p className="flex items-center gap-4">
+                    <Mail className="w-5 h-5 text-slate-950" />
+                    {data.client_email}
+                  </p>
+                  <p className="flex items-center gap-4">
+                    <Globe className="w-5 h-5 text-slate-950" />
+                    B2B Relationship
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* DESCRIPTION */}
-          <div className="mb-20">
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-6 flex items-center gap-4">
-              Scope of Engagement
-              <div className="h-px flex-1 bg-slate-100" />
+            {/* 4. SCOPE SECTION */}
+            <div className="mb-20">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-300 mb-8 flex items-center gap-6">
+                Scope of Engagement
+                <div className="h-px flex-1 bg-slate-100" />
+              </h3>
+              <div className="p-10 rounded-[2rem] bg-white border-2 border-slate-50 text-base text-slate-600 leading-relaxed italic text-justify relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-2 h-full bg-primary" />
+                "{data.description}"
+              </div>
             </div>
-            <div className="text-base text-slate-600 leading-relaxed text-justify whitespace-pre-wrap px-4 border-l-2 border-slate-100 italic">
-              {data.description}
-            </div>
-          </div>
 
-          {/* PRICING TABLE */}
-          <div className="mb-20">
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-6 flex items-center gap-4">
-              Financial Breakdown
-              <div className="h-px flex-1 bg-slate-100" />
-            </div>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-4 border-slate-900">
-                  <th className="py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Component</th>
-                  <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Investment (₹)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.items.map((item: any, idx: number) => (
-                  <tr key={idx} className="group">
-                    <td className="py-8 pr-4">
-                      <p className="text-lg font-black text-slate-900">{item.name}</p>
-                      <p className="text-xs text-slate-400 font-medium mt-1 leading-relaxed">{item.desc}</p>
-                    </td>
-                    <td className="py-8 px-4 text-right font-black text-slate-900 text-xl tracking-tighter">
-                      {item.price.toLocaleString()}
-                    </td>
+            {/* 5. PRICING TABLE */}
+            <div className="mb-20">
+              <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-300 mb-8 flex items-center gap-6">
+                Investment Breakdown
+                <div className="h-px flex-1 bg-slate-100" />
+              </h3>
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b-8 border-slate-950">
+                    <th className="py-8 text-[11px] font-black uppercase tracking-[0.4em] text-slate-400">Component</th>
+                    <th className="py-8 px-6 text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 text-right">Investment (₹)</th>
                   </tr>
-                ))}
-                
-                <tr className="bg-slate-50 border-t-2 border-slate-200">
-                  <td className="py-8 px-6 text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Total Project Value</td>
-                  <td className="py-8 px-6 text-right font-black text-slate-900 text-4xl tracking-tighter">
+                </thead>
+                <tbody className="divide-y-2 divide-slate-50">
+                  {data.items.map((item: any, idx: number) => (
+                    <tr key={idx} className="group">
+                      <td className="py-10 pr-6">
+                        <p className="text-2xl font-black text-slate-950 tracking-tight">{item.name}</p>
+                        <p className="text-xs text-slate-400 font-black uppercase tracking-widest mt-2">Professional Service Package</p>
+                      </td>
+                      <td className="py-10 px-6 text-right font-black text-slate-950 text-3xl tracking-tighter">
+                        {item.price.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 6. SUMMARY & TERMS */}
+            <div className="grid md:grid-cols-2 gap-20 pt-16 border-t-4 border-slate-950">
+              <div className="space-y-10">
+                <div className="p-10 rounded-[2.5rem] bg-slate-950 text-white shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20" />
+                  <div className="relative z-10 space-y-8">
+                    <div className="flex items-center gap-4 opacity-50">
+                      <CreditCard className="w-6 h-6" />
+                      <h4 className="font-black text-[10px] uppercase tracking-[0.4em]">Engagement Terms</h4>
+                    </div>
+                    <ul className="space-y-4">
+                      {data.terms.slice(0, 3).map((term: string, idx: number) => (
+                        <li key={idx} className="flex gap-4 items-start text-xs font-bold leading-relaxed">
+                           <div className="h-1.5 w-1.5 bg-primary rounded-full mt-1.5 shrink-0" />
+                           {term}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-8 bg-slate-50 p-12 rounded-[2.5rem] flex flex-col justify-center">
+                <div className="space-y-2">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-[0.4em] block">Total Project Value</span>
+                  <span className="text-7xl font-black text-slate-950 tracking-tighter block">
                     ₹{data.total.toLocaleString()}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* TERMS */}
-          <div className="mb-24">
-             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 mb-6 flex items-center gap-4">
-              Engagement Terms
-              <div className="h-px flex-1 bg-slate-100" />
-            </div>
-            <ul className="grid grid-cols-1 gap-4 px-4">
-              {data.terms.map((term: string, idx: number) => (
-                <li key={idx} className="flex gap-4 items-start text-[11px] text-slate-500 font-medium leading-relaxed">
-                   <span className="h-1.5 w-1.5 bg-primary rounded-full mt-1.5 shrink-0" />
-                   {term}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* SIGNATURE SECTION */}
-          <div className="grid grid-cols-2 gap-20 pt-20 border-t-2 border-slate-50">
-            <div className="space-y-8 text-center">
-              <div className="h-12 flex items-end justify-center">
-                 <div className="h-px w-full bg-slate-200" />
-              </div>
-              <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Client Partner Approval</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sign & Date</div>
-              </div>
-            </div>
-            <div className="space-y-8 text-center">
-              <div className="h-12 flex items-end justify-center">
-                 <div className="h-px w-full bg-slate-200" />
-              </div>
-              <div className="space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-900">Authorized Signatory</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">ECRAFTZ DIGITAL SOLUTIONS</div>
+                  </span>
+                </div>
+                <div className="pt-8 border-t border-slate-200">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 text-center">Authorized Signatory</p>
+                  <div className="h-16 flex items-end justify-center border-b-2 border-slate-950 pb-2">
+                     <p className="text-xl font-bold italic text-slate-300">ECRAFTZ Digital</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* FOOTER */}
-          <div className="mt-32 pt-8 border-t border-slate-50 text-[10px] text-slate-300 text-center uppercase tracking-[0.5em] font-black">
-             Proprietary & Confidential • {data.company_name}
+          <div className="bg-slate-950 p-20 text-center text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-50" />
+            <div className="relative z-10 space-y-8">
+              <p className="text-4xl font-black tracking-tighter leading-none">Ready to build your digital future?</p>
+              <div className="flex justify-center items-center gap-10 text-[10px] font-black uppercase tracking-[0.5em] opacity-30">
+                 <span>Proprietary</span>
+                 <span className="h-1.5 w-1.5 bg-white rounded-full" />
+                 <span>Confidential</span>
+                 <span className="h-1.5 w-1.5 bg-white rounded-full" />
+                 <span>2026</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 20px; border: 3px solid transparent; background-clip: content-box; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); border: 3px solid transparent; background-clip: content-box; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
         
         @media print {
           body * { visibility: hidden; }
           #proposal-content, #proposal-content * { visibility: visible; }
-          #proposal-content { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; box-shadow: none; border: none; }
+          #proposal-content { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; margin: 0 !important; box-shadow: none !important; border: none !important; }
           .no-print { display: none !important; }
         }
       `}</style>
