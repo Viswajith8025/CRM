@@ -5,7 +5,8 @@ create extension if not exists "pg_net";
 create or replace function public.send_email_via_resend(
   p_to_email text,
   p_subject text,
-  p_html text
+  p_html text,
+  p_attachments jsonb default '[]'::jsonb
 ) returns void
 language plpgsql security definer
 as $$
@@ -20,7 +21,8 @@ begin
       'from', 'ECRAFTZ CRM <onboarding@resend.dev>',
       'to', jsonb_build_array(p_to_email),
       'subject', p_subject,
-      'html', p_html
+      'html', p_html,
+      'attachments', p_attachments
     )
   ) into request_id;
 end;

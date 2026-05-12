@@ -55,7 +55,7 @@ export function exportToCSV(data: any[], filename: string) {
 /**
  * PDF Export Logic (Invoices) - Professional Design Version
  */
-export function exportInvoiceToPDF(invoice: Invoice) {
+export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   // Create a new PDF document (A4 portrait)
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -281,14 +281,17 @@ export function exportInvoiceToPDF(invoice: Invoice) {
   doc.setFontSize(14)
   doc.text('Thank you for your business.', pageWidth / 2, pageHeight - 12, { align: 'center' })
 
-  // Save the PDF
+  // Save or Return
+  if (returnBase64) {
+    return doc.output('datauristring').split(',')[1]
+  }
   doc.save(`${invoice.invoice_number}.pdf`)
 }
 
 /**
  * PDF Export Logic (Proposals)
  */
-export function exportProposalToPDF(proposal: any) {
+export function exportProposalToPDF(proposal: any, returnBase64 = false) {
   const data = proposal.content || {}
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
@@ -502,5 +505,9 @@ export function exportProposalToPDF(proposal: any) {
   doc.setFont('helvetica', 'bold')
   doc.text('Ready to build your digital future?', pageWidth / 2, pageHeight - 12, { align: 'center' })
 
+  // Save or Return
+  if (returnBase64) {
+    return doc.output('datauristring').split(',')[1]
+  }
   doc.save(`Proposal-${propId}.pdf`)
 }

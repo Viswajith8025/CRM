@@ -47,119 +47,40 @@ export default function ProposalDetail() {
 
     setIsSending(true)
     try {
+      const { exportProposalToPDF } = await import('@/lib/exportUtils')
+      const pdfBase64 = exportProposalToPDF(proposal, true) as string
+
       // Use the premium HTML template (simplified for email but keeping the style)
       const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: 'Inter', system-ui, -apple-system, sans-serif; line-height: 1.6; color: #0f172a; margin: 0; padding: 0; background-color: #f8fafc; }
-            .container { max-width: 800px; margin: 40px auto; background: #fff; padding: 0; border-radius: 32px; overflow: hidden; box-shadow: 0 40px 80px -12px rgba(0,0,0,0.1); }
-            .top-strip { height: 8px; background: linear-gradient(to right, #2563eb, #3b82f6, #10b981); }
-            .content { padding: 60px; }
-            .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 60px; }
-            .logo-box { height: 60px; width: 60px; background: #0f172a; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
-            .logo-inner { height: 30px; width: 30px; background: #fff; border-radius: 8px; transform: rotate(12deg); }
-            .brand-name { font-size: 32px; font-weight: 900; color: #0f172a; letter-spacing: -2px; margin: 0; }
-            .brand-tag { font-size: 10px; font-weight: 900; color: #2563eb; text-transform: uppercase; letter-spacing: 4px; margin-top: 4px; }
-            .meta-title { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 4px; text-align: right; }
-            .meta-value { font-size: 40px; font-weight: 900; color: #0f172a; letter-spacing: -2px; text-align: right; }
-            .info-bar { background: #f8fafc; border: 1px solid #f1f5f9; border-radius: 24px; padding: 32px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-bottom: 60px; }
-            .info-item label { font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 2px; display: block; margin-bottom: 4px; }
-            .info-item value { font-size: 14px; font-weight: 900; color: #0f172a; display: block; }
-            .recipient-header { display: inline-block; padding: 4px 16px; background: #0f172a; color: #fff; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 3px; border-radius: 8px 8px 0 0; }
-            .recipient-box { border: 2px solid #0f172a; border-radius: 0 24px 24px 24px; padding: 32px; display: flex; gap: 40px; margin-bottom: 60px; }
-            .recipient-name { font-size: 36px; font-weight: 900; color: #0f172a; letter-spacing: -1px; margin: 0; }
-            .pricing-table { width: 100%; border-collapse: collapse; margin-bottom: 60px; }
-            .pricing-table th { padding: 24px 0; border-bottom: 4px solid #0f172a; font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 3px; text-align: left; }
-            .pricing-table td { padding: 32px 0; border-bottom: 1px solid #f1f5f9; }
-            .pricing-table .total-row { background: #f8fafc; }
-            .footer-box { background: #0f172a; padding: 60px; text-align: center; color: #fff; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="top-strip"></div>
-            <div class="content">
-              <div class="header">
-                <div>
-                  <div class="logo-box"><div class="logo-inner"></div></div>
-                  <h1 class="brand-name">${data.company_name}</h1>
-                  <p class="brand-tag">Digital Solutions</p>
-                </div>
-                <div>
-                  <p class="meta-title">Proposal Ref</p>
-                  <p class="meta-value">#${data.proposal_id}</p>
-                </div>
-              </div>
-
-              <div class="info-bar">
-                <div class="info-item"><label>Date Issued</label><value>${data.date}</value></div>
-                <div class="info-item"><label>Expiry Date</label><value>${data.expiry_date || 'N/A'}</value></div>
-                <div class="info-item"><label>Project Track</label><value>${data.service_name}</value></div>
-                <div class="info-item"><label>Currency</label><value>INR (₹)</value></div>
-              </div>
-
-              <div class="recipient-header">Recipient</div>
-              <div class="recipient-box">
-                <div style="flex: 1;">
-                  <h2 class="recipient-name">${data.client_name}</h2>
-                  <p style="font-size: 18px; font-weight: bold; color: #64748b; margin-top: 4px;">${data.client_company}</p>
-                </div>
-                <div style="flex: 1; font-size: 14px; color: #64748b;">
-                  <p><strong>Email:</strong> ${data.client_email}</p>
-                  <p><strong>Service:</strong> ${data.service_name}</p>
-                </div>
-              </div>
-
-              <h3 style="font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 4px; margin-bottom: 24px;">Scope of Work</h3>
-              <div style="padding: 24px; background: #fff; border-left: 4px solid #2563eb; margin-bottom: 60px; font-size: 15px; color: #475569; line-height: 1.8;">
-                ${data.description}
-              </div>
-
-              <table class="pricing-table">
-                <thead>
-                  <tr>
-                    <th>Component</th>
-                    <th style="text-align: right;">Investment (₹)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${data.items.map((item: any) => `
-                    <tr>
-                      <td>
-                        <div style="font-size: 18px; font-weight: 900; color: #0f172a;">${item.name}</div>
-                        <div style="font-size: 12px; font-weight: bold; color: #94a3b8; margin-top: 4px;">Professional Service</div>
-                      </td>
-                      <td style="text-align: right; font-size: 20px; font-weight: 900; color: #0f172a;">₹${item.price.toLocaleString()}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-
-              <div style="background: #f8fafc; padding: 40px; border-radius: 32px; display: flex; justify-content: space-between; align-items: end;">
-                <div>
-                   <p style="font-size: 10px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 8px;">Total Investment</p>
-                   <p style="font-size: 48px; font-weight: 900; color: #0f172a; letter-spacing: -2px; margin: 0;">₹${data.total.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-            <div class="footer-box">
-               <h3 style="font-size: 24px; font-weight: 900; letter-spacing: -1px; margin-bottom: 16px;">Ready to start your project?</h3>
-               <p style="font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; opacity: 0.4;">Proprietary & Confidential • ECRAFTZ Digital Solutions</p>
-            </div>
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #0f172a; margin-bottom: 20px;">Project Proposal: ${data.service_name}</h2>
+          <p>Hello <strong>${data.client_name}</strong>,</p>
+          <p>Please find the project proposal for <strong>${data.service_name}</strong> attached to this email as a PDF.</p>
+          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+            <p style="margin: 0; color: #64748b; font-size: 14px;">Total Investment</p>
+            <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #0f172a;">Rs.${data.total.toLocaleString()}</p>
           </div>
-        </body>
-        </html>
+          <p>The proposal is valid until <strong>${data.valid_until || data.expiry_date || 'N/A'}</strong>.</p>
+          <p>If you have any questions or would like to proceed, please reply to this email.</p>
+          <br/>
+          <p>Best regards,</p>
+          <p><strong>The ${data.company_name} Team</strong></p>
+        </div>
       `
 
       await sendEmail({
         to: data.client_email,
-        subject: `Project Proposal: ${data.service_name} - ${data.company_name}`,
+        subject: `Proposal: ${data.service_name} - ${data.company_name}`,
         html,
+        attachments: [
+          {
+            filename: `Proposal-${data.proposal_id || id?.split('-')[0]}.pdf`,
+            content: pdfBase64
+          }
+        ]
       })
 
-      toast.success("Proposal sent to client successfully!")
+      toast.success("Proposal and PDF attachment sent successfully!")
     } catch (error) {
       console.error("Failed to send email:", error)
       toast.error("Failed to send proposal. Please check your Resend configuration.")

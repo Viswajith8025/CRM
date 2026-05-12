@@ -5,20 +5,25 @@ interface SendEmailParams {
   subject: string
   html: string
   text?: string
+  attachments?: {
+    filename: string
+    content: string // Base64 content
+  }[]
 }
 
 /**
  * Securely calls our Supabase Database Function to send an email via Resend.
  * This ensures our Resend API key is never exposed to the browser.
  */
-export async function sendEmail({ to, subject, html, text }: SendEmailParams) {
+export async function sendEmail({ to, subject, html, text, attachments = [] }: SendEmailParams) {
   try {
     // We use a secure Postgres function (RPC) instead of an Edge Function
     // so we don't need to mess with Supabase CLI logins.
     const { data, error } = await supabase.rpc('send_email_via_resend', {
       p_to_email: Array.isArray(to) ? to[0] : to,
       p_subject: subject,
-      p_html: html
+      p_html: html,
+      p_attachments: attachments
     })
 
     if (error) {

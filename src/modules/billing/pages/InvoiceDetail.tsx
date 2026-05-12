@@ -62,30 +62,41 @@ export default function InvoiceDetail() {
       if (invoice.client?.email) {
         try {
           const { sendEmail } = await import('@/lib/email');
+          const { exportInvoiceToPDF } = await import('@/lib/exportUtils');
+          
+          // Generate PDF base64
+          const pdfBase64 = exportInvoiceToPDF(invoice, true) as string;
+
           await sendEmail({
             to: invoice.client.email,
             subject: `Invoice ${invoice.invoice_number} from ECRAFTZ`,
             html: `
-              <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-                <h2 style="color: #0f172a;">New Invoice: ${invoice.invoice_number}</h2>
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <h2 style="color: #0f172a; margin-bottom: 20px;">Invoice: ${invoice.invoice_number}</h2>
                 <p>Hello <strong>${invoice.client.name}</strong>,</p>
-                <p>Please find the details for your recent invoice.</p>
-                <div style="background-color: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                  <p style="margin: 5px 0;"><strong>Amount Due:</strong> ₹${invoice.amount}</p>
-                  <p style="margin: 5px 0;"><strong>Due Date:</strong> ${invoice.due_date ? format(new Date(invoice.due_date), 'MMMM dd, yyyy') : 'N/A'}</p>
-                  <p style="margin: 5px 0;"><strong>Project:</strong> ${invoice.project?.name || 'General Services'}</p>
+                <p>Please find the invoice <strong>${invoice.invoice_number}</strong> attached to this email as a PDF document.</p>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+                  <p style="margin: 0; color: #64748b; font-size: 14px;">Amount Due</p>
+                  <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #0f172a;">₹${invoice.amount.toLocaleString()}</p>
+                  <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Due Date: ${invoice.due_date ? format(new Date(invoice.due_date), 'MMMM dd, yyyy') : 'N/A'}</p>
                 </div>
                 <p>If you have any questions, please reply to this email.</p>
                 <br/>
                 <p>Thank you for your business!</p>
                 <p><strong>- ECRAFTZ Team</strong></p>
               </div>
-            `
+            `,
+            attachments: [
+              {
+                filename: `Invoice-${invoice.invoice_number}.pdf`,
+                content: pdfBase64
+              }
+            ]
           });
           emailDispatched = true;
         } catch (emailErr: any) {
-          console.warn("Email dispatch failed (Edge function may not be deployed yet).", emailErr);
-          toast.info("Invoice marked as sent in DB, but email delivery requires Supabase Edge Function to be deployed.");
+          console.warn("Email dispatch failed.", emailErr);
+          toast.info("Invoice marked as sent in DB, but email delivery encountered an issue.");
         }
       } else {
         toast.info("Client has no email address on file. Marked as sent manually.");
@@ -95,7 +106,7 @@ export default function InvoiceDetail() {
       setInvoice({ ...invoice, status: 'sent' });
       
       if (emailDispatched) {
-        toast.success(`Invoice emailed to ${invoice.client?.email} successfully!`);
+        toast.success(`Invoice and PDF attachment emailed to ${invoice.client?.email} successfully!`);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to update invoice status.");
