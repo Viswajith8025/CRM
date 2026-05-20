@@ -591,24 +591,195 @@ export const useFormsStore = create<FormsState>((set, get) => ({
 
       if (statusError) throw statusError
 
-      // If already linked to a client, just update their contract value
+      // 1. Build a map of field ID to decrypted answer value
+      const answersMap = new Map((submission.answers || []).map((a: any) => {
+        let val = a.answer_value;
+        if (val === '[ENCRYPTED / MASKED]' && a.answer_encrypted) {
+          try {
+            val = atob(a.answer_encrypted);
+          } catch (e) {
+            val = a.answer_value;
+          }
+        }
+        return [a.field_id, val || ''];
+      }))
+
+      // 2. Loop through sections and fields to extract known fields
+      let extractedClientName = ''
+      let extractedEmail = ''
+      let extractedPhone = ''
+      let extractedAddress = ''
+      let extractedWebsite = ''
+      let extractedProjectName = ''
+      let extractedProjectType = ''
+      let extractedBudget = ''
+      const extractedServices: string[] = []
+
+      const sections = submission.template?.sections || []
+      sections.forEach((section: any) => {
+        section.fields?.forEach((field: any) => {
+          const code = (field.code || '').toLowerCase().trim()
+          const label = (field.label || '').toLowerCase().trim()
+          const val = (answersMap.get(field.id) || '').trim()
+
+          if (!val) return
+
+          // Match client/company name
+          if (
+            code === 'client_name' ||
+            code === 'company_name' ||
+            code === 'company' ||
+            code === 'clientname' ||
+            code === 'companyname' ||
+            code === 'full_name' ||
+            code === 'fullname' ||
+            label === 'client name' ||
+            label === 'company name' ||
+            label === 'your name' ||
+            label === 'full name' ||
+            (label.includes('company') && (label.includes('name') || label.includes('title'))) ||
+            (label.includes('client') && label.includes('name') && !label.includes('project'))
+          ) {
+            if (!extractedClientName) extractedClientName = val
+          }
+          // Match client email
+          else if (
+            code === 'email' ||
+            code === 'client_email' ||
+            code === 'company_email' ||
+            field.field_type === 'email' ||
+            label.includes('email') ||
+            label.includes('e-mail')
+          ) {
+            if (!extractedEmail) extractedEmail = val
+          }
+          // Match client phone
+          else if (
+            code === 'phone' ||
+            code === 'telephone' ||
+            code === 'mobile' ||
+            code === 'client_phone' ||
+            field.field_type === 'phone' ||
+            label.includes('phone') ||
+            label.includes('mobile') ||
+            label.includes('contact number')
+          ) {
+            if (!extractedPhone) extractedPhone = val
+          }
+          // Match client address
+          else if (
+            code === 'address' ||
+            code === 'location' ||
+            code === 'office_address' ||
+            label.includes('address') ||
+            label.includes('office location')
+          ) {
+            if (!extractedAddress) extractedAddress = val
+          }
+          // Match website
+          else if (
+            code === 'website' ||
+            code === 'url' ||
+            code === 'domain' ||
+            label.includes('website') ||
+            label.includes('domain') ||
+            label.includes('url')
+          ) {
+            if (!extractedWebsite) extractedWebsite = val
+          }
+          // Match project name
+          else if (
+            code === 'project_name' ||
+            code === 'projectname' ||
+            label.includes('project name') ||
+            label.includes('name of project') ||
+            label.includes('name of your project')
+          ) {
+            if (!extractedProjectName) extractedProjectName = val
+          }
+          // Match project type
+          else if (
+            code === 'project_type' ||
+            code === 'projecttype' ||
+            label.includes('project type') ||
+            label.includes('type of project') ||
+            label.includes('category')
+          ) {
+            if (!extractedProjectType) extractedProjectType = val
+          }
+          // Match budget
+          else if (
+            code === 'budget' ||
+            code === 'project_budget' ||
+            label.includes('budget') ||
+            label.includes('estimated budget') ||
+            label.includes('investment')
+          ) {
+            if (!extractedBudget) extractedBudget = val
+          }
+          // Match services
+          else if (
+            code === 'services' ||
+            code === 'services_needed' ||
+            code === 'services_required' ||
+            label.includes('services required') ||
+            label.includes('services needed') ||
+            label.includes('which services') ||
+            label.includes('select services')
+          ) {
+            extractedServices.push(val)
+          }
+        })
+      })
+
+      // Build client name: use CONTACT PERSON's name as the active client identifier
+      let clientName = ''
+      let companyName = '' // Track company separately for project naming
+
+      if (submission.lead) {
+        // Person's full name from lead record
+        const personName = `${submission.lead.first_name} ${submission.lead.last_name || ''}`.trim()
+        if (personName) clientName = personName
+        companyName = submission.lead.company || ''
+      }
+
+      // Fallback: use extracted name from form if lead name unavailable
+      if (!clientName && extractedClientName) {
+        clientName = extractedClientName
+      }
+
+      // Final fallback
+      if (!clientName) {
+        clientName = submission.template?.name || 'New Client'
+      }
+
+      const email = extractedEmail || submission.lead?.email || null
+      const phone = extractedPhone || submission.lead?.phone || null
+      const address = extractedAddress || null
+      const website = extractedWebsite || null
+      const service = extractedServices.length > 0 ? extractedServices.join(', ') : (submission.template?.service_type || null)
+      const projectCostVal = submission.financial_data?.project_cost || (extractedBudget ? parseFloat(extractedBudget.replace(/[^0-9.]/g, '')) : null) || null
+
+      // If already linked to a client, just update their contract value and details
       if (submission.client_id) {
-        if (submission.financial_data?.project_cost) {
+        const updatePayload: any = {}
+        if (projectCostVal) updatePayload.contract_value = projectCostVal
+        if (email) updatePayload.email = email
+        if (phone) updatePayload.phone = phone
+        if (address) updatePayload.address = address
+        if (website) updatePayload.website = website
+        if (service) updatePayload.service = service
+
+        if (Object.keys(updatePayload).length > 0) {
           await supabase
             .from('clients')
-            .update({ contract_value: submission.financial_data.project_cost })
+            .update(updatePayload)
             .eq('id', submission.client_id)
         }
         await get().getSubmissionById(submissionId)
         await get().fetchSubmissions()
         return submission.client_id
       }
-
-      // Build client name from lead or template
-      const clientName =
-        submission.lead
-          ? `${submission.lead.first_name} ${submission.lead.last_name || ''}`.trim()
-          : (submission.template?.name || 'New Client')
 
       // Create the client record
       const { data: newClient, error: clientError } = await supabase
@@ -617,12 +788,12 @@ export const useFormsStore = create<FormsState>((set, get) => ({
           organization_id: orgId,
           lead_id: submission.lead_id || null,
           name: clientName,
-          service: submission.template?.service_type || null,
-          contract_value: submission.financial_data?.project_cost || null,
-          email: null,
-          phone: null,
-          address: null,
-          website: null,
+          email: email,
+          phone: phone,
+          address: address,
+          website: website,
+          service: service,
+          contract_value: projectCostVal,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -638,35 +809,53 @@ export const useFormsStore = create<FormsState>((set, get) => ({
         .eq('id', submissionId)
 
       // 1. Build a rich, structured description containing all client answers
-      let projectDescription = `Intake Services: ${submission.template?.service_type || 'Custom Service'}\n\n=== CLIENT REQUIREMENT SPECIFICATION ===\n`
-      const sections = submission.template?.sections || []
-      const answersMap = new Map((submission.answers || []).map((a: any) => [a.field_id, a]))
+      let projectDescription = `Intake Services: ${submission.template?.service_type || 'Custom Service'}\n`
+      if (service) {
+        projectDescription += `Requested Services: ${service}\n`
+      }
+      projectDescription += `\n=== CLIENT REQUIREMENT SPECIFICATION ===\n`
       
       sections.forEach((section: any) => {
         projectDescription += `\n[ ${section.title} ]\n`
         section.fields?.forEach((field: any) => {
-          const ans = answersMap.get(field.id)
-          if (ans?.answer_value) {
-            projectDescription += `- ${field.label}: ${ans.answer_value}\n`
+          const ansVal = answersMap.get(field.id)
+          if (ansVal) {
+            projectDescription += `- ${field.label}: ${ansVal}\n`
           }
         })
       })
 
       // 2. Map service type to project category
       let projectType = 'Other'
-      const svcType = (submission.template?.service_type || '').toLowerCase()
-      if (svcType.includes('software') || svcType.includes('app') || svcType.includes('dev')) {
-        projectType = 'Software'
-      } else if (svcType.includes('web') || svcType.includes('design')) {
-        projectType = 'Website'
-      } else if (svcType.includes('marketing') || svcType.includes('seo')) {
-        projectType = 'Marketing'
-      } else if (svcType.includes('commerce') || svcType.includes('shop')) {
-        projectType = 'Ecommerce'
+      if (extractedProjectType) {
+        const cleanedType = extractedProjectType.toLowerCase()
+        if (cleanedType.includes('software') || cleanedType.includes('app') || cleanedType.includes('dev')) {
+          projectType = 'Software'
+        } else if (cleanedType.includes('web') || cleanedType.includes('design')) {
+          projectType = 'Website'
+        } else if (cleanedType.includes('marketing') || cleanedType.includes('seo')) {
+          projectType = 'Marketing'
+        } else if (cleanedType.includes('commerce') || cleanedType.includes('shop')) {
+          projectType = 'Ecommerce'
+        }
+      } else {
+        const svcType = (submission.template?.service_type || '').toLowerCase()
+        if (svcType.includes('software') || svcType.includes('app') || svcType.includes('dev')) {
+          projectType = 'Software'
+        } else if (svcType.includes('web') || svcType.includes('design')) {
+          projectType = 'Website'
+        } else if (svcType.includes('marketing') || svcType.includes('seo')) {
+          projectType = 'Marketing'
+        } else if (svcType.includes('commerce') || svcType.includes('shop')) {
+          projectType = 'Ecommerce'
+        }
       }
 
       // 3. Create the project automatically in the projects section
-      const projectName = `${clientName} - ${submission.template?.name || 'Onboarding Project'}`
+      // Project name: form field → company name → person name + template
+      const projectName = extractedProjectName
+        || (companyName ? `${companyName} - ${submission.template?.name || 'Project'}` : '')
+        || `${clientName} - ${submission.template?.name || 'Onboarding Project'}`
       const { data: newProject, error: projectCreateError } = await supabase
         .from('projects')
         .insert({
@@ -675,7 +864,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
           name: projectName,
           description: projectDescription,
           type: projectType,
-          budget: submission.financial_data?.project_cost || null,
+          budget: projectCostVal,
           status: 'planning',
           start_date: new Date().toISOString().split('T')[0],
           created_at: new Date().toISOString(),

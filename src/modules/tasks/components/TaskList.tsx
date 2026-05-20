@@ -14,6 +14,7 @@ import type { Task } from "../types/types"
 import { useTasksStore } from "../tasksStore"
 import TaskDetailsDialog from "./TaskDetailsDialog"
 import { useState, memo } from "react"
+import { toast } from "sonner"
 
 interface TaskListProps {
   tasks: Task[]
@@ -122,7 +123,15 @@ export const TaskList = memo(({ tasks }: TaskListProps) => {
                           <DropdownMenuItem className="font-medium">Edit Task</DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-rose-500 font-bold focus:text-rose-600 focus:bg-rose-50"
-                            onClick={() => deleteTask(task.id)}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await deleteTask(task.id);
+                                toast.success("Task deleted");
+                              } catch (err: any) {
+                                toast.error(err.message || "Failed to delete task");
+                              }
+                            }}
                           >
                             Delete Task
                           </DropdownMenuItem>

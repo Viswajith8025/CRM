@@ -259,6 +259,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           totalPages: result.totalPages
         },
         error: null, 
+        isLoading: false,
         hasFetched: true, 
         lastFetchedAt: Date.now() 
       })

@@ -1,7 +1,7 @@
 import {
   Briefcase,
   AlertCircle,
-  DollarSign,
+  IndianRupee,
   Users,
   ArrowUpRight,
   ArrowDownRight,
@@ -29,6 +29,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 
 import { useEffect, useMemo, useRef, useCallback, useState } from "react"
@@ -123,10 +124,10 @@ export default function Dashboard() {
     return [
       {
         name: filterType === 'all' ? 'Total Revenue' : 'Period Revenue',
-        value: `$${stats.revenue.toLocaleString()}`,
+        value: `₹${stats.revenue.toLocaleString('en-IN')}`,
         change: filterType === 'all' ? 'All time earnings' : 'For selected period',
         changeType: 'increase',
-        icon: DollarSign,
+        icon: IndianRupee,
         color: 'text-emerald-500',
         bg: 'bg-emerald-500/10',
         path: '/billing',

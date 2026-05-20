@@ -10,8 +10,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   User, Mail, Phone, Globe, MapPin, Briefcase,
-  DollarSign, CheckCircle, Clock, AlertCircle, FileText,
-  TrendingUp, CreditCard, ReceiptText
+  IndianRupee, CheckCircle, Clock, AlertCircle, FileText,
+  TrendingUp, CreditCard, ReceiptText, Building2
 } from 'lucide-react'
 import type { Client } from '../types'
 
@@ -45,11 +45,25 @@ interface SubmissionWithFinancials {
 export function ClientDetailSheet({ client, open, onOpenChange }: ClientDetailSheetProps) {
   const [submission, setSubmission] = useState<SubmissionWithFinancials | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [linkedProject, setLinkedProject] = useState<{ id: string; name: string } | null>(null)
 
   useEffect(() => {
     if (!client || !open) return
     setSubmission(null)
     setIsLoading(true)
+    setLinkedProject(null)
+
+    // Fetch the auto-created project linked to this client
+    supabase
+      .from('projects')
+      .select('id, name')
+      .eq('client_id', client.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setLinkedProject({ id: data.id, name: data.name })
+      })
 
     supabase
       .from('form_submissions')
@@ -112,9 +126,22 @@ export function ClientDetailSheet({ client, open, onOpenChange }: ClientDetailSh
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl flex flex-col gap-0 p-0">
         <SheetHeader className="p-6 pb-4 border-b bg-slate-900 text-white rounded-tl-none">
-          <SheetTitle className="text-white text-xl font-black tracking-tight">
-            {client?.name}
-          </SheetTitle>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <SheetTitle className="text-white text-xl font-black tracking-tight">
+              {client?.name}
+            </SheetTitle>
+          </div>
+          {linkedProject && (
+            <div className="flex items-center gap-2 mt-2 mb-1">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-white/10 text-white border border-white/20">
+                <Building2 className="h-3 w-3 text-primary" />
+                {linkedProject.name}
+              </span>
+            </div>
+          )}
           <SheetDescription className="text-slate-400 text-xs">
             Full client profile — contact details, financials, and submitted form data.
           </SheetDescription>

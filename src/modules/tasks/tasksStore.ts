@@ -262,12 +262,11 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       // Extract co-owners and dependencies updates if provided
       const { collaborators, dependencies, ...taskDetails } = updates as any
 
-      // B. Update core task properties
+      // B. Update core task properties — filter by id only (RLS enforces org isolation)
       let query = supabase
         .from('tasks')
         .update(taskDetails)
         .eq('id', id)
-        .eq('organization_id', orgId)
 
       const { data, error } = await query
         .select()
@@ -366,29 +365,22 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   deleteTask: async (id) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
-
-      // Protect against deleting tasks with billable time logs
-      const { data: logs, error: logError } = await supabase
-        .from('time_logs')
-        .select('id')
-        .eq('task_id', id)
-        .limit(1)
-
-      if (logs && logs.length > 0) {
-        throw new Error("Cannot delete task with time logs. Please archive it instead to preserve financial history.")
-      }
-
+      // Hard delete: columns like deleted_at or is_archived do not exist on tasks
+      // RLS and foreign key constraints will protect tasks with billable time logs
       const { error } = await supabase
         .from('tasks')
-        .update({ 
-          deleted_at: new Date().toISOString(),
-          deleted_by: profile?.id 
-        })
+        .delete()
         .eq('id', id)
 
-      if (error) throw error
+      if (error) {
+        // If it fails due to FK constraint (e.g., time logs), throw a friendly error
+        if (error.code === '23503') {
+          throw new Error("Cannot delete task with time logs or dependencies. Please remove them first.")
+        }
+        throw error
+      }
+      
+      // Remove from local state so it disappears from the UI immediately
       set({
         tasks: get().tasks.filter((t) => t.id !== id)
       })

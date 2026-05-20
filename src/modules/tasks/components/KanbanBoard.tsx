@@ -142,8 +142,8 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
       await deleteTask(selectedTask.id)
       toast.success("Task deleted")
       setIsDeleteAlertOpen(false)
-    } catch (error) {
-      toast.error("Failed to delete task")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete task")
     }
   }
 

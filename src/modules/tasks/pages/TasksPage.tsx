@@ -44,21 +44,23 @@ export default function TasksPage() {
 
   const [isImportOpen, setIsImportOpen] = useState(false)
 
+  // Subscribe to real-time task changes once on mount
   useEffect(() => {
-    // Enterprise Fetch: Pass all active filters to the server
+    const unsubscribe = subscribeToTasks()
+    return () => unsubscribe()
+  }, [])
+
+  // Re-fetch tasks whenever filters change
+  useEffect(() => {
     fetchTasks({
       page: 1,
-      limit: view === 'list' ? 20 : 100, // Kanban needs more context
+      limit: view === 'list' ? 20 : 100,
       filters: {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         priority: priorityFilter !== 'all' ? priorityFilter : undefined,
         search: debouncedSearchQuery || undefined
       }
     })
-    
-    const unsubscribe = subscribeToTasks()
-    
-    return () => unsubscribe()
   }, [statusFilter, priorityFilter, debouncedSearchQuery, view])
 
   useEffect(() => {
