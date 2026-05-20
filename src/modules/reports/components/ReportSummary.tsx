@@ -1,13 +1,13 @@
+
 import { Card, CardContent } from "@/components/ui/card"
 import type { LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export interface SummaryMetric {
+interface Metric {
   label: string
   value: string | number
   icon: LucideIcon
   description?: string
-  color?: 'primary' | 'emerald' | 'rose' | 'amber' | 'blue'
   trend?: {
     value: string
     positive: boolean
@@ -15,49 +15,43 @@ export interface SummaryMetric {
 }
 
 interface ReportSummaryProps {
-  metrics: SummaryMetric[]
+  metrics: Metric[]
 }
 
 export function ReportSummary({ metrics }: ReportSummaryProps) {
-  const colorMap = {
-    primary: "text-primary bg-primary/10",
-    emerald: "text-emerald-600 bg-emerald-500/10",
-    rose: "text-rose-600 bg-rose-500/10",
-    amber: "text-amber-600 bg-amber-500/10",
-    blue: "text-blue-600 bg-blue-500/10",
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-muted/5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-8 pt-8">
       {metrics.map((metric) => (
-        <Card key={metric.label} className="border-border/50 bg-card shadow-sm hover:shadow-md transition-shadow">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                {metric.label}
-              </p>
-              <div className="flex items-baseline gap-2">
-                <h3 className={cn(
-                  "text-2xl font-black tracking-tight",
-                  metric.color === 'rose' && "text-rose-600",
-                  metric.color === 'emerald' && "text-emerald-600"
-                )}>
-                  {metric.value}
-                </h3>
-              </div>
-              {metric.description && (
-                <p className="text-[10px] font-medium text-muted-foreground">
-                  {metric.description}
+        <Card key={metric.label} className="border-border/50 bg-card/30 shadow-none">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mb-1">
+                  {metric.label}
                 </p>
-              )}
+                <h3 className="text-2xl font-black tracking-tighter uppercase">{metric.value}</h3>
+                {metric.description && (
+                  <p className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-tight">
+                    {metric.description}
+                  </p>
+                )}
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-muted/30 border border-border/50 flex items-center justify-center">
+                <metric.icon className="h-5 w-5 text-muted-foreground" />
+              </div>
             </div>
-
-            <div className={cn(
-              "h-12 w-12 rounded-xl flex items-center justify-center shrink-0",
-              colorMap[metric.color || 'primary']
-            )}>
-              <metric.icon className="h-6 w-6" />
-            </div>
+            
+            {metric.trend && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className={cn(
+                  "text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full",
+                  metric.trend.positive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"
+                )}>
+                  {metric.trend.positive ? '+' : '-'}{metric.trend.value}
+                </span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-40">vs last period</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

@@ -2,11 +2,12 @@ import { useEffect, useState, useMemo } from "react"
 import { usePerfGuard } from '@/hooks/usePerfGuard'
 import { useDebounce } from "@/hooks/useDebounce"
 import { PageWrapper } from "@/components/shared/PageWrapper"
-import { Plus, LayoutGrid, List as ListIcon, Filter, Search, FileSpreadsheet } from "lucide-react"
+import { Plus, LayoutGrid, List as ListIcon, Filter, Search, FileSpreadsheet, Users } from "lucide-react"
 import { ImportWizard } from "@/components/shared/ImportWizard"
 import { Button } from "@/components/ui/button"
 import { KanbanBoard } from "../components/KanbanBoard"
 import { TaskList } from "../components/TaskList"
+import { WorkloadBoard } from "../components/WorkloadBoard"
 import { useTasksStore } from "../tasksStore"
 import {
   Dialog,
@@ -28,42 +29,45 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { useSearchParams } from "react-router-dom"
+
 export default function TasksPage() {
   usePerfGuard('TasksPage')
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
-  const [view, setView] = useState<'kanban' | 'list'>('kanban')
+  const [searchParams] = useSearchParams()
+  const [view, setView] = useState<'kanban' | 'list' | 'workload'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
 
   const [isImportOpen, setIsImportOpen] = useState(false)
 
   useEffect(() => {
-    fetchTasks()
+    // Enterprise Fetch: Pass all active filters to the server
+    fetchTasks({
+      page: 1,
+      limit: view === 'list' ? 20 : 100, // Kanban needs more context
+      filters: {
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
+        search: debouncedSearchQuery || undefined
+      }
+    })
+    
     const unsubscribe = subscribeToTasks()
+    
     return () => unsubscribe()
-  }, [])
+  }, [statusFilter, priorityFilter, debouncedSearchQuery, view])
 
-  const filteredTasks = useMemo(() => tasks.filter(task => {
-    let matchesStatus = statusFilter === "all" || task.status === statusFilter
-    
-    if (statusFilter === "overdue") {
-      matchesStatus = task.status !== 'done' && 
-                      task.due_date !== null && 
-                      new Date(task.due_date) < new Date()
+  useEffect(() => {
+    // Update local search if URL changes
+    const urlSearch = searchParams.get("search")
+    if (urlSearch && urlSearch !== searchQuery) {
+      setSearchQuery(urlSearch)
     }
-
-    const matchesPriority = priorityFilter === "all" || task.priority === priorityFilter
-    
-    const query = debouncedSearchQuery.toLowerCase()
-    const matchesSearch = query === "" || 
-                          task.title.toLowerCase().includes(query) || 
-                          (task.description && task.description.toLowerCase().includes(query))
-
-    return matchesStatus && matchesPriority && matchesSearch
-  }), [tasks, statusFilter, priorityFilter, debouncedSearchQuery])
+  }, [searchParams])
 
   const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all"
 
@@ -185,6 +189,15 @@ export default function TasksPage() {
               <ListIcon className="h-4 w-4" />
               List
             </Button>
+            <Button 
+              variant={view === 'workload' ? 'secondary' : 'ghost'} 
+              size="sm" 
+              onClick={() => setView('workload')}
+              className="gap-2 font-bold"
+            >
+              <Users className="h-4 w-4" />
+              Workload
+            </Button>
           </div>
 
           <div className="relative flex-1 sm:w-64">
@@ -209,14 +222,16 @@ export default function TasksPage() {
         )}
       </div>
 
-      {view === 'kanban' ? (
+      {view === 'workload' ? (
+        <WorkloadBoard />
+      ) : view === 'kanban' ? (
         <KanbanBoard 
-          tasks={filteredTasks}
+          tasks={tasks}
           filterStatus={statusFilter}
         />
       ) : (
         <TaskList 
-          tasks={filteredTasks}
+          tasks={tasks}
         />
       )}
 

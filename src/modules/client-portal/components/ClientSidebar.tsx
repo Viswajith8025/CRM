@@ -15,7 +15,6 @@ const navigation = [
   { name: 'Invoices', href: '/portal/invoices', icon: FileText },
   { name: 'File Vault', href: '/portal/vault', icon: FolderLock },
   { name: 'Settings', href: '/portal/settings', icon: Settings },
-  { name: 'Support', href: '/portal/support', icon: HelpCircle },
 ]
 
 export function ClientSidebar() {

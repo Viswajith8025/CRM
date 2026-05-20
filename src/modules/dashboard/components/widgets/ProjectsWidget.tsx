@@ -1,17 +1,15 @@
 import { CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Briefcase, BarChart3 } from 'lucide-react'
-import { useProjectsStore } from '@/modules/projects'
+import { Briefcase } from 'lucide-react'
+import { useDashboardDataStore } from '@/modules/dashboard'
 import { useEffect } from 'react'
 import { Progress } from '@/components/ui/progress'
 
 export function ProjectsWidget() {
-  const { projects, fetchProjects } = useProjectsStore()
+  const { projectHealth, fetchProjectHealth } = useDashboardDataStore()
 
   useEffect(() => {
-    fetchProjects()
+    fetchProjectHealth()
   }, [])
-
-  const activeProjects = projects.filter(p => p.status === 'in_progress').slice(0, 3)
 
   return (
     <div className="h-full flex flex-col">
@@ -22,24 +20,21 @@ export function ProjectsWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
-        {activeProjects.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-4 text-center">No active projects.</p>
+        {projectHealth.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-4 text-center uppercase tracking-widest font-black">No active projects</p>
         ) : (
-          activeProjects.map(project => {
-            const completed = project.tasks?.filter((t: any) => t.status === 'done').length || 0
-            const total = project.tasks?.length || 1
-            const progress = Math.round((completed / total) * 100)
-            
-            return (
-              <div key={project.id} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-black truncate">{project.name}</p>
-                  <span className="text-[10px] font-bold text-muted-foreground">{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-1" />
+          projectHealth.map(project => (
+            <div key={project.id} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-black truncate">{project.name}</p>
+                <span className="text-[10px] font-bold text-muted-foreground">{project.progress}%</span>
               </div>
-            )
-          })
+              <Progress value={project.progress} className="h-1" />
+              <div className="flex justify-between text-[8px] text-muted-foreground uppercase font-bold">
+                <span>{project.completed_tasks} / {project.total_tasks} Tasks</span>
+              </div>
+            </div>
+          ))
         )}
       </CardContent>
     </div>

@@ -34,12 +34,13 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 import type { Invoice } from "../types"
 import { supabase } from "@/lib/supabase"
+import { sanitizeObject } from "@/lib/security"
 
 const formSchema = z.object({
-  invoice_number: z.string().min(2, "Invoice number is required"),
+  invoice_number: z.string().min(2, "Invoice number is required").max(50),
   client_id: z.string().uuid("Please select a client"),
-  project_id: z.string().uuid("Please select a project"),
-  amount: z.coerce.number().positive("Amount must be positive"),
+  project_id: z.string().uuid("Please select a project").nullable().or(z.literal("none")),
+  amount: z.coerce.number().positive("Amount must be positive").max(1000000),
   tax_rate: z.coerce.number().min(0).max(100).optional(),
   is_recurring: z.boolean().default(false),
   frequency: z.enum(['monthly', 'quarterly', 'yearly']).nullable().optional(),
@@ -75,7 +76,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
     defaultValues: {
       invoice_number: invoice?.invoice_number || `INV-${Math.floor(Math.random() * 10000)}`,
       client_id: invoice?.client_id || defaultClientId || "",
-      project_id: invoice?.project_id || "",
+      project_id: (invoice?.project_id as any) || "none",
       amount: invoice?.amount || 0,
       tax_rate: invoice?.tax_rate || 0,
       is_recurring: invoice?.is_recurring || false,
@@ -87,28 +88,27 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
-    console.log('Submitting Invoice - Selected Client:', values.client_id)
     try {
-      let finalClientId = values.client_id
+      // OWASP: Sanitize all inputs and validate schema strictly
+      const sanitizedValues = sanitizeObject(values)
+      let finalClientId = sanitizedValues.client_id
       
       // Ensure the selected client is a real record (converts lead if needed)
       if (finalClientId && finalClientId !== "none") {
         try {
-          // If ensureClientFromLead is called on a real client, it will now handle it gracefully
           finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
         } catch (err) {
           console.error("Client conversion check failed:", err)
-          // Don't block the whole submission if it might already be a valid client ID
         }
       }
 
-      const taxRate = values.tax_rate || 0
-      const taxAmount = (values.amount * taxRate) / 100
+      const taxRate = sanitizedValues.tax_rate || 0
+      const taxAmount = (sanitizedValues.amount * taxRate) / 100
 
       const submitData = {
-        ...values,
+        ...sanitizedValues,
         client_id: finalClientId,
-        project_id: values.project_id === "none" ? null : values.project_id,
+        project_id: sanitizedValues.project_id === "none" ? null : sanitizedValues.project_id,
         tax_amount: taxAmount,
       }
 
@@ -164,14 +164,14 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
         return
       }
 
-      // Calculate total amount based on $150/hr flat rate
+      // Calculate total amount based on ₹12,000/hr flat rate
       const totalMinutes = unbilledLogs.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0)
-      const calculatedAmount = (totalMinutes / 60) * 150
+      const calculatedAmount = (totalMinutes / 60) * 12000
 
       const currentAmount = Number(form.watch('amount')) || 0
       form.setValue('amount', currentAmount + calculatedAmount)
       
-      toast.success(`Imported ${totalMinutes} minutes ($${calculatedAmount.toFixed(2)})`)
+      toast.success(`Imported ${totalMinutes} minutes (₹${calculatedAmount.toFixed(2)})`)
     } catch (err: any) {
       toast.error(err.message || "Failed to import time logs")
     } finally {
@@ -337,10 +337,10 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Base Amount ($)</FormLabel>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Base Amount (₹)</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">₹</span>
                           <Input type="number" step="0.01" {...field} className="pl-9 bg-muted/20 font-bold" />
                         </div>
                       </FormControl>
@@ -348,7 +348,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                     </FormItem>
                   )}
                 />
-
+                
                 <FormField
                   control={form.control}
                   name="tax_rate"
@@ -372,7 +372,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                     <p className="text-xs text-emerald-500/70 font-medium">Applied {form.watch('tax_rate')}% VAT/Tax</p>
                   </div>
                   <div className="text-2xl font-black text-emerald-500">
-                    ${(Number(form.watch('amount')) + (Number(form.watch('amount')) * Number(form.watch('tax_rate') || 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    ₹{(Number(form.watch('amount')) + (Number(form.watch('amount')) * Number(form.watch('tax_rate') || 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               )}

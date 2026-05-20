@@ -1,6 +1,6 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import type { Task } from '../types'
+import type { Task } from '../types/types'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Loader2, MoreHorizontal, Edit2, Trash2, MessageSquare } from 'lucide-react'

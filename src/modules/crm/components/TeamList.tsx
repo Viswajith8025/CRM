@@ -10,27 +10,56 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Mail, Shield, UserCheck, UserX, ChevronDown, DollarSign } from "lucide-react"
+import { Search, Mail, Shield, UserCheck, UserX, ChevronDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { useTeamStore } from "@/modules/admin"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
+import { usePermissions } from "@/hooks/usePermissions"
+import { useSearchParams } from "react-router-dom"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 
 export function TeamList() {
-  const { members, isLoading, fetchMembers, updateMemberStatus, updateMemberRole, updateMemberHourlyRate } = useTeamStore()
+  const { 
+    members, dynamicRoles, isLoading, 
+    fetchMembers, fetchDynamicRoles, assignDynamicRole,
+    updateMemberStatus, updateMemberHourlyRate 
+  } = useTeamStore()
+  const { departments, fetchDepartments, reassignMember } = useDepartmentStore()
   const { profile: currentUser } = useAuthStore()
-  const [search, setSearch] = useState("")
+  const { hasPermission } = usePermissions()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const [tab, setTab] = useState<'active' | 'pending' | 'denied'>('active')
 
   useEffect(() => {
     fetchMembers()
-  }, [])
+    fetchDynamicRoles()
+    fetchDepartments()
+    
+    // Update local search if URL changes
+    const urlSearch = searchParams.get("search")
+    if (urlSearch && urlSearch !== search) {
+      setSearch(urlSearch)
+    }
+  }, [searchParams])
+
+  const handleDepartmentChange = async (profileId: string, newDeptId: string) => {
+    try {
+      await reassignMember(profileId, newDeptId)
+      await fetchMembers() // Reload members after RPC updates column
+      toast.success("Department updated successfully")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update department")
+    }
+  }
 
   const pendingMembers = members.filter(m => m.status === 'pending')
   const activeMembers = members.filter(m => m.status === 'active')
@@ -40,18 +69,35 @@ export function TeamList() {
     .filter((member) =>
       member.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       member.email?.toLowerCase().includes(search.toLowerCase()) ||
+      member.dynamic_role_name?.toLowerCase().includes(search.toLowerCase()) ||
+      member.department?.toLowerCase().includes(search.toLowerCase()) ||
       member.role.toLowerCase().includes(search.toLowerCase())
     )
 
   const isSuperAdmin = currentUser?.role === 'super_admin'
-  const isAdmin = currentUser?.role === 'admin' || isSuperAdmin
+  const isAdmin = hasPermission('hr.manage_attendance') || isSuperAdmin
 
-  const roleColors: Record<string, string> = {
-    super_admin: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    admin: "bg-rose-500/10 text-rose-500 border-rose-500/20",
-    manager: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    employee: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    client: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+  const getRoleDisplay = (member: typeof members[0]) => {
+    if (member.dynamic_role_name) return member.dynamic_role_name
+    // Fallback to legacy role column
+    const legacyMap: Record<string, string> = {
+      super_admin: 'Super Admin',
+      admin: 'Administrator',
+      manager: 'HR',
+      employee: 'Employee',
+      client: 'Client',
+    }
+    return legacyMap[member.role] || member.role
+  }
+
+  const getRoleColor = (member: typeof members[0]) => {
+    const roleName = (member.dynamic_role_name || member.role || '').toLowerCase()
+    if (roleName.includes('super')) return "bg-purple-500/10 text-purple-500 border-purple-500/20"
+    if (roleName.includes('admin')) return "bg-rose-500/10 text-rose-500 border-rose-500/20"
+    if (roleName.includes('hr')) return "bg-amber-500/10 text-amber-500 border-amber-500/20"
+    if (roleName.includes('employee')) return "bg-blue-500/10 text-blue-500 border-blue-500/20"
+    // Custom roles get a unique teal color
+    return "bg-teal-500/10 text-teal-500 border-teal-500/20"
   }
 
   const statusColors: Record<string, string> = {
@@ -78,12 +124,13 @@ export function TeamList() {
     }
   }
 
-  const handleRoleChange = async (id: string, role: 'admin' | 'manager' | 'employee' | 'client') => {
+  const handleRoleChange = async (userId: string, roleId: string) => {
     try {
-      await updateMemberRole(id, role)
-      toast.success(`Role updated to ${role}`)
-    } catch {
-      toast.error("Failed to update role")
+      await assignDynamicRole(userId, roleId)
+      const roleName = dynamicRoles.find(r => r.id === roleId)?.name
+      toast.success(`Role updated to ${roleName}`)
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update role")
     }
   }
 
@@ -147,16 +194,16 @@ export function TeamList() {
             <TableRow className="bg-muted/30 border-b border-border/50">
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Member</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Role</TableHead>
+              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-sky-500">Department</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Registered</TableHead>
-              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Hourly Rate</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Status</TableHead>
               {isAdmin && <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
+             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32">
+                <TableCell colSpan={6} className="text-center h-32">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs font-bold text-muted-foreground">Loading members...</span>
@@ -165,7 +212,7 @@ export function TeamList() {
               </TableRow>
             ) : displayMembers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground font-medium">
+                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground font-medium">
                   {tab === 'pending' ? 'No pending approvals 🎉' : `No ${tab} members found.`}
                 </TableCell>
               </TableRow>
@@ -196,29 +243,108 @@ export function TeamList() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-2">
-                            <Badge variant="outline" className={roleColors[member.role]}>
-                              {member.role === 'manager' ? 'HR' : member.role.toUpperCase()}
+                            <Badge variant="outline" className={getRoleColor(member)}>
+                              {getRoleDisplay(member)}
                             </Badge>
                             <ChevronDown className="h-3 w-3 text-muted-foreground" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          {(['admin', 'manager', 'employee'] as const).map(role => {
-                            // HIERARCHY RULES:
-                            // 1. Only Super Admin can promote to Admin
-                            if (role === 'admin' && !isSuperAdmin) return null;
-                            
-                            return (
-                              <DropdownMenuItem key={role} onClick={() => handleRoleChange(member.id, role)} className="gap-2 capitalize">
-                                {role === 'manager' ? 'HR' : role}
-                              </DropdownMenuItem>
-                            );
-                          })}
+                        <DropdownMenuContent align="start" className="min-w-[180px]">
+                          {dynamicRoles.length === 0 ? (
+                            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                              No roles configured
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              {/* System roles first */}
+                              {dynamicRoles.filter(r => r.is_system).map(role => (
+                                <DropdownMenuItem
+                                  key={role.id}
+                                  onClick={() => handleRoleChange(member.id, role.id)}
+                                  className="gap-2 cursor-pointer"
+                                  disabled={member.dynamic_role_id === role.id}
+                                >
+                                  <Shield className="h-3 w-3 text-muted-foreground" />
+                                  <div>
+                                    <span className="font-bold">{role.name}</span>
+                                    {member.dynamic_role_id === role.id && (
+                                      <span className="ml-2 text-[10px] text-primary font-black">CURRENT</span>
+                                    )}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+
+                              {/* Separator if there are custom roles */}
+                              {dynamicRoles.some(r => !r.is_system) && <DropdownMenuSeparator />}
+
+                              {/* Custom roles */}
+                              {dynamicRoles.filter(r => !r.is_system).map(role => (
+                                <DropdownMenuItem
+                                  key={role.id}
+                                  onClick={() => handleRoleChange(member.id, role.id)}
+                                  className="gap-2 cursor-pointer"
+                                  disabled={member.dynamic_role_id === role.id}
+                                >
+                                  <div className="h-2 w-2 rounded-full bg-teal-500" />
+                                  <div>
+                                    <span className="font-bold">{role.name}</span>
+                                    {member.dynamic_role_id === role.id && (
+                                      <span className="ml-2 text-[10px] text-primary font-black">CURRENT</span>
+                                    )}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <Badge variant="outline" className={roleColors[member.role]}>
-                        {member.role === 'manager' ? 'HR' : member.role.toUpperCase()}
+                      <Badge variant="outline" className={getRoleColor(member)}>
+                        {getRoleDisplay(member)}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isAdmin && member.id !== currentUser?.id && member.role !== 'super_admin' ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-2">
+                            <Badge variant="outline" className="bg-sky-500/10 text-sky-500 border-sky-500/20 font-bold">
+                              {member.department || "No Department"}
+                            </Badge>
+                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="min-w-[180px]">
+                          {departments.length === 0 ? (
+                            <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+                              No departments configured
+                            </DropdownMenuItem>
+                          ) : (
+                            <>
+                              {departments.map(dept => (
+                                <DropdownMenuItem
+                                  key={dept.id}
+                                  onClick={() => handleDepartmentChange(member.id, dept.id)}
+                                  className="gap-2 cursor-pointer"
+                                  disabled={member.department === dept.name}
+                                >
+                                  <div className="h-2 w-2 rounded-full bg-sky-500" />
+                                  <div>
+                                    <span className="font-bold">{dept.name}</span>
+                                    {member.department === dept.name && (
+                                      <span className="ml-2 text-[10px] text-primary font-black">CURRENT</span>
+                                    )}
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Badge variant="outline" className="bg-sky-500/10 text-sky-500 border-sky-500/20 font-bold">
+                        {member.department || "No Department"}
                       </Badge>
                     )}
                   </TableCell>
@@ -226,28 +352,6 @@ export function TeamList() {
                     <span className="text-xs font-medium text-muted-foreground">
                       {new Date(member.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    {isAdmin ? (
-                      <div className="flex items-center gap-1 group/rate">
-                        <span className="text-xs text-muted-foreground">$</span>
-                        <input 
-                          type="number" 
-                          defaultValue={member.hourly_rate || 0}
-                          className="w-16 bg-transparent border-none focus:ring-1 focus:ring-primary rounded px-1 text-xs font-bold"
-                          onBlur={(e) => {
-                            const val = parseFloat(e.target.value)
-                            if (val !== member.hourly_rate) {
-                              updateMemberHourlyRate(member.id, val)
-                                .then(() => toast.success("Rate updated"))
-                                .catch(() => toast.error("Failed to update rate"))
-                            }
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-xs font-bold">${member.hourly_rate || 0}</span>
-                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -321,16 +425,14 @@ export function TeamList() {
       <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-3">
         <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-bold text-primary uppercase tracking-tight">Hierarchical Access Control</p>
+          <p className="text-xs font-bold text-primary uppercase tracking-tight">Dynamic Role System</p>
           <div className="text-xs text-muted-foreground mt-1 space-y-1">
-            <p>• <strong>Super Admin:</strong> Full system access. Only role that can create Admins.</p>
-            <p>• <strong>Admin:</strong> Operational control. Can manage HR (Managers) and Employees.</p>
-            <p>• <strong>HR (Manager):</strong> Personnel management and core operational features.</p>
-            <p>• <strong>Employee:</strong> Basic task and project visibility.</p>
+            <p>• Roles are fully dynamic — create custom roles in <strong>Roles & Access Control</strong>.</p>
+            <p>• Assigning a role here instantly updates the user's permissions.</p>
+            <p>• <strong>Super Admin</strong> has permanent full access and cannot be reassigned.</p>
           </div>
         </div>
       </div>
     </div>
   )
 }
-

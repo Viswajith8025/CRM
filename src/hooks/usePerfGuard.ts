@@ -13,7 +13,7 @@ export function usePerfGuard(componentName: string) {
     const duration = endTime - startTime.current
     renderCount.current += 1
 
-    if (duration > 16.6) { // Exceeding 60fps frame budget
+    if (duration > 100) { // Warn only on genuinely slow renders (>100ms)
       console.warn(
         `[PerfGuard] ⚠️ Slow Render in <${componentName}>: ${duration.toFixed(2)}ms (Render #${renderCount.current})`
       )

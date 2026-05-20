@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { Plus, LayoutGrid, List, Search, Columns, FileSpreadsheet } from "lucide-react"
+import { Plus, LayoutGrid, List, Search, Columns, FileSpreadsheet, Archive } from "lucide-react"
 import { ImportWizard } from "@/components/shared/ImportWizard"
 import ProjectCard from "../components/ProjectCard"
 import { KanbanBoard } from "../components/KanbanBoard"
@@ -29,10 +29,12 @@ import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import MarketingDashboard from "@/modules/marketing/pages/MarketingDashboard"
 import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 
 export default function ProjectsPage() {
-  const { projects, fetchProjects, subscribeToProjects, isLoading } = useProjectsStore()
+  const { projects, archivedProjects, fetchProjects, fetchArchivedProjects, subscribeToProjects, isLoading } = useProjectsStore()
   const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [view, setView] = useState<'grid' | 'list' | 'kanban'>('kanban')
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -41,6 +43,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects()
+    fetchArchivedProjects()
     const unsubscribe = subscribeToProjects()
     return () => unsubscribe()
   }, [])
@@ -78,7 +81,8 @@ export default function ProjectsPage() {
       <Tabs defaultValue="projects" className="space-y-6">
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>
-          {profile?.role !== 'employee' && (
+          <TabsTrigger value="archived" className="font-bold uppercase tracking-tight text-xs text-muted-foreground">Archived</TabsTrigger>
+          {hasPermission('projects.manage') && (
             <TabsTrigger value="marketing" className="font-bold uppercase tracking-tight text-xs">Marketing Dashboard</TabsTrigger>
           )}
         </TabsList>
@@ -173,10 +177,30 @@ export default function ProjectsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="marketing">
-          <div className="-mt-12"> {/* Negate PageWrapper padding for sub-dashboard */}
-            <MarketingDashboard />
+        <TabsContent value="archived" className="space-y-6">
+          <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
+            {archivedProjects.length === 0 ? (
+              <>
+                <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
+                  <Archive className="h-10 w-10 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-bold">No archived projects</h3>
+                <p className="text-muted-foreground max-w-xs mx-auto">
+                  Projects that you archive will appear here.
+                </p>
+              </>
+            ) : (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full text-left px-6">
+                {archivedProjects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </div>
+            )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="marketing">
+          <MarketingDashboard isEmbedded={true} />
         </TabsContent>
       </Tabs>
 

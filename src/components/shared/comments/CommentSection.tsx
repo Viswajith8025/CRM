@@ -20,6 +20,7 @@ interface CommentSectionProps {
 export function CommentSection({ entityId, entityType }: CommentSectionProps) {
   const { comments, fetchComments, addComment, deleteComment, isLoading } = useCommentStore()
   const { members, fetchMembers } = useTeamStore()
+  const activeMembers = members.filter(m => m.status === 'active')
   const { profile } = useAuthStore()
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<Comment | null>(null)
@@ -65,7 +66,7 @@ export function CommentSection({ entityId, entityType }: CommentSectionProps) {
     if (!newComment.trim() || !profile) return
 
     // Extract mentions from text
-    const mentions = members
+    const mentions = activeMembers
       .filter(m => newComment.includes(`@${m.full_name}`))
       .map(m => ({ id: m.id, name: m.full_name || 'User' }))
 
@@ -128,7 +129,7 @@ export function CommentSection({ entityId, entityType }: CommentSectionProps) {
               Mention User
             </div>
             <div className="max-h-48 overflow-y-auto">
-              {members
+              {activeMembers
                 .filter(m => m.full_name?.toLowerCase().includes(mentionSearch.toLowerCase()))
                 .map(member => (
                   <button

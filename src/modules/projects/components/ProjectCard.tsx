@@ -39,6 +39,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { motion } from "framer-motion"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 
 const statusColors: Record<string, string> = {
   planning: "bg-blue-500/10 text-blue-500",
@@ -70,8 +71,11 @@ interface ProjectCardProps {
 export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing }: ProjectCardProps) {
   const navigate = useNavigate()
   const { deleteProject, updateProject } = useProjectsStore()
+  const { departments } = useDepartmentStore()
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false)
+  
+  const projectDept = departments.find(d => d.id === project.department_id)
 
   const {
     attributes,
@@ -136,7 +140,7 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
       >
         <Card 
           className={cn(
-            "group cursor-pointer hover:shadow-lg transition-all duration-200 border-border/50 bg-slate-900/40 backdrop-blur-sm",
+            "group cursor-pointer hover:shadow-lg transition-all duration-200 border-slate-200/80 dark:border-slate-800/40 bg-white dark:bg-slate-900/40 shadow-sm hover:shadow-md backdrop-blur-sm",
             isOverlay && "shadow-2xl border-primary/50 ring-2 ring-primary/20",
             isSyncing && "cursor-wait"
           )}
@@ -144,7 +148,7 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
         >
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary" className={cn(statusColors[project.status])}>
                   {project.status.replace('_', ' ')}
                 </Badge>
@@ -152,6 +156,11 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
                   <Badge variant="outline" className={cn("gap-1 font-bold", healthColors[project.health.status])}>
                     {React.createElement(healthIcons[project.health.status], { className: "h-3 w-3" })}
                     {project.health.status.replace('-', ' ')}
+                  </Badge>
+                )}
+                {projectDept && (
+                  <Badge variant="outline" className="bg-sky-500/10 text-sky-500 border-sky-500/20 font-bold">
+                    {projectDept.name}
                   </Badge>
                 )}
                 {project.financials && project.financials.profit_margin < 10 && project.financials.revenue > 0 && (
@@ -194,27 +203,27 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
                 </DropdownMenu>
               )}
             </div>
-            <CardTitle className="mt-2 text-xl font-bold group-hover:text-primary transition-colors">
+            <CardTitle className="mt-2 text-xl font-bold group-hover:text-primary transition-colors text-slate-800 dark:text-slate-100">
               {project.name}
             </CardTitle>
-            <CardDescription className="line-clamp-2">
+            <CardDescription className="line-clamp-2 text-slate-500 dark:text-slate-400">
               {project.client?.name || "No Client Assigned"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+                <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <span>{project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'No deadline'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Layout className="h-4 w-4" />
+                <Layout className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                 <span>{project.task_stats?.completed || 0}/{project.task_stats?.total || 0} Tasks</span>
               </div>
             </div>
             
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-medium">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span>Progress</span>
                 <span>{(() => {
                   const total = project.task_stats?.total || 0
@@ -225,34 +234,34 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
               </div>
               <Progress 
                 value={project.task_stats?.total ? (project.task_stats.completed / project.task_stats.total) * 100 : 0} 
-                className="h-1.5" 
+                className="h-1.5 bg-slate-100 dark:bg-slate-800/80" 
               />
             </div>
   
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800/50">
               <div className="flex items-center -space-x-2">
                 {project.members && project.members.length > 0 ? (
                   project.members.filter(m => m.role === 'member').slice(0, 3).map((member) => (
-                    <Avatar key={member.user_id} className="h-7 w-7 border-2 border-background ring-1 ring-border/50">
-                      <AvatarFallback className="bg-muted text-[10px] font-bold">
+                    <Avatar key={member.user_id} className="h-7 w-7 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200/50 dark:ring-slate-800/50 shadow-sm">
+                      <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-300">
                         {member.profiles?.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                   ))
                 ) : (
-                  <div className="h-7 w-7 rounded-full bg-muted border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-                    <span className="text-[10px] text-muted-foreground">?</span>
+                  <div className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">?</span>
                   </div>
                 )}
                 {project.members && project.members.filter(m => m.role === 'member').length > 3 && (
-                  <div className="h-7 w-7 rounded-full bg-accent border-2 border-background flex items-center justify-center text-[8px] font-black">
+                  <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-slate-600 dark:text-slate-300">
                     +{project.members.filter(m => m.role === 'member').length - 3}
                   </div>
                 )}
               </div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest text-right">
-                <span className="opacity-50 font-normal block text-[8px]">Team Lead</span>
-                {project.lead?.full_name || "Unassigned"}
+              <div className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-right">
+                <span className="opacity-50 font-normal block text-[8px] text-slate-400 dark:text-slate-500">Team Lead</span>
+                <span className="text-sky-600 dark:text-sky-400">{project.lead?.full_name || "Unassigned"}</span>
               </div>
             </div>
           </CardContent>

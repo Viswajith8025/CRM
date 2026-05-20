@@ -26,7 +26,7 @@ const COLUMNS: { id: LeadStatus; title: string }[] = [
   { id: 'proposal_sent', title: 'Proposal Sent' },
   { id: 'negotiation', title: 'Negotiation' },
   { id: 'awaiting_payment', title: 'Awaiting Payment' },
-  { id: 'active_client', title: 'Active Client' },
+  { id: 'active_client', title: 'Converted Clients' },
   { id: 'closed_lost', title: 'Closed Lost' },
 ]
 

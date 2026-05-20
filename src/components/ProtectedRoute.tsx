@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
 import { LoadingState } from '@/components/shared/LoadingState'
 import { ShieldX, Clock, LogOut } from 'lucide-react'
-import { usePermissions } from '@/hooks/usePermissions.tsx'
+import { usePermissions } from '@/hooks/usePermissions'
 
 interface ProtectedRouteProps {
   allowedRoles?: ('super_admin' | 'admin' | 'manager' | 'employee' | 'client')[]
@@ -26,8 +26,13 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
     return <Navigate to="/login" replace />
   }
 
+  // Ensure profile is loaded before checking status to prevent UI flickering
+  if (!profile) {
+    return <LoadingState />
+  }
+
   // 2.5 ORGANIZATION SUSPENDED - block access
-  if (profile?.is_org_suspended) {
+  if (profile.is_org_suspended && !isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
         <div className="max-w-md space-y-6">
@@ -54,7 +59,7 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
   }
 
   // 3. DENIED — hard block
-  if (profile?.status === 'denied') {
+  if (profile.status === 'denied' && !isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
         <div className="max-w-md space-y-6">
@@ -80,8 +85,8 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
     )
   }
 
-  // 4. PENDING or NULL PROFILE — waiting for approval
-  if (profile?.status !== 'active') {
+  // 4. PENDING — waiting for approval (Super Admin bypasses this)
+  if (profile.status !== 'active' && !isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-950 p-6 text-center">
         <div className="max-w-xl space-y-8">

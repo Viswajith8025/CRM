@@ -1,4 +1,4 @@
-import { usePermissions } from '@/hooks/usePermissions.tsx'
+import { usePermissions } from '@/hooks/usePermissions'
 import { useAuthStore } from '@/store/useAuthStore'
 
 interface PermissionGuardProps {

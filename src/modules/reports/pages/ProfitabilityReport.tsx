@@ -30,7 +30,8 @@ import { cn } from '@/lib/utils'
 export default function ProfitabilityReport() {
   const [data, setData] = useState<ProfitabilityData[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isMounted, setIsMounted] = useState(false)
+  const [isReady, setIsReady] = useState(false)
+  const chartContainerRef = React.useRef<HTMLDivElement>(null)
 
   const fetchProfitability = async () => {
     setIsLoading(true)
@@ -47,11 +48,24 @@ export default function ProfitabilityReport() {
 
   useEffect(() => {
     fetchProfitability()
-    setIsMounted(true)
+    
+    // Defer chart rendering until the container has real dimensions
+    const el = chartContainerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          setTimeout(() => setIsReady(true), 150)
+          observer.disconnect()
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val)
   }
 
   const totals = {
@@ -129,8 +143,8 @@ export default function ProfitabilityReport() {
             <CardTitle className="text-lg font-bold">Revenue vs Profit</CardTitle>
             <CardDescription>Top projects by verified revenue</CardDescription>
           </CardHeader>
-          <CardContent className="h-[400px] w-full pt-4 min-h-[400px]">
-            {isMounted && (
+          <CardContent ref={chartContainerRef} className="h-[400px] w-full pt-4 min-h-[400px]">
+            {isReady && (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <BarChart data={data.slice(0, 10)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#ffffff10" />

@@ -8,10 +8,10 @@ export function TasksWidget() {
   const { tasks, fetchTasks } = useTasksStore()
 
   useEffect(() => {
-    fetchTasks()
+    fetchTasks({ limit: 5 })
   }, [])
 
-  const myTasks = tasks.slice(0, 5)
+  const myTasks = tasks
 
   return (
     <div className="h-full flex flex-col">

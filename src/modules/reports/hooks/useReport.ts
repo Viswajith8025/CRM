@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from 'sonner'
@@ -9,6 +10,8 @@ interface UseReportProps {
   select?: string
   defaultFilters?: Record<string, any>
   pageSize?: number
+  searchFields?: string[]
+  defaultSortBy?: string
 }
 
 export function useReport<T>({
@@ -16,7 +19,9 @@ export function useReport<T>({
   baseQuery,
   select = '*',
   defaultFilters = {},
-  pageSize = 20
+  pageSize = 20,
+  searchFields = ['full_name', 'email', 'name', 'title', 'invoice_number', 'description'],
+  defaultSortBy = 'created_at'
 }: UseReportProps) {
   const [data, setData] = useState<T[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -24,40 +29,56 @@ export function useReport<T>({
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<Record<string, any>>(defaultFilters)
   const [search, setSearch] = useState("")
-  const [sort, setSort] = useState<{ key: string; order: 'asc' | 'desc' } | null>(null)
+  const [sort, setSort] = useState<{ key: string; order: 'asc' | 'desc' }>({ key: defaultSortBy, order: 'desc' })
+  
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const isFetchingRef = useRef(false)
 
   const fetchData = useCallback(async () => {
-    // PREVENT DUPES
-    if ((fetchData as any)._isFetching) return
-    (fetchData as any)._isFetching = true
+    // Prevent overlapping requests
+    if (isFetchingRef.current) {
+      abortControllerRef.current?.abort()
+    }
     
-    setIsLoading(true)
-    try {
-      const { profile } = useAuthStore.getState()
-      const orgId = profile?.organization_id
-      
-      // ABORT if no organization context - prevents loop on logout
-      if (!orgId) {
-        setIsLoading(false)
-        (fetchData as any)._isFetching = false
-        return
-      }
+    const { profile } = useAuthStore.getState()
+    const orgId = profile?.organization_id
+    
+    // Crucial: Wait for organization context to be available
+    if (!orgId) {
+      setIsLoading(false)
+      return
+    }
 
+    isFetchingRef.current = true
+    setIsLoading(true)
+    
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    try {
       let query = baseQuery || supabase
         .from(tableName)
         .select(select, { count: 'exact' })
-        .eq('organization_id', orgId)
+
+      // Apply Multi-Tenancy Isolation
+      query = query.eq('organization_id', orgId)
 
       // Apply Filters
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          query = query.eq(key, value)
+          if (Array.isArray(value)) {
+            query = query.in(key, value)
+          } else {
+            query = query.eq(key, value)
+          }
         }
       })
 
-      // Apply Search
+      // Apply Search (Enterprise search across common fields)
       if (search) {
-        query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,name.ilike.%${search}%,title.ilike.%${search}%`)
+        // Build OR query for common fields
+        const orQuery = searchFields.map(f => `${f}.ilike.%${search}%`).join(',')
+        query = query.or(orQuery)
       }
 
       // Apply Sort
@@ -72,22 +93,30 @@ export function useReport<T>({
       const to = from + pageSize - 1
       query = query.range(from, to)
 
-      const { data: result, error, count } = await query
+      // Execute with Abort Signal
+      const { data: result, error, count } = await query.abortSignal(controller.signal)
 
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST116') return // Swallowed aborted request
+        throw error
+      }
 
       setData(result || [])
       setTotalCount(count || 0)
     } catch (err: any) {
-      console.error(`Error fetching ${tableName} report:`, err)
+      if (err.name === 'AbortError' || err.message?.includes('AbortError')) return
+      console.error(`[Enterprise Report] Fetch Error (${tableName}):`, err)
+      toast.error(`Reporting failure in ${tableName} module.`)
     } finally {
       setIsLoading(false)
-      ;(fetchData as any)._isFetching = false
+      isFetchingRef.current = false
     }
   }, [tableName, JSON.stringify(filters), search, JSON.stringify(sort), page, pageSize, select])
 
+  // Re-fetch only when core dependencies change
   useEffect(() => {
     fetchData()
+    return () => abortControllerRef.current?.abort()
   }, [fetchData])
 
   return {

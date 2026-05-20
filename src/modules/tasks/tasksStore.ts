@@ -3,10 +3,13 @@ import { supabase } from '@/lib/supabase'
 import { toFriendlyError, getFriendlySupabaseError } from '@/lib/supabaseError'
 import { logActivity } from '@/lib/auditLogger'
 import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
-import type { Task, SubTask, TimeLog } from './types'
+import type { Task, Subtask as SubTask } from './types/types'
+import type { TimeLog } from '@/modules/time-tracking/types'
 
 interface TasksState {
   tasks: Task[]
+  myTasks: Task[]
+  myTasksLoading: boolean
   subtasks: Record<string, SubTask[]>
   comments: Record<string, any[]>
   isLoading: boolean
@@ -18,10 +21,12 @@ interface TasksState {
     totalPages: number
   }
   
-  fetchTasks: (params?: Partial<PaginationParams> & { projectId?: string }) => Promise<void>
+  fetchTasks: (params?: Partial<PaginationParams> & { projectId?: string; includeArchived?: boolean }) => Promise<void>
+  fetchMyTasks: () => Promise<void>
   addTask: (task: Partial<Task>) => Promise<void>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
+  archiveTask: (id: string) => Promise<void>
   
   fetchSubtasks: (taskId: string) => Promise<void>
   addSubtask: (subtask: Partial<SubTask>) => Promise<void>
@@ -37,6 +42,8 @@ interface TasksState {
 
 export const useTasksStore = create<TasksState>((set, get) => ({
   tasks: [],
+  myTasks: [],
+  myTasksLoading: false,
   subtasks: {},
   comments: {},
   isLoading: false,
@@ -49,7 +56,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   fetchTasks: async (params = {}) => {
-    const { page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {}, projectId } = params
+    const { page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {}, projectId, includeArchived = false } = params
     
     set({ isLoading: true })
     try {
@@ -61,6 +68,15 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .from('tasks')
         .select('*, project:projects(name), assignee:profiles!assigned_to(full_name)', { count: 'exact' })
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
+
+      if (profile?.role === 'employee') {
+        baseQuery = baseQuery.eq('assigned_to', profile.id)
+      }
+      
+      if (!includeArchived) {
+        baseQuery = baseQuery.or('is_archived.is.null,is_archived.eq.false')
+      }
       
       if (projectId) {
         baseQuery = baseQuery.eq('project_id', projectId)
@@ -91,13 +107,48 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     }
   },
 
+  fetchMyTasks: async () => {
+    set({ myTasksLoading: true })
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      const userId = profile?.id
+      if (!orgId || !userId) return
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          project:projects(id, name),
+          assignee:profiles!assigned_to(full_name, avatar_url),
+          module:project_modules(id, name, color, parent_id)
+        `)
+        .eq('organization_id', orgId)
+        .eq('assigned_to', userId)
+        .is('deleted_at', null)
+        .or('is_archived.is.null,is_archived.eq.false')
+        .neq('status', 'done')
+        .order('due_date', { ascending: true, nullsFirst: false })
+
+      if (error) throw error
+      set({ myTasks: (data || []) as Task[] })
+    } catch (err) {
+      console.error('Failed to fetch my tasks:', err)
+    } finally {
+      set({ myTasksLoading: false })
+    }
+  },
+
   addTask: async (task) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const taskWithOrg = { ...task, organization_id: orgId }
+      // Extract relation arrays from the task payload so they are not sent to the tasks table
+      const { collaborators = [], dependencies = [], ...taskDetails } = task
+
+      const taskWithOrg = { ...taskDetails, organization_id: orgId }
       const { data, error } = await supabase
         .from('tasks')
         .insert(taskWithOrg)
@@ -106,12 +157,69 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       if (error) throw error
 
+      const createdTaskId = data.id
+
+      // 1. Save multi-assignee co-owners to task_assignments
+      if (collaborators && collaborators.length > 0) {
+        const assignmentPayloads = collaborators.map(userId => ({
+          task_id: createdTaskId,
+          user_id: userId,
+          organization_id: orgId
+        }))
+        const { error: assignError } = await supabase
+          .from('task_assignments')
+          .insert(assignmentPayloads)
+
+        if (assignError) console.error("Collaborator assignment failed:", assignError)
+
+        // Dispatch in-app notifications to all assigned co-owners
+        try {
+          const { useNotificationsStore } = await import('@/modules/notifications/notificationsStore')
+          for (const userId of collaborators) {
+            if (userId !== profile.id) {
+              await useNotificationsStore.getState().addNotification({
+                user_id: userId,
+                title: "New Co-ownership Assignment",
+                message: `You have been added as a co-owner on the task: "${data.title}"`,
+                type: 'assignment',
+                link: `/projects/${data.project_id}?tab=tasks`
+              })
+            }
+          }
+        } catch (notifErr) {
+          console.error("Task assignment notifications failed:", notifErr)
+        }
+      }
+
+      // 2. Save task dependencies
+      if (dependencies && dependencies.length > 0) {
+        const dependencyPayloads = dependencies.map(depId => ({
+          task_id: createdTaskId,
+          depends_on_task_id: depId,
+          organization_id: orgId
+        }))
+        const { error: depError } = await supabase
+          .from('task_dependencies')
+          .insert(dependencyPayloads)
+
+        if (depError) console.error("Task dependency insert failed:", depError)
+      }
+
+      // 3. Log enterprise audit activities in task_activity_logs
+      await supabase.from('task_activity_logs').insert({
+        task_id: createdTaskId,
+        user_id: profile.id,
+        action: 'CREATE',
+        details: `Task initialized: "${data.title}" under module "${data.module_id || 'None'}". Priority: ${data.priority}.`,
+        organization_id: orgId
+      })
+
       logActivity({
         action: 'CREATE',
         targetType: 'task',
-        targetId: data.id,
+        targetId: createdTaskId,
         targetName: data.title,
-        description: `New task created: ${data.title}`,
+        description: `New enterprise task created: ${data.title}`,
         organization_id: orgId
       })
 
@@ -127,25 +235,116 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      console.log('--- DEBUG updateTask ---');
-      console.log('ID:', id);
-      console.log('Updates:', updates);
-      console.log('OrgID:', orgId);
+      const currentTask = get().tasks.find(t => t.id === id)
 
+      // A. Client-side Task Dependency Check
+      if (updates.status === 'completed' || updates.status === 'done') {
+        const { data: deps, error: depError } = await supabase
+          .from('task_dependencies')
+          .select('depends_on_task_id, depends_on:tasks!depends_on_task_id(title, status)')
+          .eq('task_id', id)
+
+        if (depError) console.error("Dependency check read failed:", depError)
+        
+        if (deps && deps.length > 0) {
+          const unresolved = deps.filter((d: any) => {
+            const status = d.depends_on?.status
+            return status !== 'completed' && status !== 'done'
+          })
+
+          if (unresolved.length > 0) {
+            const firstUnresolvedTitle = unresolved[0].depends_on?.title || "Unfinished parent task"
+            throw new Error(`Cannot complete task. It is blocked by unfinished dependency: "${firstUnresolvedTitle}"`)
+          }
+        }
+      }
+
+      // Extract co-owners and dependencies updates if provided
+      const { collaborators, dependencies, ...taskDetails } = updates as any
+
+      // B. Update core task properties
       let query = supabase
         .from('tasks')
-        .update(updates)
+        .update(taskDetails)
         .eq('id', id)
+        .eq('organization_id', orgId)
 
       const { data, error } = await query
         .select()
         .single()
 
       if (error) {
-        console.error('--- SUPABASE RAW ERROR ---');
-        console.error(JSON.stringify(error, null, 2));
-        throw error;
+        throw error
       }
+
+      // C. Re-sync multi-assignee co-owners if updated
+      if (collaborators !== undefined) {
+        // Delete legacy and insert new
+        await supabase.from('task_assignments').delete().eq('task_id', id)
+        
+        if (collaborators.length > 0) {
+          const assignmentPayloads = collaborators.map((userId: string) => ({
+            task_id: id,
+            user_id: userId,
+            organization_id: orgId
+          }))
+          await supabase.from('task_assignments').insert(assignmentPayloads)
+
+          // Notify newly added assignees
+          try {
+            const { useNotificationsStore } = await import('@/modules/notifications/notificationsStore')
+            const existingAssignees = currentTask?.collaborators || []
+            const newAssignees = collaborators.filter((userId: string) => !existingAssignees.includes(userId))
+
+            for (const userId of newAssignees) {
+              if (userId !== profile.id) {
+                await useNotificationsStore.getState().addNotification({
+                  user_id: userId,
+                  title: "Assigned as Task Collaborator",
+                  message: `You were added to the task: "${data.title}"`,
+                  type: 'assignment',
+                  link: `/projects/${data.project_id}?tab=tasks`
+                })
+              }
+            }
+          } catch (notifErr) {
+            console.error("Co-owner notification update fail:", notifErr)
+          }
+        }
+      }
+
+      // D. Re-sync task dependencies if updated
+      if (dependencies !== undefined) {
+        await supabase.from('task_dependencies').delete().eq('task_id', id)
+        if (dependencies.length > 0) {
+          const dependencyPayloads = dependencies.map((depId: string) => ({
+            task_id: id,
+            depends_on_task_id: depId,
+            organization_id: orgId
+          }))
+          await supabase.from('task_dependencies').insert(dependencyPayloads)
+        }
+      }
+
+      // E. Write workforce audit trails into task_activity_logs
+      let auditMessage = `Updated task details`
+      let actionType = 'UPDATE'
+      
+      if (taskDetails.status && taskDetails.status !== currentTask?.status) {
+        actionType = taskDetails.status === 'blocked' ? 'BLOCK' : 'STATUS_CHANGE'
+        auditMessage = `Task status updated from "${currentTask?.status}" to "${taskDetails.status}"`
+        if (taskDetails.blocked_reason) {
+          auditMessage += `. Reason: "${taskDetails.blocked_reason}"`
+        }
+      }
+
+      await supabase.from('task_activity_logs').insert({
+        task_id: id,
+        user_id: profile.id,
+        action: actionType,
+        details: auditMessage,
+        organization_id: orgId
+      })
 
       logActivity({
         action: updates.status ? 'STATUS_CHANGE' : 'UPDATE',
@@ -157,7 +356,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       })
 
       set({
-        tasks: get().tasks.map((t) => (t.id === id ? (data as Task) : t))
+        tasks: get().tasks.map((t) => (t.id === id ? { ...data, collaborators, dependencies } as Task : t))
       })
     } catch (err) {
       throw toFriendlyError(err, "Failed to update task.")
@@ -170,12 +369,24 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      let query = supabase
-        .from('tasks')
-        .delete()
-        .eq('id', id)
+      // Protect against deleting tasks with billable time logs
+      const { data: logs, error: logError } = await supabase
+        .from('time_logs')
+        .select('id')
+        .eq('task_id', id)
+        .limit(1)
 
-      const { error } = await query
+      if (logs && logs.length > 0) {
+        throw new Error("Cannot delete task with time logs. Please archive it instead to preserve financial history.")
+      }
+
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: profile?.id 
+        })
+        .eq('id', id)
 
       if (error) throw error
       set({
@@ -183,6 +394,26 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       })
     } catch (err) {
       throw toFriendlyError(err, "Failed to delete task.")
+    }
+  },
+
+  archiveTask: async (id) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const { error } = await supabase
+        .from('tasks')
+        .update({ is_archived: true })
+        .eq('id', id)
+
+      if (error) throw error
+      set({
+        tasks: get().tasks.map((t) => t.id === id ? { ...t, is_archived: true } : t)
+      })
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to archive task.")
     }
   },
 
@@ -339,7 +570,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   subscribeToTasks: (projectId) => {
-    const channelName = projectId ? `tasks_sync_${projectId}` : `tasks_sync_global`
+    const orgId = (window as any)._lastOrgId || 'global'
+    const channelName = projectId ? `tasks_sync_${projectId}_${orgId}` : `tasks_sync_global_${orgId}`
+    
     const channel = supabase
       .channel(channelName)
       .on(
@@ -348,10 +581,9 @@ export const useTasksStore = create<TasksState>((set, get) => ({
           event: '*', 
           schema: 'public', 
           table: 'tasks'
-          // organization_id filter is enforced by RLS, but explicit filtering would require orgId in the closure
         },
         () => {
-          get().fetchTasks({ projectId })
+          get().fetchTasks({ projectId, force: true } as any)
         }
       )
       .subscribe()

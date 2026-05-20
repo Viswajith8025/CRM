@@ -9,10 +9,14 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
+import { useAuthStore } from '@/store/useAuthStore'
 
 export function QuickActionButton() {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
+  const { profile } = useAuthStore()
+
+  if (profile?.role === 'employee') return null
 
   const actions = [
     { 

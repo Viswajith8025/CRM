@@ -14,7 +14,8 @@ import {
   UserCheck, 
   ShieldAlert,
   ArrowRight,
-  Target
+  Target,
+  RefreshCw
 } from "lucide-react"
 
 const reportCategories = [
@@ -31,9 +32,9 @@ const reportCategories = [
     title: "Finance & Accounting",
     description: "Revenue tracking, expenses, and financial audits.",
     reports: [
-      { name: "Income Report", path: "/reports/income", icon: TrendingUp },
+      { name: "Income Report", path: "/reports/invoices", icon: TrendingUp },
       { name: "Expense Report", path: "/reports/expense", icon: TrendingDown },
-      { name: "Invoice Audit", path: "/reports/invoices", icon: FileText },
+      { name: "Invoice Audit", path: "/reports/invoice-audit", icon: FileText },
       { name: "Payment Records", path: "/reports/payments", icon: CreditCard },
     ]
   },
@@ -44,6 +45,7 @@ const reportCategories = [
       { name: "Client Insights", path: "/reports/clients", icon: Users },
       { name: "Project Lifecycle", path: "/reports/projects", icon: Briefcase },
       { name: "Task Performance", path: "/reports/tasks", icon: CheckSquare },
+      { name: "Asset Renewals Matrix", path: "/reports/renewals-audit", icon: RefreshCw },
       { name: "Sales Pipeline (Leads)", path: "/reports/leads", icon: Target },
     ]
   },

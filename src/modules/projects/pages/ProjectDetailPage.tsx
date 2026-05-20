@@ -53,11 +53,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 import { ActivityTimeline } from "@/components/shared/ActivityTimeline"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { CommentSection } from "@/components/shared/comments/CommentSection"
 import { ProjectHealthCard } from "../components/ProjectHealthCard"
 import { ProjectProfitabilityCard } from "../components/ProjectProfitabilityCard"
+import { ModulesTab } from "../components/ModulesTab"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 
 function LoadingState() {
   return (
@@ -79,13 +82,15 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
-  const { getProjectById, fetchMilestones, updateProject, deleteProject, updateMilestone, fetchSprints, sprints } = useProjectsStore()
+  const { getProjectById, fetchMilestones, updateProject, deleteProject, archiveProject, updateMilestone, fetchSprints, sprints } = useProjectsStore()
   const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [project, setProject] = useState<Project | null>(null)
   const [milestones, setMilestones] = useState<Milestone[]>([])
   const [loading, setLoading] = useState(true)
-  const isEmployee = profile?.role === 'employee'
+  const canManageProjects = hasPermission('projects.manage')
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const { departments, fetchDepartments } = useDepartmentStore()
   const projectSprints = id ? sprints[id] || [] : []
 
   const loadData = async () => {
@@ -102,6 +107,7 @@ export default function ProjectDetailPage() {
   }
 
   useEffect(() => {
+    fetchDepartments()
     loadData()
     const unsubscribe = subscribeToTasks() // Pass no ID to use the store's current project context if needed, or update store to support id
     return () => unsubscribe()
@@ -110,22 +116,26 @@ export default function ProjectDetailPage() {
   const handleArchive = async () => {
     if (!project) return
     try {
-      await updateProject(project.id, { status: 'on_hold' })
+      await archiveProject(project.id)
       toast.success("Project archived")
       loadData()
-    } catch (error) {
-      toast.error("Failed to archive project")
+    } catch (error: any) {
+      console.error("[Archive Project]", error)
+      toast.error(`Failed to archive: ${error?.message || "Unknown error"}`)
     }
   }
 
   const handleDelete = async () => {
     if (!project) return
     try {
+      // (Forced HMR update)
       await deleteProject(project.id)
-      toast.success("Project deleted")
+      toast.success("Project deleted successfully")
       navigate('/projects')
-    } catch (error) {
-      toast.error("Failed to delete project")
+    } catch (error: any) {
+      const msg = error?.message || "Failed to delete project"
+      toast.error(msg)
+      console.error("[Delete Project]", error)
     }
   }
 
@@ -161,12 +171,28 @@ export default function ProjectDetailPage() {
             Back
           </Button>
 
-          {!isEmployee && (
+          {canManageProjects && (
             <>
-              <Button variant="outline" className="gap-2" onClick={handleArchive}>
-                <Archive className="h-4 w-4" />
-                Archive
-              </Button>
+              {(project as any).is_archived ? (
+                <Button variant="outline" className="gap-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" onClick={async () => {
+                  try {
+                    const { unarchiveProject } = useProjectsStore.getState()
+                    await unarchiveProject(project.id)
+                    toast.success("Project unarchived")
+                    loadData()
+                  } catch (error) {
+                    toast.error("Failed to unarchive project")
+                  }
+                }}>
+                  <Archive className="h-4 w-4" />
+                  Restore
+                </Button>
+              ) : (
+                <Button variant="outline" className="gap-2" onClick={handleArchive}>
+                  <Archive className="h-4 w-4" />
+                  Archive
+                </Button>
+              )}
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -226,14 +252,11 @@ export default function ProjectDetailPage() {
           </div>
 
           <Tabs defaultValue="milestones">
-            <TabsList className="grid grid-cols-6 w-full">
-              <TabsTrigger value="milestones">Roadmap</TabsTrigger>
-              <TabsTrigger value="sprints">Sprints</TabsTrigger>
-              <TabsTrigger value="tasks">Backlog</TabsTrigger>
-              <TabsTrigger value="team">Resource</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="chat">Discussions</TabsTrigger>
+            <TabsList className="flex w-full overflow-x-auto gap-1 h-10 p-1">
+              <TabsTrigger value="milestones" className="flex-shrink-0 text-[11px]">Roadmap</TabsTrigger>
+              <TabsTrigger value="modules" className="flex-shrink-0 text-[11px]">Modules</TabsTrigger>
+              <TabsTrigger value="tasks" className="flex-shrink-0 text-[11px]">Backlog</TabsTrigger>
+              <TabsTrigger value="activity" className="flex-shrink-0 text-[11px]">Activity</TabsTrigger>
             </TabsList>
             
             <TabsContent value="milestones" className="space-y-4 pt-4">
@@ -294,45 +317,12 @@ export default function ProjectDetailPage() {
               )}
             </TabsContent>
 
-            <TabsContent value="sprints" className="space-y-4 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Active & Planned Sprints</h4>
-                <Button size="sm" className="h-8 gap-2" variant="outline">
-                  <Plus className="h-3.5 w-3.5" />
-                  New Sprint
-                </Button>
-              </div>
-              {projectSprints.length === 0 ? (
-                <div className="text-center py-10 border rounded-lg border-dashed bg-muted/10">
-                  <p className="text-sm text-muted-foreground italic">No sprints planned. Start an Agile sprint to track velocity.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {projectSprints.map(sprint => (
-                    <div key={sprint.id} className="p-4 rounded-xl border bg-card hover:border-primary/30 transition-colors">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h5 className="font-bold">{sprint.name}</h5>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(sprint.start_date), 'MMM d')} - {format(new Date(sprint.end_date), 'MMM d, yyyy')}
-                          </p>
-                        </div>
-                        <Badge variant={sprint.status === 'active' ? 'default' : 'secondary'} className="uppercase text-[10px]">
-                          {sprint.status}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
-                          <span>Sprint Progress</span>
-                          <span>{sprint.status === 'completed' ? '100%' : '0%'}</span>
-                        </div>
-                        <Progress value={sprint.status === 'completed' ? 100 : 0} className="h-1.5" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+
+
+            <TabsContent value="modules" className="pt-4">
+              <ModulesTab projectId={project.id} canManage={canManageProjects} />
             </TabsContent>
+
             <TabsContent value="tasks" className="space-y-4 pt-4">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Tasks</h4>
@@ -396,67 +386,6 @@ export default function ProjectDetailPage() {
               )}
             </TabsContent>
             
-            <TabsContent value="team" className="space-y-4 pt-4">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Project Team</h4>
-              
-              {project.lead && (
-                <div className="mb-6">
-                  <h5 className="text-xs font-bold text-primary uppercase mb-2">Team Lead</h5>
-                  <div className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20">
-                    <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                      <AvatarFallback className="bg-primary text-primary-foreground">{project.lead?.full_name?.charAt(0) || "L"}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-bold text-sm">{project.lead?.full_name || "Unassigned"}</p>
-                      <p className="text-xs text-muted-foreground">{project.lead?.email || "No email"}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <h5 className="text-xs font-bold text-muted-foreground uppercase mb-2">Team Members</h5>
-                {(!project.members || project.members.filter(m => m.role === 'member').length === 0) ? (
-                  <div className="text-center py-6 border rounded-lg border-dashed">
-                    No additional team members assigned.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-4">
-                    {project.members.filter(m => m.role === 'member').map(member => (
-                      <div key={member.user_id} className="flex items-center gap-3 p-3 rounded-lg border bg-card/50">
-                        <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
-                          <AvatarFallback>{member.profiles?.full_name?.charAt(0) || "M"}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-bold text-sm">{member.profiles?.full_name || "Unknown Member"}</p>
-                          <p className="text-xs text-muted-foreground">{member.profiles?.email || "No email"}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="documents" className="space-y-6 pt-4">
-              <div className="space-y-4">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Project Assets</h4>
-                <FileUploadZone 
-                  relatedId={project.id}
-                  relatedType="project"
-                  bucket="documents"
-                />
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Files</h4>
-                <AttachmentList 
-                  relatedId={project.id}
-                  relatedType="project"
-                />
-              </div>
-            </TabsContent>
-
             <TabsContent value="activity" className="pt-4">
               <ScrollArea className="h-[500px] pr-2">
                 <ActivityTimeline
@@ -465,10 +394,6 @@ export default function ProjectDetailPage() {
                   limit={40}
                 />
               </ScrollArea>
-            </TabsContent>
-
-            <TabsContent value="chat" className="pt-4 h-[600px]">
-              <CommentSection entityId={project.id} entityType="project" />
             </TabsContent>
           </Tabs>
         </div>
@@ -499,7 +424,7 @@ export default function ProjectDetailPage() {
                 </span>
                 <span className="font-medium">{project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'N/A'}</span>
               </div>
-              {!isEmployee && (
+              {canManageProjects && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground flex items-center gap-2">
                     <DollarSign className="h-4 w-4" /> Budget
@@ -513,6 +438,16 @@ export default function ProjectDetailPage() {
                 </span>
                 <span className="font-medium">{project.lead?.full_name || 'Unassigned'}</span>
               </div>
+              {project.department_id && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" /> Dept
+                  </span>
+                  <span className="font-medium">
+                    {departments.find(d => d.id === project.department_id)?.name || 'All Departments'}
+                  </span>
+                </div>
+              )}
             </div>
             
             <Button variant="secondary" className="w-full gap-2 text-xs h-8">

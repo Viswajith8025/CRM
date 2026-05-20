@@ -1,10 +1,9 @@
-import { useEffect } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Loader2, CheckCircle2, Calendar, ClipboardList, User2, Flag } from "lucide-react"
-import { useState } from "react"
 import {
   Form,
   FormControl,
@@ -26,16 +25,18 @@ import { useTasksStore } from "../tasksStore"
 import { useProjectsStore } from "@/modules/projects"
 import { useTeamStore } from "@/modules/admin"
 import { toast } from "sonner"
-import type { Task } from "../types"
+import type { Task } from "../types/types"
+import { sanitizeObject } from "@/lib/security"
 
 const formSchema = z.object({
-  title: z.string().min(2, "Task title is required"),
-  description: z.string().optional(),
+  title: z.string().min(2, "Task title is required").max(200),
+  description: z.string().max(5000).optional(),
   status: z.enum(['todo', 'in_progress', 'review', 'done']),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
-  project_id: z.string().min(1, "Project is required").refine(val => val !== "none", "Please select a project"),
-  assigned_to: z.string().optional(),
+  project_id: z.string().min(1, "Project is required").uuid("Invalid Project ID"),
+  assigned_to: z.string().optional().nullable().or(z.literal("none")),
   due_date: z.string().optional(),
+  module_id: z.string().uuid().optional().nullable(),
 })
 
 interface TaskFormProps {
@@ -64,16 +65,32 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
       project_id: task?.project_id || "",
       assigned_to: task?.assigned_to || "none",
       due_date: task?.due_date || "",
+      module_id: (task as any)?.module_id || null,
     },
   })
+
+  const eligibleAssignees = useMemo(() => {
+    const selectedProjId = form.watch("project_id")
+    const activeProject = projects.find(p => p.id === selectedProjId)
+    const projectDeptId = activeProject?.department_id
+
+    const activeEmployees = members.filter(m => (!m.status || m.status === 'active') && m.role === 'employee')
+    if (!projectDeptId) {
+      return activeEmployees
+    }
+    return activeEmployees.filter(m => m.department_id === projectDeptId)
+  }, [members, projects, form.watch("project_id")])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
+      // OWASP: Sanitize all inputs and validate strictly
+      const sanitizedValues = sanitizeObject(values)
       const submitData = {
-        ...values,
-        project_id: values.project_id === "none" ? null : values.project_id,
-        assigned_to: values.assigned_to === "none" ? null : values.assigned_to,
+        ...sanitizedValues,
+        project_id: sanitizedValues.project_id === "none" ? null : sanitizedValues.project_id,
+        assigned_to: sanitizedValues.assigned_to === "none" ? null : sanitizedValues.assigned_to,
+        module_id: sanitizedValues.module_id || null,
       }
 
       if (task?.id) {
@@ -188,7 +205,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">Unassigned</SelectItem>
-                          {members.filter(m => !m.status || m.status === 'active').map(member => (
+                          {eligibleAssignees.map(member => (
                             <SelectItem key={member.id} value={member.id}>
                               {member.full_name}
                             </SelectItem>

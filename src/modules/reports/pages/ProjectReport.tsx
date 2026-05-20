@@ -1,28 +1,69 @@
-import { useState, useMemo } from "react"
+
+import { useMemo } from "react"
 import { ReportHeader } from "../components/ReportHeader"
 import { ReportSummary } from "../components/ReportSummary"
 import { ReportFilters, type FilterOption } from "../components/ReportFilters"
 import { ReportTable, type Column } from "../components/ReportTable"
 import { useReport } from "../hooks/useReport"
+import { ReportExportService } from "../services/ReportExportService"
+import { useAuthStore } from "@/store/useAuthStore"
 import { Briefcase, Activity, Calendar, DollarSign, Target } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
+import { type RowAction } from "../components/ReportTable"
+import { toast } from "sonner"
+
+import { useNavigate } from "react-router-dom"
 
 export default function ProjectReport() {
+  const { profile } = useAuthStore()
+  const navigate = useNavigate()
+  
+  const handleRowAction = (action: RowAction, item: any) => {
+    switch (action) {
+      case 'view':
+      case 'summary':
+        toast.success(`Generating project lifecycle audit for ${item.name}`)
+        ReportExportService.exportSingleRecord(
+          `Project Audit - ${item.name}`,
+          item,
+          profile?.organization_name || "ECRAFTZ"
+        )
+        break
+      case 'edit':
+        toast.success(`Opening project: ${item.name}`)
+        navigate(`/projects/${item.id}`)
+        break
+      case 'download':
+        toast.success(`Exporting row data for ${item.name}`)
+        ReportExportService.exportToCSV({
+          title: "Single_Project_Export",
+          organizationName: profile?.organization_name || "ECRAFTZ",
+          columns: columns.map(c => ({ header: c.header, dataKey: c.accessorKey })),
+          data: [item]
+        })
+        break
+      case 'delete':
+        toast.error(`Institutional projects are immutable in this audit view for security.`)
+        break
+    }
+  }
+  
   const { 
     data: projects, 
     isLoading, 
     totalCount, 
     page, 
     setPage, 
+    filters, 
     setFilters, 
     setSearch, 
-    setSort,
-    filters 
+    setSort 
   } = useReport<any>({
     tableName: 'projects',
-    select: '*, client:profiles(full_name)',
-    pageSize: 15
+    select: '*, client:clients(name)',
+    pageSize: 15,
+    searchFields: ['name', 'description', 'status']
   })
 
   const filterOptions: FilterOption[] = [
@@ -46,7 +87,9 @@ export default function ProjectReport() {
       cell: (item) => (
         <div className="flex flex-col">
           <span className="font-bold">{item.name}</span>
-          <span className="text-[10px] text-muted-foreground uppercase">{item.client?.full_name || 'Internal'}</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-tight">
+            {item.client?.name || 'Internal Operations'}
+          </span>
         </div>
       ),
       sortable: true
@@ -61,16 +104,19 @@ export default function ProjectReport() {
       )
     },
     { 
-      header: 'Budget', 
+      header: 'Budget Allocation', 
       accessorKey: 'budget',
-      cell: (item) => <span className="font-black text-emerald-600">${item.budget?.toLocaleString() || '0'}</span>,
+      cell: (item) => <span className="font-black text-emerald-600">₹{Number(item.budget || 0).toLocaleString()}</span>,
       sortable: true
     },
     { 
-      header: 'Status', 
+      header: 'Stage', 
       accessorKey: 'status',
       cell: (item) => (
-        <Badge variant={item.status === 'completed' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">
+        <Badge 
+          variant={item.status === 'completed' ? 'default' : 'secondary'} 
+          className="text-[10px] uppercase font-black"
+        >
           {item.status?.replace('_', ' ')}
         </Badge>
       ),
@@ -79,40 +125,77 @@ export default function ProjectReport() {
   ]
 
   const summaryMetrics = useMemo(() => {
+    const totalBudget = projects.reduce((sum, p) => sum + Number(p.budget || 0), 0)
+    const activeCount = projects.filter(p => p.status === 'in_progress').length
+    const completionRate = projects.length > 0 ? (projects.filter(p => p.status === 'completed').length / projects.length) * 100 : 0
+
     return [
       {
-        label: 'Total Projects',
+        label: 'Project Portfolio',
         value: totalCount,
         icon: Briefcase,
-        description: 'Portfolio engagement'
+        description: 'Total active engagements'
       },
       {
         label: 'Active Delivery',
-        value: projects.filter((p: any) => p.status === 'in_progress').length,
+        value: activeCount,
         icon: Activity,
         description: 'Currently in production'
       },
       {
-        label: 'Total Budget',
-        value: `$${projects.reduce((sum: number, p: any) => sum + Number(p.budget || 0), 0).toLocaleString()}`,
+        label: 'Portfolio Value',
+        value: `₹${totalBudget.toLocaleString()}`,
         icon: DollarSign,
-        description: 'Managed asset value'
+        description: 'Managed asset total'
       },
       {
-        label: 'Milestones Met',
-        value: '84%',
+        label: 'Delivery Rate',
+        value: `${Math.round(completionRate)}%`,
         icon: Target,
-        description: 'Efficiency rating'
+        description: 'Portfolio efficiency'
       }
     ]
   }, [projects, totalCount])
 
+  const handleExportPDF = () => {
+    ReportExportService.exportToPDF({
+      title: "Project Lifecycle Audit",
+      subtitle: "Comprehensive review of project timelines, budgets, and delivery stages.",
+      organizationName: profile?.organization_name || "ECRAFTZ ERP",
+      columns: [
+        { header: 'Project', dataKey: 'name' },
+        { header: 'Budget', dataKey: 'budget' },
+        { header: 'Start Date', dataKey: 'start_date' },
+        { header: 'End Date', dataKey: 'end_date' },
+        { header: 'Status', dataKey: 'status' },
+      ],
+      data: projects,
+      summary: {
+        'Total Projects': totalCount,
+        'Portfolio Value': summaryMetrics[2].value,
+        'Efficiency': summaryMetrics[3].value
+      },
+      filters
+    })
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <ReportHeader 
-        title="Project Lifecycle Report"
-        description="Comprehensive audit of project timelines, budget utilization, and delivery status across the portfolio."
-        onPrint={() => window.print()}
+        title="Operations: Project Lifecycle"
+        description="Chronological audit of project status, timeline deviations, and budget utilization across the enterprise."
+        onExportPDF={handleExportPDF}
+        onExportCSV={() => ReportExportService.exportToCSV({
+          title: "Project_Lifecycle_Audit",
+          organizationName: profile?.organization_name || "ECRAFTZ",
+          columns: [
+            { header: 'Project Name', dataKey: 'name' },
+            { header: 'Budget', dataKey: 'budget' },
+            { header: 'Status', dataKey: 'status' },
+            { header: 'Start Date', dataKey: 'start_date' }
+          ],
+          data: projects
+        })}
       />
       
       <ReportSummary metrics={summaryMetrics} />
@@ -122,7 +205,7 @@ export default function ProjectReport() {
         activeFilters={filters}
         onFilterChange={setFilters}
         onSearch={setSearch}
-        searchPlaceholder="Search by project or client name..."
+        searchPlaceholder="Search projects by name or client..."
       />
 
       <div className="p-8">
@@ -135,6 +218,7 @@ export default function ProjectReport() {
           limit={15}
           onPageChange={setPage}
           onSort={(key, order) => setSort({ key, order })}
+          onRowAction={handleRowAction}
         />
       </div>
     </div>

@@ -68,7 +68,8 @@ interface ExecutiveMetrics {
 export default function ExecutiveDashboard() {
   const [metrics, setMetrics] = useState<ExecutiveMetrics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isMounted, setIsMounted] = useState(false)
+  const [isReady, setIsReady] = useState(false)
+  const chartContainerRef = React.useRef<HTMLDivElement>(null)
   const { invoices, fetchInvoices } = useBillingStore()
   const { projects, fetchProjects } = useProjectsStore()
 
@@ -89,8 +90,41 @@ export default function ExecutiveDashboard() {
     fetchMetrics()
     fetchInvoices({ limit: 100 })
     fetchProjects({ limit: 100 })
-    setIsMounted(true)
+    
+    // Defer chart rendering until the container has real dimensions
+    const el = chartContainerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          setTimeout(() => setIsReady(true), 150)
+          observer.disconnect()
+        }
+      }
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
+
+  // Dynamic Metrics (Synchronized with Billing Store)
+  const dynamicMetrics = useMemo(() => {
+    const now = new Date()
+    const startOfCurrentMonth = startOfMonth(now)
+    
+    const monthlyRevenue = invoices
+      .filter(inv => inv.status === 'paid' && new Date(inv.issued_at || inv.created_at) >= startOfCurrentMonth)
+      .reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+
+    const totalInvoiced = invoices.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+    const totalPaid = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0)
+    const capitalAtRisk = totalInvoiced - totalPaid
+    
+    const overdueCount = invoices.filter(inv => 
+      inv.status === 'overdue' || (inv.status === 'sent' && new Date(inv.due_date) < now)
+    ).length
+
+    return { monthlyRevenue, capitalAtRisk, overdueCount }
+  }, [invoices])
 
   // Revenue Trend Data (Historical)
   const revenueTrend = useMemo(() => {
@@ -105,7 +139,7 @@ export default function ExecutiveDashboard() {
   }, [invoices])
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val)
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val)
   }
 
   if (isLoading || !metrics) {
@@ -138,7 +172,7 @@ export default function ExecutiveDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black tracking-tight">{formatCurrency(metrics.revenue.current_month)}</div>
+            <div className="text-3xl font-black tracking-tight">{formatCurrency(dynamicMetrics.monthlyRevenue)}</div>
             <div className="flex items-center gap-1 mt-1">
               {metrics.revenue.growth >= 0 ? (
                 <TrendingUp className="h-3 w-3 text-emerald-500" />
@@ -193,9 +227,9 @@ export default function ExecutiveDashboard() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black tracking-tight text-rose-500">{formatCurrency(metrics.billing.overdue_amount)}</div>
+            <div className="text-3xl font-black tracking-tight text-rose-500">{formatCurrency(dynamicMetrics.capitalAtRisk)}</div>
             <p className="text-xs font-bold text-muted-foreground mt-1 uppercase tracking-tight">
-              {metrics.billing.overdue_count} Overdue Invoices
+              {dynamicMetrics.overdueCount} Overdue Invoices
             </p>
           </CardContent>
         </Card>
@@ -213,8 +247,8 @@ export default function ExecutiveDashboard() {
               <BarChart3 className="h-5 w-5 text-emerald-500" />
             </div>
           </CardHeader>
-          <CardContent className="h-[350px] w-full pt-4 min-h-[350px]">
-            {isMounted && (
+          <CardContent ref={chartContainerRef} className="h-[350px] w-full pt-4 min-h-[350px]">
+            {isReady && (
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart data={revenueTrend}>
                   <defs>
@@ -234,7 +268,7 @@ export default function ExecutiveDashboard() {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{ fontSize: 11, fontWeight: 'bold', fill: '#94a3b8' }} 
-                    tickFormatter={(val) => `$${val/1000}k`}
+                    tickFormatter={(val) => `₹${val/1000}k`}
                   />
                   <Tooltip 
                     cursor={{ stroke: '#10b981', strokeWidth: 2 }}

@@ -20,23 +20,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useProjectsStore } from "../projectsStore"
 import { useTeamStore } from "@/modules/admin"
 import { toast } from "sonner"
 import { useCRMStore } from "@/modules/crm"
 import type { Project } from "../types"
+import { sanitizeObject } from "@/lib/security"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 
 const formSchema = z.object({
-  name: z.string().min(2, "Project name is required"),
+  name: z.string().min(2, "Project name is required").max(100),
   type: z.enum(['Software', 'Website', 'Marketing', 'Ecommerce', 'Other']),
-  description: z.string().optional(),
+  description: z.string().max(2000).optional(),
   status: z.enum(['planning', 'in_progress', 'on_hold', 'completed', 'cancelled']),
   start_date: z.string().optional().nullable(),
   end_date: z.string().optional().nullable(),
   lead_id: z.string().optional(),
   client_id: z.string().optional().nullable(),
+  department_id: z.string().optional().nullable(),
   member_ids: z.array(z.string()).default([]),
 })
 
@@ -49,17 +51,38 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
   const { addProject, updateProject } = useProjectsStore()
   const { members, fetchMembers } = useTeamStore()
   const { clients, fetchClients } = useCRMStore()
+  const { departments, fetchDepartments } = useDepartmentStore()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     fetchMembers()
     fetchClients()
+    fetchDepartments()
   }, [])
 
   const realClients = useMemo(() => {
     // Filter out virtual clients (leads that haven't been converted to real client records)
     return clients.filter(c => !c.isVirtual)
   }, [clients])
+
+  const activeMembers = useMemo(() => {
+    return members.filter(m => m.status === 'active')
+  }, [members])
+
+  const eligibleLeads = useMemo(() => {
+    return activeMembers.filter(m => {
+      const roleLower = m.role?.toLowerCase() || ''
+      const dynLower = m.dynamic_role_name?.toLowerCase() || ''
+      return (
+        roleLower === 'teamlead' ||
+        roleLower === 'team lead' ||
+        dynLower === 'teamlead' ||
+        dynLower === 'team lead' ||
+        dynLower.includes('team lead') ||
+        dynLower.includes('teamlead')
+      )
+    })
+  }, [activeMembers])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -72,31 +95,41 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
       end_date: project?.end_date || "",
       lead_id: project?.lead?.id || "",
       client_id: project?.client?.id || "",
+      department_id: project?.department_id || "",
       member_ids: project?.members?.map(m => m.id) || [],
     },
   })
 
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
-      const { lead_id, member_ids, ...projectData } = values
+      // OWASP: Sanitize all inputs
+      const sanitizedValues = sanitizeObject(values)
+      const { lead_id, member_ids, ...projectData } = sanitizedValues
       let finalClientId = !projectData.client_id || projectData.client_id === "none" ? null : projectData.client_id
-      
-      // Ensure the selected client is a real record (converts lead if needed)
+      let finalDeptId = !projectData.department_id || projectData.department_id === "none" ? null : projectData.department_id
+
+      // Only attempt lead→client conversion if the ID is NOT already a real client record
       if (finalClientId) {
         try {
-          finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+          const { clients } = useCRMStore.getState()
+          const isAlreadyClient = clients.some(c => c.id === finalClientId && !c.isVirtual)
+          if (!isAlreadyClient) {
+            finalClientId = await useCRMStore.getState().ensureClientFromLead(finalClientId)
+          }
         } catch (err) {
           console.error("Client conversion check failed:", err)
-          // Fallback to original ID if it's already a valid UUID
+          // Non-fatal — proceed with the original ID so the project still saves
         }
       }
       const finalStartDate = !projectData.start_date ? null : projectData.start_date
       const finalEndDate = !projectData.end_date ? null : projectData.end_date
 
-      const finalProjectData = { 
-        ...projectData, 
+      const finalProjectData = {
+        ...projectData,
         client_id: finalClientId,
+        department_id: finalDeptId,
         start_date: finalStartDate,
         end_date: finalEndDate
       }
@@ -130,7 +163,7 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 </div>
                 <h3 className="text-sm font-black uppercase tracking-widest">Project Overview</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -145,7 +178,7 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="type"
@@ -172,31 +205,59 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="client_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Assigned Client</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
-                      <FormControl>
-                        <SelectTrigger className="bg-muted/20">
-                          <SelectValue placeholder={realClients.length > 0 ? "Select a client" : "No clients found (Run recovery script)"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Internal / No Client</SelectItem>
-                        {realClients.map(client => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="client_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Assigned Client</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder={realClients.length > 0 ? "Select a client" : "No clients found (Run recovery script)"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Internal / No Client</SelectItem>
+                          {realClients.map(client => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="department_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Assigned Department</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="Select a department" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None / All Departments</SelectItem>
+                          {departments.map(dept => (
+                            <SelectItem key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={form.control}
@@ -205,8 +266,8 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                   <FormItem>
                     <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Description (Optional)</FormLabel>
                     <FormControl>
-                      <textarea 
-                        {...field} 
+                      <textarea
+                        {...field}
                         className="flex min-h-[80px] w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </FormControl>
@@ -299,11 +360,11 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger className="bg-muted/20">
-                          <SelectValue placeholder="Select project lead" />
+                          <SelectValue placeholder="Select Team lead" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {members.map(member => (
+                        {eligibleLeads.map(member => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.full_name}
                           </SelectItem>
@@ -314,45 +375,6 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                   </FormItem>
                 )}
               />
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground block px-1">Assigned Contributors</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 rounded-xl border border-border/50 bg-muted/10 max-h-[200px] overflow-y-auto shadow-inner">
-                  {members.map((member) => (
-                    <FormField
-                      key={member.id}
-                      control={form.control}
-                      name="member_ids"
-                      render={({ field }) => {
-                        return (
-                          <FormItem
-                            key={member.id}
-                            className="flex flex-row items-center space-x-3 space-y-0"
-                          >
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value?.includes(member.id)}
-                                onCheckedChange={(checked) => {
-                                  return checked
-                                    ? field.onChange([...field.value, member.id])
-                                    : field.onChange(
-                                        field.value?.filter(
-                                          (value) => value !== member.id
-                                        )
-                                      )
-                                }}
-                              />
-                            </FormControl>
-                            <FormLabel className="text-xs font-medium cursor-pointer">
-                              {member.full_name}
-                            </FormLabel>
-                          </FormItem>
-                        )
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </ScrollArea>

@@ -14,7 +14,7 @@ import {
 import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
-import type { Task, TaskStatus } from '../types'
+import type { Task, TaskStatus } from '../types/types'
 import { KanbanColumn } from './KanbanColumn'
 import TaskCard from './TaskCard'
 import { useTasksStore } from '../tasksStore'

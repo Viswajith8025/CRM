@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 export default function RolePermissionEditor() {
   const { id } = useParams<{ id: string }>()
@@ -49,14 +50,24 @@ export default function RolePermissionEditor() {
     setSelectedPerms(ids)
   }, [role?.id, permissions.length])
 
-  // Group permissions by module
-  const groupedPermissions = useMemo(() => {
-    const groups: Record<string, Permission[]> = {}
+  // Group permissions by type and module
+  const { modulePermissions, actionPermissions } = useMemo(() => {
+    const modules: Permission[] = []
+    const actions: Record<string, Permission[]> = {}
+    
     permissions.forEach(p => {
-      if (!groups[p.module]) groups[p.module] = []
-      groups[p.module].push(p)
+      // In the new schema, type is 'module' or 'action'
+      // If the database column isn't migrated yet, we fallback to code prefix logic
+      const isModule = (p as any).type === 'module' || p.code.startsWith('module.')
+      
+      if (isModule) {
+        modules.push(p)
+      } else {
+        if (!actions[p.module]) actions[p.module] = []
+        actions[p.module].push(p)
+      }
     })
-    return groups
+    return { modulePermissions: modules, actionPermissions: actions }
   }, [permissions])
 
   const togglePermission = (permId: string) =>
@@ -64,7 +75,7 @@ export default function RolePermissionEditor() {
       prev.includes(permId) ? prev.filter(p => p !== permId) : [...prev, permId]
     )
 
-  const toggleModule = (modulePerms: Permission[], select: boolean) => {
+  const toggleModuleActions = (modulePerms: Permission[], select: boolean) => {
     const ids = modulePerms.map(p => p.id)
     setSelectedPerms(prev =>
       select
@@ -76,11 +87,20 @@ export default function RolePermissionEditor() {
   const handleSave = async () => {
     if (!role) return
     setIsSaving(true)
-    await updateRole(role.id, {}, selectedPerms)
-    setIsSaving(false)
+    try {
+      await updateRole(role.id, {}, selectedPerms)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  // ─── Edge cases ────────────────────────────────────────────
+  // Preview what the user will see in their sidebar
+  const visibleModules = useMemo(() => {
+    return modulePermissions
+      .filter(p => selectedPerms.includes(p.id))
+      .map(p => p.name.replace(' Module', '').replace(' Access', ''))
+  }, [modulePermissions, selectedPerms])
+
   if (isLoading) {
     return (
       <PageWrapper title="Loading..." description="Fetching role data...">
@@ -107,8 +127,8 @@ export default function RolePermissionEditor() {
 
   return (
     <PageWrapper
-      title={`Configure: ${role.name}`}
-      description="Define granular access rights and module visibility for this role. Changes are saved immediately."
+      title={`Configure Role: ${role.name}`}
+      description="Define granular access rights and module visibility. Changes reflect instantly for all assigned users."
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/roles")} className="gap-2">
@@ -124,148 +144,172 @@ export default function RolePermissionEditor() {
             ) : (
               <Save className="h-4 w-4" />
             )}
-            Save Permissions
+            Save Configuration
           </Button>
         </div>
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* ── Sidebar info panel ─────────────────────────── */}
+        {/* ── Sidebar: Info & Preview ─────────────────────────── */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="border-border/50 bg-card/50">
+          <Card className="border-border/50 bg-card/50 sticky top-24">
             <CardHeader>
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4" /> Role Overview
+              <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> Workspace Preview
               </CardTitle>
+              <CardDescription className="text-[10px]">What users with this role will see</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Bulk actions */}
-              <div className="flex flex-col gap-4">
+            <CardContent className="space-y-6">
+              <div className="p-4 rounded-xl bg-background/50 border border-border/40 space-y-3">
+                <p className="text-[10px] font-black uppercase text-muted-foreground">Visible Modules</p>
+                {visibleModules.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {visibleModules.map(m => (
+                      <Badge key={m} variant="secondary" className="text-[9px] font-black uppercase bg-primary/10 text-primary border-primary/20">
+                        {m}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-rose-500 font-bold italic">No modules visible. Workspace will be empty!</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between text-[10px] font-black uppercase">
+                  <span className="text-muted-foreground">Total Permissions</span>
+                  <span>{selectedPerms.length} / {permissions.length}</span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-500" 
+                    style={{ width: `${(selectedPerms.length / (permissions.length || 1)) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full text-[10px] font-black uppercase"
+                  className="w-full text-[10px] font-black uppercase h-9"
                   onClick={() => setSelectedPerms(permissions.map(p => p.id))}
                 >
-                  <CheckCircle2 className="h-3 w-3 mr-2" /> Select All
+                  <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" /> Select All Access
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full text-[10px] font-black uppercase text-rose-500 hover:text-rose-600"
+                  className="w-full text-[10px] font-black uppercase h-9 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                   onClick={() => setSelectedPerms([])}
                 >
-                  <XCircle className="h-3 w-3 mr-2" /> Clear All
+                  <XCircle className="h-3.5 w-3.5 mr-2" /> Revoke All Access
                 </Button>
               </div>
-
-              <Separator className="bg-border/50" />
-
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                  Active Permissions
-                </p>
-                <p className="text-2xl font-black mt-1">{selectedPerms.length}</p>
-                <p className="text-[10px] text-muted-foreground">of {permissions.length} total</p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-tighter">
-                  Role Type
-                </p>
-                <Badge
-                  variant={role.is_system ? "secondary" : "outline"}
-                  className="mt-1 text-[9px] uppercase font-black"
-                >
-                  {role.is_system ? "System Role" : "Custom Role"}
-                </Badge>
-              </div>
-
-              <Separator className="bg-border/50" />
-
-              <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                Saving updates the access rights for all users assigned to this role immediately.
-              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* ── Permission matrix ──────────────────────────── */}
-        <div className="lg:col-span-3 space-y-6">
-          {permissions.length === 0 && (
-            <div className="flex items-center justify-center min-h-[200px] text-muted-foreground">
-              <p className="text-sm">No permissions configured yet.</p>
+        {/* ── Main Panel: Permissions Matrix ──────────────────────────── */}
+        <div className="lg:col-span-3 space-y-10">
+          
+          {/* Section 1: Module Access */}
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 px-2">
+              <div className="h-8 w-1 bg-primary rounded-full" />
+              <h3 className="text-sm font-black uppercase tracking-widest">1. Module Access (Sidebar Visibility)</h3>
             </div>
-          )}
-
-          {Object.entries(groupedPermissions).map(([module, perms]) => {
-            const allSelected  = perms.every(p => selectedPerms.includes(p.id))
-            const someSelected = perms.some(p  => selectedPerms.includes(p.id))
-            const activeCount  = perms.filter(p => selectedPerms.includes(p.id)).length
-
-            return (
-              <Card key={module} className="border-border/50 bg-card/30 overflow-hidden">
-                <CardHeader className="bg-muted/30 border-b border-border/50 py-4 flex flex-row items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Checkbox
-                      checked={allSelected}
-                      // "indeterminate" styling when only some are selected
-                      data-state={someSelected && !allSelected ? "indeterminate" : undefined}
-                      onCheckedChange={checked => toggleModule(perms, !!checked)}
-                      className="h-5 w-5 rounded-md border-primary/50"
-                    />
-                    <div>
-                      <CardTitle className="text-base font-black tracking-tight uppercase flex items-center gap-2">
-                        <Box className="h-4 w-4 text-primary" />
-                        {module}
-                      </CardTitle>
-                      <CardDescription className="text-[11px]">
-                        {perms.length} permission{perms.length !== 1 ? "s" : ""} in this module
-                      </CardDescription>
+            <Card className="border-border/50 bg-card/30">
+              <CardContent className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {modulePermissions.map(perm => (
+                    <div 
+                      key={perm.id} 
+                      className={cn(
+                        "flex items-center gap-4 p-4 rounded-xl border transition-all cursor-pointer",
+                        selectedPerms.includes(perm.id) 
+                          ? "bg-primary/5 border-primary/30 shadow-inner" 
+                          : "bg-background/20 border-border/40 hover:border-primary/20"
+                      )}
+                      onClick={() => togglePermission(perm.id)}
+                    >
+                      <Checkbox 
+                        checked={selectedPerms.includes(perm.id)}
+                        onCheckedChange={() => togglePermission(perm.id)}
+                        onClick={e => e.stopPropagation()}
+                        className="h-5 w-5"
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm font-black uppercase tracking-tight">{perm.name}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{perm.description}</p>
+                      </div>
                     </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] font-black uppercase border-primary/20 bg-primary/5 text-primary shrink-0"
-                  >
-                    {activeCount} / {perms.length} Active
-                  </Badge>
-                </CardHeader>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
 
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border/50">
-                    {perms.map(perm => (
-                      <div
-                        key={perm.id}
-                        className="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors group cursor-pointer"
-                        onClick={() => togglePermission(perm.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold tracking-tight group-hover:text-primary transition-colors">
-                            {perm.name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                            {perm.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4 ml-4 shrink-0">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-40 group-hover:opacity-100 transition-opacity">
-                            {perm.code}
-                          </span>
+          {/* Section 2: Granular Actions */}
+          <section className="space-y-6">
+            <div className="flex items-center gap-3 px-2">
+              <div className="h-8 w-1 bg-amber-500 rounded-full" />
+              <h3 className="text-sm font-black uppercase tracking-widest">2. Granular Actions (Feature Rights)</h3>
+            </div>
+            
+            {Object.entries(actionPermissions).map(([module, perms]) => {
+              const allSelected = perms.every(p => selectedPerms.includes(p.id))
+              const someSelected = perms.some(p => selectedPerms.includes(p.id))
+              const activeCount = perms.filter(p => selectedPerms.includes(p.id)).length
+
+              return (
+                <Card key={module} className="border-border/50 bg-card/20 overflow-hidden">
+                  <CardHeader className="bg-muted/20 border-b border-border/40 py-3 flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={allSelected}
+                        data-state={someSelected && !allSelected ? "indeterminate" : undefined}
+                        onCheckedChange={checked => toggleModuleActions(perms, !!checked)}
+                        className="h-4 w-4"
+                      />
+                      <div>
+                        <CardTitle className="text-xs font-black uppercase tracking-widest">{module} Actions</CardTitle>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] font-black bg-background/50">
+                      {activeCount} / {perms.length} ENABLED
+                    </Badge>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 divide-x divide-y divide-border/30">
+                      {perms.map(perm => (
+                        <div
+                          key={perm.id}
+                          className="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors group cursor-pointer"
+                          onClick={() => togglePermission(perm.id)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold group-hover:text-primary transition-colors">
+                              {perm.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {perm.description}
+                            </p>
+                          </div>
                           <Checkbox
                             checked={selectedPerms.includes(perm.id)}
                             onCheckedChange={() => togglePermission(perm.id)}
                             onClick={e => e.stopPropagation()}
-                            className="h-5 w-5 rounded-md border-border/50"
+                            className="h-4 w-4"
                           />
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </section>
         </div>
       </div>
     </PageWrapper>

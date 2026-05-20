@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+
 import {
   Table,
   TableBody,
@@ -9,12 +9,14 @@ import {
 } from "@/components/ui/table"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Settings2, ArrowUpDown } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Eye, Edit, Download, Trash2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface Column<T> {
@@ -24,17 +26,18 @@ export interface Column<T> {
   sortable?: boolean
 }
 
+export type RowAction = 'view' | 'edit' | 'download' | 'delete' | 'summary'
+
 interface ReportTableProps<T> {
   columns: Column<T>[]
   data: T[]
-  isLoading?: boolean
+  isLoading: boolean
   totalCount: number
   page: number
   limit: number
   onPageChange: (page: number) => void
   onSort?: (key: string, order: 'asc' | 'desc') => void
-  onRowClick?: (item: T) => void
-  stickyHeader?: boolean
+  onRowAction?: (action: RowAction, item: T) => void
 }
 
 export function ReportTable<T>({
@@ -46,142 +49,122 @@ export function ReportTable<T>({
   limit,
   onPageChange,
   onSort,
-  onRowClick,
-  stickyHeader = true
+  onRowAction
 }: ReportTableProps<T>) {
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map(c => c.header))
-  const [sortConfig, setSortConfig] = useState<{ key: string; order: 'asc' | 'desc' } | null>(null)
-
-  const handleSort = (key: string) => {
-    const order = sortConfig?.key === key && sortConfig.order === 'asc' ? 'desc' : 'asc'
-    setSortConfig({ key, order })
-    onSort?.(key, order)
-  }
-
-  const filteredColumns = columns.filter(c => visibleColumns.includes(c.header))
   const totalPages = Math.ceil(totalCount / limit)
+  const startRange = (page - 1) * limit + 1
+  const endRange = Math.min(page * limit, totalCount)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between px-2">
-        <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-          Showing {Math.min(data.length, limit)} of {totalCount.toLocaleString()} records
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8 gap-2 border-dashed">
-              <Settings2 className="h-3.5 w-3.5" />
-              Columns
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {columns.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.header}
-                className="capitalize text-xs font-bold"
-                checked={visibleColumns.includes(column.header)}
-                onCheckedChange={(value) => {
-                  if (value) setVisibleColumns([...visibleColumns, column.header])
-                  else setVisibleColumns(visibleColumns.filter(c => c !== column.header))
-                }}
-              >
-                {column.header}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className={cn(
-        "rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden",
-        stickyHeader && "relative"
-      )}>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className={cn(stickyHeader && "sticky top-0 bg-background/80 backdrop-blur-md z-10")}>
-              <TableRow className="bg-muted/30 border-b border-border/50">
-                {filteredColumns.map((column) => (
-                  <TableHead 
-                    key={column.header}
-                    className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4"
-                  >
-                    {column.sortable ? (
-                      <button 
-                        onClick={() => handleSort(column.accessorKey as string)}
-                        className="flex items-center gap-1.5 hover:text-primary transition-colors"
-                      >
-                        {column.header}
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    ) : (
-                      column.header
-                    )}
-                  </TableHead>
-                ))}
+    <div className="border border-border/50 rounded-2xl bg-card/30 overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader className="bg-muted/30">
+            <TableRow className="hover:bg-transparent border-border/50">
+              {columns.map((col) => (
+                <TableHead 
+                  key={String(col.accessorKey)}
+                  className="h-12 text-[10px] font-black uppercase tracking-widest text-muted-foreground py-4"
+                >
+                  {col.header}
+                </TableHead>
+              ))}
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} className="h-64 text-center">
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-40">Compiling Report Data...</p>
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {filteredColumns.map((_, j) => (
-                      <TableCell key={j} className="py-4">
-                        <div className="h-4 w-full bg-muted/50 animate-pulse rounded" />
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : data.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={filteredColumns.length} className="h-32 text-center text-muted-foreground font-medium">
-                    No records found matching your filters.
+            ) : data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length + 1} className="h-64 text-center">
+                  <p className="text-sm font-bold text-muted-foreground">No records found for this criteria.</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((item: any, idx) => (
+                <TableRow key={item.id || idx} className="border-border/50 hover:bg-primary/[0.02] group transition-colors">
+                  {columns.map((col) => (
+                    <TableCell key={String(col.accessorKey)} className="py-4 font-medium text-sm">
+                      {col.cell ? col.cell(item) : String(item[col.accessorKey] ?? '-')}
+                    </TableCell>
+                  ))}
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button className="h-8 w-8 rounded-lg border border-border/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted focus-visible:opacity-100">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-60">Record Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onRowAction?.('view', item)} className="gap-2 cursor-pointer">
+                          <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-bold text-xs uppercase tracking-tight">View Details</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onRowAction?.('edit', item)} className="gap-2 cursor-pointer">
+                          <Edit className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-bold text-xs uppercase tracking-tight">Edit Record</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onRowAction?.('summary', item)} className="gap-2 cursor-pointer">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-bold text-xs uppercase tracking-tight">Individual Report</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onRowAction?.('download', item)} className="gap-2 cursor-pointer">
+                          <Download className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="font-bold text-xs uppercase tracking-tight">Export Row</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onRowAction?.('delete', item)} className="gap-2 cursor-pointer text-rose-500 focus:text-rose-500">
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="font-bold text-xs uppercase tracking-tight">Delete</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ) : (
-                data.map((item, i) => (
-                  <TableRow 
-                    key={i} 
-                    className={cn(
-                      "hover:bg-muted/20 transition-colors group",
-                      onRowClick && "cursor-pointer"
-                    )}
-                    onClick={() => onRowClick?.(item)}
-                  >
-                    {filteredColumns.map((column) => (
-                      <TableCell key={column.header} className="py-3.5 text-sm font-medium">
-                        {column.cell ? column.cell(item) : (item[column.accessorKey as keyof T] as React.ReactNode)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-end gap-4 px-2">
-        <div className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground">
-          Page {page} of {totalPages || 1}
-        </div>
-        <div className="flex gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={page <= 1 || isLoading}
+      {/* Pagination Footer */}
+      <div className="bg-muted/10 border-t border-border/50 px-6 py-4 flex items-center justify-between">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
+          Showing <span className="text-foreground">{startRange}-{endRange}</span> of <span className="text-foreground">{totalCount}</span> institutional records
+        </p>
+
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={page === 1 || isLoading}
             onClick={() => onPageChange(page - 1)}
+            className="h-8 w-8 p-0 border-border/50"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-8 w-8"
-            disabled={page >= totalPages || isLoading}
+          
+          <div className="flex items-center gap-1 px-2">
+            <span className="text-[10px] font-black">PAGE {page}</span>
+            <span className="text-[10px] font-black text-muted-foreground">/ {totalPages || 1}</span>
+          </div>
+
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={page === totalPages || totalPages === 0 || isLoading}
             onClick={() => onPageChange(page + 1)}
+            className="h-8 w-8 p-0 border-border/50"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

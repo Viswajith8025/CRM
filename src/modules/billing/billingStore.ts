@@ -34,6 +34,8 @@ interface BillingState {
   addSubscription: (subscription: any) => Promise<void>
   convertProposalToInvoice: (proposalId: string) => Promise<void>
   fetchClientByLead: (leadId: string) => Promise<string | undefined>
+  
+  subscribeToInvoices: () => () => void
 }
 
 export const useBillingStore = create<BillingState>((set, get) => ({
@@ -165,7 +167,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         targetType: 'invoice',
         targetId: data.id,
         targetName: data.invoice_number,
-        description: `Issued new invoice for $${data.amount.toLocaleString()} (${data.status})`,
+        description: `Issued new invoice for ₹${data.amount.toLocaleString()} (${data.status})`,
         organization_id: orgId
       })
 
@@ -185,15 +187,28 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data, error } = await supabase
+      const currentInvoice = get().invoices.find(inv => inv.id === id)
+      
+      let query = supabase
         .from('invoices')
         .update({ status })
         .eq('id', id)
         .eq('organization_id', orgId)
+
+      if (currentInvoice?.updated_at) {
+        query = query.eq('updated_at', currentInvoice.updated_at)
+      }
+
+      const { data, error } = await query
         .select('*, client:clients(name), project:projects(name)')
         .single()
 
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error("Conflict: This invoice was modified by another user.")
+        }
+        throw error
+      }
 
       if (status === 'paid') {
         const { data: existingPayments } = await supabase
@@ -242,15 +257,28 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data, error } = await supabase
+      const currentInvoice = get().invoices.find(inv => inv.id === id)
+
+      let query = supabase
         .from('invoices')
         .update(updates)
         .eq('id', id)
         .eq('organization_id', orgId)
+
+      if (currentInvoice?.updated_at) {
+        query = query.eq('updated_at', currentInvoice.updated_at)
+      }
+
+      const { data, error } = await query
         .select('*, client:clients(name), project:projects(name)')
         .single()
 
-      if (error) throw error
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error("Conflict: This invoice was modified by another user.")
+        }
+        throw error
+      }
       set({
         invoices: get().invoices.map((inv) => (inv.id === id ? (data as Invoice) : inv))
       })
@@ -325,24 +353,23 @@ export const useBillingStore = create<BillingState>((set, get) => ({
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
+      if (!orgId || !profile?.id) throw new Error("No organization context found.")
 
-      const paymentWithOrg = { ...payment, organization_id: orgId, user_id: profile?.id, status: 'pending' }
-      
-      const { error } = await supabase.from('payments').insert(paymentWithOrg)
-      if (error) throw error
-
-      logActivity({
-        action: 'PAYMENT_STATUS_CHANGE',
-        targetType: 'payment',
-        targetId: payment.invoice_id || 'manual',
-        targetName: payment.transaction_id || 'Manual Payment',
-        description: `Payment of $${payment.amount} recorded (Pending Verification)`,
-        organization_id: orgId
+      const { data, error } = await supabase.rpc('process_invoice_payment', {
+        p_invoice_id: payment.invoice_id,
+        p_org_id: orgId,
+        p_user_id: profile.id,
+        p_amount: payment.amount,
+        p_method: payment.payment_method || 'manual',
+        p_transaction_id: payment.transaction_id || null,
+        p_notes: payment.milestone_name || null
       })
 
+      if (error) throw error
+      if (data && !data.success) throw new Error(data.error)
+
       get().fetchPayments(true)
-      get().fetchInvoices(true) // Refresh invoices as triggers might have updated paid_amount
+      get().fetchInvoices(true)
     } catch (err) {
       throw toFriendlyError(err, "Failed to record payment.")
     }
@@ -498,5 +525,17 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       .eq('organization_id', profile?.organization_id)
       .single()
     return data?.id
+  },
+
+  subscribeToInvoices: () => {
+    const channel = supabase
+      .channel('billing_invoices_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'invoices' },
+        () => get().fetchInvoices({ force: true })
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
   }
 }))

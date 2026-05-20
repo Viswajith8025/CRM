@@ -73,8 +73,8 @@ export default function TimeTrackingPage() {
               <DollarSign className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${(billableMinutes / 60 * 150).toLocaleString()}</div>
-              <p className="text-[10px] text-muted-foreground mt-1">Based on $150/hr average</p>
+              <div className="text-2xl font-bold">₹{(billableMinutes / 60 * 12000).toLocaleString()}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">Based on ₹12,000/hr average</p>
             </CardContent>
           </Card>
           <Card className="border-border/50">

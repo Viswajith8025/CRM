@@ -1,4 +1,4 @@
-export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {
@@ -11,11 +11,18 @@ export interface Task {
   priority: TaskPriority
   assigned_to: string | null
   due_date: string | null
+  estimated_hours: number | null
+  actual_hours: number | null
+  blocked_reason: string | null
+  module_id: string | null
   created_at: string
   updated_at: string
   project?: { name: string }
   assignee?: { full_name: string, avatar_url: string }
   comments?: { count: number }[]
+  collaborators?: string[] // User IDs assigned as co-owners
+  dependencies?: string[]  // Task IDs this task depends on
+  module?: { id: string, name: string, color: string }
 }
 
 export interface Subtask {

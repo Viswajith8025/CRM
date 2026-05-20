@@ -1,18 +1,18 @@
 import { CardHeader, CardContent } from '@/components/ui/card'
 import { Clock } from 'lucide-react'
-import { useActivityStore } from '@/modules/reports'
+import { useDashboardDataStore } from '@/modules/dashboard'
 import { useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from '@/components/ui/button'
 
 export function ActivityWidget() {
-  const { activities, fetchActivities } = useActivityStore()
+  const { activities, fetchRecentActivity } = useDashboardDataStore()
 
   useEffect(() => {
-    fetchActivities()
+    fetchRecentActivity(6)
   }, [])
 
-  const recent = activities.slice(0, 5)
+  const recent = activities
 
   return (
     <div className="h-full flex flex-col bg-slate-950/30 rounded-xl border border-white/5 backdrop-blur-sm">
@@ -34,8 +34,8 @@ export function ActivityWidget() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-white/80 leading-snug">
-                    <span className="font-black text-white">{activity.user?.full_name || 'System'}</span>
-                    {' '}{activity.action}{' '}
+                    <span className="font-black text-white">{activity.actor_name || 'System'}</span>
+                    {' '}{activity.action_type}{' '}
                     <span className="text-primary font-bold">{activity.target_name}</span>
                   </p>
                   <p className="text-[10px] text-white/30 font-bold uppercase tracking-tight mt-1">

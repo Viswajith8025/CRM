@@ -13,7 +13,7 @@ import { FileText, MoreHorizontal, CheckCircle2, Trash2, Filter, Search, Eye } f
 import { useBillingStore } from "../billingStore"
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns"
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { AdvancedInvoiceFilter } from "./AdvancedInvoiceFilter"
 
@@ -57,51 +58,44 @@ interface InvoiceListProps {
   endDate?: string
 }
 
+import { useSearchParams } from "react-router-dom"
+
 export function InvoiceList({ filterStatus = "all", startDate, endDate }: InvoiceListProps) {
-  const { invoices, isLoading, updateInvoiceStatus, deleteInvoice } = useBillingStore()
+  const { invoices, isLoading, updateInvoiceStatus, deleteInvoice, fetchInvoices, pagination } = useBillingStore()
   const navigate = useNavigate()
-  const [search, setSearch] = useState("")
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [advancedCriteria, setAdvancedCriteria] = useState<FilterCriteria>({})
 
-  const filteredInvoices = invoices
-    .filter((inv) => {
-      const matchesSearch = inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-                           inv.client?.name?.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus = filterStatus === "all" ? 
-        (!advancedCriteria.status || inv.status === advancedCriteria.status) : 
-        inv.status === filterStatus
-      
-      const matchesAmount = 
-        (!advancedCriteria.minAmount || Number(inv.amount) >= advancedCriteria.minAmount) &&
-        (!advancedCriteria.maxAmount || Number(inv.amount) <= advancedCriteria.maxAmount)
-      
-      const matchesAdvancedClient = !advancedCriteria.clientName || 
-        inv.client?.name?.toLowerCase().includes(advancedCriteria.clientName.toLowerCase())
-
-      let matchesDate = true
-      if (startDate || advancedCriteria.dateFrom) {
-        const fromDate = advancedCriteria.dateFrom ? new Date(advancedCriteria.dateFrom) : new Date(startDate!)
-        matchesDate = matchesDate && !isBefore(new Date(inv.issued_at), startOfDay(fromDate))
+  useEffect(() => {
+    // Enterprise Fetch: Centralized filtering at database level
+    fetchInvoices({
+      page: 1,
+      limit: 10,
+      filters: {
+        status: filterStatus !== "all" ? filterStatus : undefined,
+        search: search || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        ...advancedCriteria
       }
-      if (endDate) {
-        matchesDate = matchesDate && !isAfter(new Date(inv.issued_at), endOfDay(new Date(endDate)))
-      }
+    })
+  }, [filterStatus, search, startDate, endDate, advancedCriteria])
 
-      return matchesSearch && matchesStatus && matchesDate && matchesAmount && matchesAdvancedClient
-    })
-    .sort((a, b) => {
-      const valA = new Date(a.due_date).getTime()
-      const valB = new Date(b.due_date).getTime()
-      return sortOrder === "asc" ? valA - valB : valB - valA
-    })
+  useEffect(() => {
+    const urlSearch = searchParams.get("search")
+    if (urlSearch && urlSearch !== search) {
+      setSearch(urlSearch)
+    }
+  }, [searchParams])
 
   const handleDelete = async () => {
     if (!deleteId) return
     try {
       await deleteInvoice(deleteId)
       toast.success("Invoice deleted")
+      fetchInvoices({ page: pagination.invoices.page })
     } catch (error) {
       toast.error("Failed to delete invoice")
     } finally {
@@ -116,7 +110,7 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input 
             placeholder="Search by invoice number or client..." 
-            className="pl-9" 
+            className="pl-9 h-11 bg-card/30" 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -124,94 +118,97 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
         <AdvancedInvoiceFilter onFilterChange={setAdvancedCriteria} />
         <Button 
           variant="outline" 
-          className="gap-2"
-          onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+          className="gap-2 h-11"
+          onClick={() => fetchInvoices({ 
+            page: 1, 
+            sortOrder: pagination.invoices.page === 1 ? 'asc' : 'desc' 
+          } as any)}
         >
           <Filter className="h-4 w-4" />
-          Sort Due Date: {sortOrder === "asc" ? "Oldest First" : "Newest First"}
+          Quick Sort
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="rounded-md border bg-card p-8 text-center text-muted-foreground">
-          Loading invoices...
-        </div>
-      ) : filteredInvoices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-xl bg-card/50">
-          <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
-            <FileText className="h-10 w-10 text-muted-foreground" />
+        <div className="rounded-xl border border-border/50 bg-card/30 p-12 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <MoreHorizontal className="h-6 w-6 animate-pulse text-primary" />
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-muted-foreground">Aggregating Financial Ledger...</p>
           </div>
-          <h3 className="text-xl font-bold">No invoices found</h3>
-          <p className="text-muted-foreground max-w-xs mx-auto">
-            {search || filterStatus !== "all" || startDate || endDate
-              ? "Try adjusting your filters to find what you're looking for." 
-              : "You haven't created any invoices yet. Start billing your clients to see them here."}
+        </div>
+      ) : invoices.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/10 border-border/50">
+          <div className="h-16 w-16 rounded-2xl bg-accent/50 flex items-center justify-center mb-4">
+            <FileText className="h-8 w-8 text-muted-foreground opacity-50" />
+          </div>
+          <h3 className="text-sm font-black uppercase tracking-tight">No invoices detected</h3>
+          <p className="text-xs text-muted-foreground max-w-[240px] mx-auto mt-1">
+            Try adjusting your search or filters to locate specific billing records.
           </p>
         </div>
       ) : (
-        <div className="rounded-md border bg-card">
+        <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Invoice #</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Issued</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+              <TableRow className="bg-muted/50 border-b border-border/50">
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Invoice #</th>
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Client Entity</th>
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gross Amount</th>
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Schedule</th>
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Actions</th>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredInvoices.map((invoice) => (
-                <TableRow key={invoice.id} className="group">
-                  <TableCell className="font-mono font-bold text-primary">
+              {invoices.map((invoice) => (
+                <TableRow key={invoice.id} className="group hover:bg-primary/5 transition-colors cursor-pointer" onClick={() => navigate(`/billing/${invoice.id}`)}>
+                  <TableCell className="font-mono font-black text-xs text-primary">
                     {invoice.invoice_number}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col">
-                      <span className="font-medium">{invoice.client?.name}</span>
-                      <span className="text-xs text-muted-foreground">{invoice.project?.name || "General Billing"}</span>
+                      <span className="font-bold text-sm">{invoice.client?.name}</span>
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground opacity-60 tracking-tight">{invoice.project?.name || "Operational Billing"}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="font-bold">
-                    ${invoice.amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {format(new Date(invoice.issued_at), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {format(new Date(invoice.due_date), 'MMM d, yyyy')}
+                  <TableCell className="font-black text-sm">
+                    ₹{Number(invoice.amount).toLocaleString()}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={statusColors[invoice.status]}>
-                      {invoice.status.toUpperCase()}
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] font-bold uppercase text-muted-foreground">Due: {format(new Date(invoice.due_date), 'MMM d, yyyy')}</span>
+                      <span className="text-[9px] font-medium opacity-40">Issued: {format(new Date(invoice.issued_at), 'MMM d, yyyy')}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className={cn("uppercase font-black text-[9px] px-2 py-0.5", statusColors[invoice.status])}>
+                      {invoice.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => navigate(`/billing/${invoice.id}`)} className="gap-2">
-                          <Eye className="h-4 w-4" /> View Invoice
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => navigate(`/billing/${invoice.id}`)} className="gap-2 font-bold text-xs uppercase">
+                          <Eye className="h-4 w-4" /> View Details
                         </DropdownMenuItem>
                         {invoice.status !== 'paid' && (
                           <DropdownMenuItem 
                             onClick={() => updateInvoiceStatus(invoice.id, 'paid')}
-                            className="gap-2 text-emerald-600 font-medium"
+                            className="gap-2 text-emerald-600 font-black text-xs uppercase"
                           >
-                            <CheckCircle2 className="h-4 w-4" /> Mark as Paid
+                            <CheckCircle2 className="h-4 w-4" /> Finalize Payment
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem 
-                          className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-bold" 
+                          className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-black text-xs uppercase" 
                           onClick={() => setDeleteId(invoice.id)}
                         >
-                          <Trash2 className="h-4 w-4" /> Delete
+                          <Trash2 className="h-4 w-4" /> Delete Records
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -222,6 +219,33 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
           </Table>
         </div>
       )}
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-2 pt-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+          Showing <span className="text-foreground">{(pagination.invoices.page - 1) * pagination.invoices.limit + 1}-{Math.min(pagination.invoices.page * pagination.invoices.limit, pagination.invoices.totalCount)}</span> of <span className="text-foreground">{pagination.invoices.totalCount}</span> invoices
+        </p>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={pagination.invoices.page === 1}
+            onClick={() => fetchInvoices({ page: pagination.invoices.page - 1 })}
+            className="h-8 px-4 font-black uppercase text-[10px]"
+          >
+            Prev
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={pagination.invoices.page === pagination.invoices.totalPages}
+            onClick={() => fetchInvoices({ page: pagination.invoices.page + 1 })}
+            className="h-8 px-4 font-black uppercase text-[10px]"
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>

@@ -5,6 +5,7 @@ import { getFriendlySupabaseError, toFriendlyError } from '@/lib/supabaseError'
 import type { Contact as Lead, Client, Interaction, Proposal } from '../types'
 import { useWorkflowStore } from '@/modules/admin'
 import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
+import { parseClientMetadata, serializeClientMetadata } from '@/lib/metadataFallback'
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
@@ -19,10 +20,9 @@ interface CRMState {
   lastFetchedAt: number | null
   virtualLeadStatusOverrides: Record<string, string>
   pagination: {
-    totalCount: number
-    page: number
-    limit: number
-    totalPages: number
+    leads: { totalCount: number, page: number, limit: number, totalPages: number }
+    clients: { totalCount: number, page: number, limit: number, totalPages: number }
+    proposals: { totalCount: number, page: number, limit: number, totalPages: number }
   }
   
   fetchLeads: (params?: Partial<PaginationParams> & { force?: boolean }) => Promise<void>
@@ -30,7 +30,7 @@ interface CRMState {
   updateLead: (id: string, updates: Partial<Lead>) => Promise<void>
   deleteLead: (id: string) => Promise<void>
   
-  fetchClients: (force?: boolean) => Promise<void>
+  fetchClients: (params?: Partial<PaginationParams> & { force?: boolean }) => Promise<void>
   addClient: (client: Partial<Client>) => Promise<void>
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>
   deleteClient: (id: string) => Promise<void>
@@ -38,13 +38,16 @@ interface CRMState {
   fetchInteractions: (leadId: string) => Promise<void>
   addInteraction: (interaction: Partial<Interaction>) => Promise<void>
   
-  fetchProposals: (force?: boolean) => Promise<void>
+  fetchProposals: (params?: Partial<PaginationParams> & { force?: boolean }) => Promise<void>
   getProposalById: (id: string) => Promise<Proposal | null>
   addProposal: (proposal: Partial<Proposal>) => Promise<Proposal>
   updateProposal: (id: string, updates: Partial<Proposal>) => Promise<Proposal>
   signProposal: (id: string, signatureData: { name: string, signature: string }) => Promise<void>
   
   ensureClientFromLead: (leadId: string) => Promise<string>
+  
+  subscribeToLeads: () => () => void
+  subscribeToClients: () => () => void
 }
 
 export const useCRMStore = create<CRMState>((set, get) => ({
@@ -58,10 +61,9 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   lastFetchedAt: null,
   virtualLeadStatusOverrides: {},
   pagination: {
-    totalCount: 0,
-    page: 1,
-    limit: 20,
-    totalPages: 0
+    leads: { totalCount: 0, page: 1, limit: 20, totalPages: 0 },
+    clients: { totalCount: 0, page: 1, limit: 20, totalPages: 0 },
+    proposals: { totalCount: 0, page: 1, limit: 20, totalPages: 0 }
   },
 
   fetchLeads: async (params = {}) => {
@@ -77,6 +79,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .from('leads')
         .select('*', { count: 'exact' })
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
 
       const result = await fetchPaginatedData<Lead>(baseQuery, {
         page,
@@ -89,10 +92,13 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       set({ 
         leads: result.data, 
         pagination: {
-          totalCount: result.totalCount,
-          page: result.page,
-          limit: result.limit,
-          totalPages: result.totalPages
+          ...get().pagination,
+          leads: {
+            totalCount: result.totalCount,
+            page: result.page,
+            limit: result.limit,
+            totalPages: result.totalPages
+          }
         },
         error: null, 
         hasFetched: true, 
@@ -148,83 +154,19 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      // Optimistic UI for status
-      if (updates.status) {
-        const overrides = id.startsWith('virtual-lead-') 
-          ? { virtualLeadStatusOverrides: { ...get().virtualLeadStatusOverrides, [id]: updates.status } }
-          : {}
-        set((state) => ({
-          leads: state.leads.map((l) => (l.id === id ? { ...l, status: updates.status! } : l)),
-          ...overrides
-        }))
-      }
-
-      // Handle Virtual Leads
-      if (id.startsWith('virtual-lead-')) {
-        const clientId = id.replace('virtual-lead-', '')
-        const client = get().clients.find(c => c.id === clientId)
-        
-        if (client) {
-          if (updates.status && updates.status !== 'active_client') {
-            const names = (client.name || 'Client').split(' ')
-            const { data: newLead, error: leadError } = await supabase
-              .from('leads')
-              .insert({
-                first_name: names[0],
-                last_name: names.slice(1).join(' ') || null,
-                email: client.email,
-                phone: client.phone || null,
-                status: updates.status,
-                value: client.contract_value || 0,
-                organization_id: orgId
-              })
-              .select()
-              .single()
-
-            if (leadError) throw leadError
-
-            await supabase
-              .from('clients')
-              .update({ lead_id: newLead.id })
-              .eq('id', clientId)
-              .eq('organization_id', orgId)
-                
-            set((state) => ({
-              clients: state.clients.map(c => c.id === clientId ? { ...c, lead_id: newLead.id } : c),
-              leads: state.leads.map(l => l.id === id ? (newLead as Lead) : l)
-            }))
-          } else {
-            const clientUpdates: any = {}
-            if (updates.first_name || updates.last_name) {
-              clientUpdates.name = `${updates.first_name || ''} ${updates.last_name || ''}`.trim()
-            }
-            if (updates.email) clientUpdates.email = updates.email
-            if (updates.value) clientUpdates.contract_value = updates.value
-
-            if (Object.keys(clientUpdates).length > 0) {
-              await get().updateClient(clientId, clientUpdates)
-            }
-            set((state) => ({
-              leads: state.leads.map((l) => (l.id === id ? { ...l, ...updates } : l))
-            }))
-          }
-        }
-        return
-      }
-
-      const { job_title, ...cleanUpdates } = updates as any;
-      if (cleanUpdates.email === "") cleanUpdates.email = null;
-      if (cleanUpdates.phone === "") cleanUpdates.phone = null;
-
-      const { data, error } = await supabase
+      const currentLead = get().leads.find(l => l.id === id)
+      
+      let query = supabase
         .from('leads')
-        .update(cleanUpdates)
+        .update(updates)
         .eq('id', id)
         .eq('organization_id', orgId)
-        .select()
-        .single()
 
-      if (error) throw error
+      const { data, error } = await query.select().single()
+
+      if (error) {
+        throw error
+      }
 
       logActivity({
         action: updates.status ? 'STATUS_CHANGE' : 'UPDATE',
@@ -234,16 +176,6 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         description: updates.status ? `Lead status changed to ${updates.status}` : `Updated lead details`,
         organization_id: orgId
       })
-
-      // Sync name to client if linked
-      if (updates.first_name || updates.last_name) {
-        const fullName = `${updates.first_name || data.first_name} ${updates.last_name || data.last_name || ''}`.trim()
-        await supabase
-          .from('clients')
-          .update({ name: fullName })
-          .eq('lead_id', id)
-          .eq('organization_id', orgId)
-      }
 
       set((state) => ({
         leads: state.leads.map((l) => (l.id === id ? (data as Lead) : l)),
@@ -268,7 +200,11 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         return
       }
 
-      const { error } = await supabase.from('leads').delete().eq('id', id).eq('organization_id', orgId)
+      const { error } = await supabase
+        .from('leads')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('organization_id', orgId)
       if (error) throw error
 
       set({ leads: get().leads.filter((l) => l.id !== id), error: null, lastFetchedAt: Date.now() })
@@ -277,10 +213,11 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  fetchClients: async (force = false) => {
+  fetchClients: async (params = {}) => {
+    const { force = false, page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {} } = params
     const { hasFetched, lastFetchedAt } = get()
     const isFresh = lastFetchedAt !== null && Date.now() - lastFetchedAt < CACHE_TTL_MS
-    if (!force && hasFetched && isFresh && get().clients.length > 0) return
+    if (!force && hasFetched && isFresh && get().clients.length > 0 && page === get().pagination.clients.page) return
 
     set({ isLoading: true })
     try {
@@ -288,21 +225,50 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data: clientsData, error: clientsError } = await supabase
+      const baseQuery = supabase
         .from('clients')
-        .select('*, leads!lead_id(status)')
+        .select('*, leads!lead_id(status)', { count: 'exact' })
         .eq('organization_id', orgId)
-        .order('created_at', { ascending: false })
+        .is('deleted_at', null)
 
-      if (clientsError) throw clientsError
+      const result = await fetchPaginatedData<Client>(baseQuery, {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        filters
+      })
 
-      // Filter clients based on linked lead status (only active_client or no lead)
-      const activeClients = (clientsData as any[] || []).filter(client => {
+      // We still filter for active_client on the client-side for now, 
+      // but the base query is now paginated on the server.
+      const processedData = (result.data as any[] || []).filter(client => {
         if (!client.lead_id) return true
         return client.leads?.status === 'active_client'
-      }) as Client[]
+      }).map(client => {
+        const metadata = parseClientMetadata(client)
+        return {
+          ...client,
+          department_id: metadata.department_id,
+          team_lead_id: metadata.team_lead_id,
+          address: metadata.cleanAddress
+        }
+      })
 
-      set({ clients: activeClients, error: null, hasFetched: true, lastFetchedAt: Date.now() })
+      set({ 
+        clients: processedData, 
+        pagination: {
+          ...get().pagination,
+          clients: {
+            totalCount: result.totalCount,
+            page: result.page,
+            limit: result.limit,
+            totalPages: result.totalPages
+          }
+        },
+        error: null, 
+        hasFetched: true, 
+        lastFetchedAt: Date.now() 
+      })
     } catch (err) {
       set({ error: getFriendlySupabaseError(err, "Failed to load clients.") })
     } finally {
@@ -316,8 +282,9 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
       
-      const { isVirtual, ...dbClient } = client as any
-      const clientWithOrg = { ...dbClient, organization_id: orgId }
+      const { isVirtual, department_id, team_lead_id, ...dbClient } = client as any
+      const processedClient = serializeClientMetadata(dbClient, department_id || null, team_lead_id || null)
+      const clientWithOrg = { ...processedClient, organization_id: orgId }
       
       const { data, error } = await supabase
         .from('clients')
@@ -326,8 +293,14 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .single()
 
       if (error) throw error
-      set({ clients: [data as Client, ...get().clients], error: null, lastFetchedAt: Date.now() })
-      useWorkflowStore.getState().executeWorkflow('CLIENT_CREATED', data)
+      
+      const parsedData = {
+        ...data,
+        ...parseClientMetadata(data)
+      }
+      
+      set({ clients: [parsedData as Client, ...get().clients], error: null, lastFetchedAt: Date.now() })
+      useWorkflowStore.getState().executeWorkflow('CLIENT_CREATED', parsedData)
     } catch (err) {
       throw toFriendlyError(err, "Failed to add client.")
     }
@@ -339,16 +312,44 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { data, error } = await supabase
+      const currentClient = get().clients.find(c => c.id === id)
+      const { department_id, team_lead_id, ...cleanUpdates } = updates as any
+
+      const fullClient = {
+        ...(currentClient || {}),
+        ...cleanUpdates
+      }
+      
+      const processedClient = serializeClientMetadata(
+        fullClient, 
+        department_id !== undefined ? department_id : (currentClient as any)?.department_id, 
+        team_lead_id !== undefined ? team_lead_id : (currentClient as any)?.team_lead_id
+      )
+
+      const finalUpdates = {
+        ...cleanUpdates,
+        address: processedClient.address,
+        ...( ('department_id' in processedClient) ? { department_id: processedClient.department_id, team_lead_id: processedClient.team_lead_id } : {} )
+      }
+
+      let query = supabase
         .from('clients')
-        .update(updates)
+        .update(finalUpdates)
         .eq('id', id)
         .eq('organization_id', orgId)
-        .select()
-        .single()
 
-      if (error) throw error
-      set({ clients: get().clients.map((c) => (c.id === id ? (data as Client) : c)), error: null })
+      const { data, error } = await query.select().single()
+
+      if (error) {
+        throw error
+      }
+
+      const parsedData = {
+        ...data,
+        ...parseClientMetadata(data)
+      }
+
+      set({ clients: get().clients.map((c) => (c.id === id ? (parsedData as Client) : c)), error: null })
     } catch (err) {
       throw toFriendlyError(err, "Failed to update client.")
     }
@@ -360,7 +361,13 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const { error } = await supabase.from('clients').delete().eq('id', id).eq('organization_id', orgId)
+      // Soft delete to preserve financial and audit history, as hard deletes might be blocked
+      const { error } = await supabase
+        .from('clients')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('organization_id', orgId)
+
       if (error) throw error
       set({ clients: get().clients.filter((c) => c.id !== id), error: null })
     } catch (err) {
@@ -406,20 +413,38 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  fetchProposals: async (force = false) => {
+  fetchProposals: async (params = {}) => {
+    const { page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {} } = params
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from('proposals')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('organization_id', orgId)
-        .order('created_at', { ascending: false })
 
-      if (error) throw error
-      set({ proposals: data as Proposal[] })
+      const result = await fetchPaginatedData<Proposal>(baseQuery, {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        filters
+      })
+
+      set({ 
+        proposals: result.data,
+        pagination: {
+          ...get().pagination,
+          proposals: {
+            totalCount: result.totalCount,
+            page: result.page,
+            limit: result.limit,
+            totalPages: result.totalPages
+          }
+        }
+      })
     } catch (err) {
       console.error("Error fetching proposals:", err)
     }
@@ -514,56 +539,50 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
+      if (!orgId || !profile) throw new Error("No organization context found.")
 
-      // 1. Check if this is ALREADY a client ID (prevent double-conversion attempts)
-      const { data: alreadyClient } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('id', leadId)
-        .eq('organization_id', orgId)
-        .maybeSingle()
-
-      if (alreadyClient) return alreadyClient.id
-
-      // 2. Check if a client exists for this lead_id
-      const { data: existing } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('lead_id', leadId)
-        .eq('organization_id', orgId)
-        .maybeSingle()
-
-      if (existing) return existing.id
-
-      const { data: lead } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id', leadId)
-        .eq('organization_id', orgId)
-        .single()
-
-      if (!lead) throw new Error("Lead not found")
-
-      const { data: newClient, error } = await supabase
-        .from('clients')
-        .insert({
-          name: `${lead.first_name} ${lead.last_name || ''}`.trim() || lead.company || 'Converted Lead',
-          email: lead.email,
-          phone: lead.phone,
-          lead_id: lead.id,
-          organization_id: orgId,
-          user_id: lead.user_id
+      const { data: clientId, error } = await supabase
+        .rpc('convert_lead_to_client', {
+          p_lead_id: leadId,
+          p_org_id: orgId,
+          p_converted_by: profile.id
         })
-        .select()
-        .single()
 
       if (error) throw error
-      return newClient.id
+      
+      // Refresh local state
+      get().fetchLeads({ force: true })
+      get().fetchClients({ force: true })
+      
+      return clientId
     } catch (err) {
-      console.error("Error ensuring client:", err)
+      console.error("Error converting lead to client:", err)
       throw err
     }
+  },
+
+  subscribeToLeads: () => {
+    const channel = supabase
+      .channel('crm_leads_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads' },
+        () => get().fetchLeads({ force: true })
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  },
+
+  subscribeToClients: () => {
+    const channel = supabase
+      .channel('crm_clients_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'clients' },
+        () => get().fetchClients({ force: true })
+      )
+      .subscribe()
+    return () => supabase.removeChannel(channel)
   }
 }))
 

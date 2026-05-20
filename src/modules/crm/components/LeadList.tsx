@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Table,
   TableBody,
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye } from "lucide-react"
 import { useCRMStore } from "../crmStore"
-import type { Contact as Lead } from "../types"
+import type { Contact as Lead, LeadStatus } from "../types"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 const statusColors: Record<LeadStatus, string> = {
@@ -47,17 +48,39 @@ interface LeadListProps {
   onViewDetails: (lead: Lead) => void
 }
 
+import { useSearchParams } from "react-router-dom"
+
 export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
-  const { leads, isLoading, deleteLead } = useCRMStore()
-  const [search, setSearch] = useState("")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const { leads, isLoading, deleteLead, fetchLeads, pagination } = useCRMStore()
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Initial fetch with current search
+    fetchLeads({ page: 1, limit: 10, filters: search ? { name: search } : {} })
+  }, [])
+
+  useEffect(() => {
+    const urlSearch = searchParams.get("search")
+    if (urlSearch && urlSearch !== search) {
+      setSearch(urlSearch)
+      fetchLeads({ page: 1, limit: 10, filters: { name: urlSearch } })
+    }
+  }, [searchParams])
+
+  const handleSearch = (val: string) => {
+    setSearch(val)
+    // Debounced or direct search
+    fetchLeads({ page: 1, limit: 10, filters: { name: val } })
+  }
 
   const handleDeleteLead = async () => {
     if (!deleteId) return
     try {
       await deleteLead(deleteId)
       toast.success("Lead deleted")
+      fetchLeads({ page: pagination.leads.page, limit: pagination.leads.limit })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to delete lead")
     } finally {
@@ -65,42 +88,32 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
     }
   }
 
-  const filteredLeads = leads
-    .filter((lead) =>
-      lead.first_name.toLowerCase().includes(search.toLowerCase()) ||
-      lead.last_name?.toLowerCase().includes(search.toLowerCase()) ||
-      lead.company?.toLowerCase().includes(search.toLowerCase()) ||
-      lead.email?.toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => {
-      const valA = a.value || 0
-      const valB = b.value || 0
-      return sortOrder === "asc" ? valA - valB : valB - valA
-    })
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search leads..."
+            placeholder="Search leads by name, email or company..."
             className="pl-9"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
           />
         </div>
         <Button
           variant="outline"
           className="gap-2"
-          onClick={() => setSortOrder(prev => prev === "asc" ? "desc" : "asc")}
+          onClick={() => fetchLeads({ 
+            page: 1, 
+            sortOrder: pagination.leads.page === 1 ? 'asc' : 'desc' 
+          } as any)}
         >
           <Filter className="h-4 w-4" />
-          Sort Value: {sortOrder === "asc" ? "Low to High" : "High to Low"}
+          Quick Sort
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-xl border border-border/50 bg-card/30 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -115,45 +128,46 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
             {isLoading ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-24">
-                  Loading leads...
+                  <div className="flex flex-col items-center gap-2">
+                    <MoreHorizontal className="h-4 w-4 animate-pulse" />
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Fetching Lead Matrix...</p>
+                  </div>
                 </TableCell>
               </TableRow>
-            ) : filteredLeads.length === 0 ? (
+            ) : leads.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center h-24">
-                  No leads found.
+                  <p className="text-sm font-bold text-muted-foreground italic">No leads found for this criteria.</p>
                 </TableCell>
               </TableRow>
             ) : (
-              filteredLeads.map((lead) => (
-                <TableRow key={lead.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onViewDetails(lead)}>
+              leads.map((lead) => (
+                <TableRow key={lead.id} className="cursor-pointer hover:bg-primary/5 transition-colors group" onClick={() => onViewDetails(lead)}>
                   <TableCell className="font-medium">
-                    {lead.first_name} {lead.last_name}
-                    <p className="text-xs text-muted-foreground">{lead.email}</p>
+                    <span className="font-black text-sm">{lead.first_name} {lead.last_name}</span>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{lead.email}</p>
                   </TableCell>
-                  <TableCell>{lead.company || "-"}</TableCell>
+                  <TableCell className="font-bold text-xs uppercase opacity-70">{lead.company || "-"}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={statusColors[lead.status]}>
+                    <Badge variant="secondary" className={cn("uppercase font-black text-[9px] px-2 py-0.5", statusColors[lead.status])}>
                       {lead.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
-                  <TableCell>${lead.value?.toLocaleString() || "0"}</TableCell>
+                  <TableCell className="font-black text-sm text-foreground">${Number(lead.value || 0).toLocaleString()}</TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><MoreHorizontal className="h-4 w-4" /></Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onViewDetails(lead)} className="gap-2">
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onViewDetails(lead)} className="gap-2 font-bold text-xs uppercase">
                           <Eye className="h-4 w-4" /> View Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(lead)} className="gap-2">
+                        <DropdownMenuItem onClick={() => onEdit(lead)} className="gap-2 font-bold text-xs uppercase">
                           <Edit2 className="h-4 w-4" /> Edit Lead
                         </DropdownMenuItem>
                         <DropdownMenuItem 
-                          className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-bold" 
+                          className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-black text-xs uppercase" 
                           onClick={() => setDeleteId(lead.id)}
                         >
                           <Trash2 className="h-4 w-4" /> Delete
@@ -166,6 +180,33 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="flex items-center justify-between px-2 pt-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
+          Showing <span className="text-foreground">{(pagination.leads.page - 1) * pagination.leads.limit + 1}-{Math.min(pagination.leads.page * pagination.leads.limit, pagination.leads.totalCount)}</span> of <span className="text-foreground">{pagination.leads.totalCount}</span> leads
+        </p>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={pagination.leads.page === 1}
+            onClick={() => fetchLeads({ page: pagination.leads.page - 1 })}
+            className="h-8 px-4 font-black uppercase text-[10px]"
+          >
+            Prev
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            disabled={pagination.leads.page === pagination.leads.totalPages}
+            onClick={() => fetchLeads({ page: pagination.leads.page + 1 })}
+            className="h-8 px-4 font-black uppercase text-[10px]"
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

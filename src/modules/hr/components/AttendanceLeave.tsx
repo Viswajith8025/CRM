@@ -17,15 +17,17 @@ import {
 } from "@/components/ui/dialog"
 import { LeaveRequestForm } from "./LeaveRequestForm"
 
+import { usePermissions } from "@/hooks/usePermissions"
+
 export function AttendanceLeave() {
   const { attendance, leaves, fetchAttendance, fetchLeaves, clockIn, clockOut, updateLeaveStatus, isLoading } = useHRStore()
   const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
   
-  const isEmployee = profile?.role === 'employee'
-  const isManager = profile?.role === 'manager'
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
-  const canApprove = isAdmin || isManager
+  const canApprove = hasPermission('hr.approve_leave')
+  const canRequest = true // All employees can request leave
+  const canManageAttendance = hasPermission('hr.manage_attendance')
   
   useEffect(() => {
     fetchAttendance()
@@ -95,7 +97,7 @@ export function AttendanceLeave() {
             <Calendar className="h-5 w-5 text-primary" /> Leave Requests
           </h3>
           
-          {isEmployee && (
+          {canRequest && (
             <Dialog open={isLeaveOpen} onOpenChange={setIsLeaveOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" variant="secondary">Request Leave</Button>

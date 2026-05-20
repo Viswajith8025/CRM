@@ -49,16 +49,13 @@ export default function LoginPage() {
     setIsLoading(true)
     
     try {
-      // 1. Check for existing lockout
-      const status = await rateLimiter.checkLockout(email)
-      if (status.isLocked) {
-        setLockout({ isLocked: true, message: status.message, seconds: status.remainingSeconds })
+      // 1. Check for existing lockout (OWASP: Throttling by email/identifier)
+      const status = await rateLimiter.check(email, 'login', 5, 60)
+      if (!status.allowed) {
+        setLockout({ isLocked: true, message: status.message || 'Too many attempts', seconds: status.resetAfter })
         setIsLoading(false)
         return
       }
-
-      // 2. Log attempt
-      await rateLimiter.logAuthEvent(email, 'LOGIN_ATTEMPT', false)
 
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -66,19 +63,20 @@ export default function LoginPage() {
       })
 
       if (error) {
-        // 3. Log failure and check if this attempt triggered a new lockout
-        await rateLimiter.logAuthEvent(email, 'LOGIN_FAILURE', false, { error: error.message })
+        // 2. Log security failure
+        await rateLimiter.logSecurityEvent('LOGIN_FAILURE', { email, error: error.message })
         
-        const newStatus = await rateLimiter.checkLockout(email)
-        if (newStatus.isLocked) {
-          setLockout({ isLocked: true, message: newStatus.message, seconds: newStatus.remainingSeconds })
+        // Re-check status to see if this attempt triggered a new lockout
+        const newStatus = await rateLimiter.check(email, 'login', 5, 60)
+        if (!newStatus.allowed) {
+          setLockout({ isLocked: true, message: newStatus.message || 'Too many attempts', seconds: newStatus.resetAfter })
         }
         
         throw error
       }
 
-      // 4. Log success
-      await rateLimiter.logAuthEvent(email, 'LOGIN_SUCCESS', true)
+      // 3. Log security success
+      await rateLimiter.logSecurityEvent('LOGIN_SUCCESS', { email })
 
       toast.success("Welcome back!")
       navigate("/")

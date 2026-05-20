@@ -125,7 +125,7 @@ export default function BillingPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black tracking-tighter">${totalInvoiced.toLocaleString()}</div>
+            <div className="text-3xl font-black tracking-tighter">₹{totalInvoiced.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-emerald-500/5 border-emerald-500/20">
@@ -134,7 +134,7 @@ export default function BillingPage() {
             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black tracking-tighter text-emerald-600 dark:text-emerald-400">${totalPaid.toLocaleString()}</div>
+            <div className="text-3xl font-black tracking-tighter text-emerald-600 dark:text-emerald-400">₹{totalPaid.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card className="border-border/50 bg-rose-500/5 border-rose-500/20">
@@ -143,7 +143,7 @@ export default function BillingPage() {
             <div className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black tracking-tighter text-rose-600 dark:text-rose-400">${outstanding.toLocaleString()}</div>
+            <div className="text-3xl font-black tracking-tighter text-rose-600 dark:text-rose-400">₹{outstanding.toLocaleString()}</div>
           </CardContent>
         </Card>
       </div>

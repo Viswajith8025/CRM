@@ -73,7 +73,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
     emerald600: [5, 150, 105] as [number, number, number]
   }
 
-  const currencySymbol = invoice.currency === 'INR' ? 'Rs.' : '$'
+  const currencySymbol = '₹'
   
   // 1. TOP DECORATIVE STRIP
   doc.setFillColor(...colors.primary)
@@ -143,7 +143,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   doc.text(format(new Date(invoice.issued_at), 'MMM dd, yyyy'), 22, barValueY)
   doc.text(format(new Date(invoice.due_date), 'MMM dd, yyyy'), 22 + colWidth, barValueY)
   doc.text(invoice.project?.name || 'General', 22 + colWidth * 2, barValueY)
-  doc.text(`${invoice.currency || 'INR'} (${currencySymbol})`, 22 + colWidth * 3, barValueY)
+  doc.text(`INR (${currencySymbol})`, 22 + colWidth * 3, barValueY)
 
   // 5. RECIPIENT SECTION
   const recipientY = 85

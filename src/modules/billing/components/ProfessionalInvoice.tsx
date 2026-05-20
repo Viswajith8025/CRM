@@ -25,7 +25,7 @@ export interface ProfessionalInvoiceProps {
     invoice_number: string;
     issued_at: string;
     due_date: string;
-    status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+    status: 'draft' | 'sent' | 'partially_paid' | 'paid' | 'overdue' | 'cancelled';
     currency?: string;
     items: InvoiceItem[];
     discount?: number;
@@ -46,7 +46,7 @@ export interface ProfessionalInvoiceProps {
 }
 
 export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }) => {
-  const currencySymbol = data.currency === 'INR' ? '₹' : '$';
+  const currencySymbol = '₹';
   
   // Calculations
   const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.rate), 0);
@@ -56,10 +56,13 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
   }, 0);
   const discountAmount = data.discount || 0;
   const grandTotal = subtotal + totalTax - discountAmount;
+  const paidAmount = data.paid_amount || 0;
+  const balanceDue = Math.max(0, grandTotal - paidAmount);
 
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'paid': return 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]';
+      case 'partially_paid': return 'bg-sky-500 text-white shadow-[0_0_20px_rgba(14,165,233,0.3)]';
       case 'overdue': return 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)]';
       default: return 'bg-amber-500 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)]';
     }
@@ -144,7 +147,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
           </div>
           <div className="space-y-1">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Currency</p>
-            <p className="text-sm font-black text-slate-900">{data.currency || 'USD'} ({currencySymbol})</p>
+            <p className="text-sm font-black text-slate-900">INR ({currencySymbol})</p>
           </div>
         </div>
 
@@ -275,9 +278,15 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
             </div>
             
             {(data.paid_amount || 0) > 0 && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex justify-between items-center">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Paid Already</span>
-                <span className="font-black text-emerald-600">-{currencySymbol}{data.paid_amount?.toLocaleString()}</span>
+              <div className="space-y-4 pt-4 border-t border-slate-200">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount Already Paid</span>
+                  <span className="font-black text-emerald-600">-{currencySymbol}{data.paid_amount?.toLocaleString()}</span>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-900 text-white flex justify-between items-center shadow-xl">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Balance Remaining</span>
+                  <span className="text-2xl font-black">{currencySymbol}{balanceDue.toLocaleString()}</span>
+                </div>
               </div>
             )}
           </div>

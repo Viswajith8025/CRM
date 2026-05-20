@@ -26,8 +26,11 @@ import { LayoutGrid, List, FileSpreadsheet } from "lucide-react"
 import { LeadKanban } from "../components/LeadKanban"
 import { ImportWizard } from "@/components/shared/ImportWizard"
 
+import { useSearchParams } from "react-router-dom"
+
 export default function CRMPage() {
   const { fetchLeads } = useCRMStore()
+  const [searchParams] = useSearchParams()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
@@ -37,7 +40,12 @@ export default function CRMPage() {
 
   useEffect(() => {
     fetchLeads()
-  }, [fetchLeads])
+    
+    // If search param is present, switch to list view for better visibility
+    if (searchParams.get("search")) {
+      setView('list')
+    }
+  }, [fetchLeads, searchParams])
 
   const handleEditLead = (lead: Lead) => {
     setSelectedLead(lead)

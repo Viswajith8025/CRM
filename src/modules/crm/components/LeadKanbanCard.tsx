@@ -73,7 +73,7 @@ export function LeadKanbanCard({ lead, isOverlay, isSyncing }: LeadKanbanCardPro
           </Badge>
           {lead.value && (
             <Badge className="text-[9px] h-4 bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
-              <DollarSign className="h-2 w-2 mr-0.5" />
+              <span className="text-[10px] font-black mr-0.5">₹</span>
               {lead.value.toLocaleString()}
             </Badge>
           )}

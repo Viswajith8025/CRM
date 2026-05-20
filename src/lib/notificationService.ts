@@ -23,19 +23,14 @@ export const notificationService = {
 
   /**
    * Triggered when a new invoice is issued to a client
-   * Note: In a real system, we might notify the client via email here too.
    */
   async notifyInvoiceCreated(invoiceId: string, invoiceNumber: string, amount: number) {
-    // Notify all admins and managers in the organization
-    const { data: admins } = await supabase
-      .from('profiles')
-      .select('id')
-      .in('role', ['admin', 'manager'])
+    const { data: users } = await supabase.rpc('get_users_with_permission', { p_permission_code: 'module.billing' })
 
-    if (admins) {
-      for (const admin of admins) {
+    if (users) {
+      for (const user of users) {
         await useNotificationsStore.getState().addNotification({
-          user_id: admin.id,
+          user_id: user.id,
           title: 'Invoice Issued',
           description: `Invoice ${invoiceNumber} for $${amount.toLocaleString()} has been created.`,
           type: 'billing',
@@ -49,22 +44,18 @@ export const notificationService = {
    * Triggered when a payment is recorded
    */
   async notifyPaymentReceived(invoiceId: string, amount: number) {
-    // Fetch invoice details for the description
     const { data: invoice } = await supabase
       .from('invoices')
       .select('invoice_number')
       .eq('id', invoiceId)
       .single()
 
-    const { data: admins } = await supabase
-      .from('profiles')
-      .select('id')
-      .in('role', ['admin', 'manager'])
+    const { data: users } = await supabase.rpc('get_users_with_permission', { p_permission_code: 'module.billing' })
 
-    if (admins) {
-      for (const admin of admins) {
+    if (users) {
+      for (const user of users) {
         await useNotificationsStore.getState().addNotification({
-          user_id: admin.id,
+          user_id: user.id,
           title: 'Payment Received',
           description: `Payment of $${amount.toLocaleString()} received for Invoice ${invoice?.invoice_number || ''}`,
           type: 'billing',

@@ -60,7 +60,7 @@ import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
-  const { members, fetchMembers, isLoading: teamLoading, updateMemberRole, revokeAccess } = useTeamStore()
+  const { members, dynamicRoles, fetchMembers, fetchDynamicRoles, isLoading: teamLoading, assignDynamicRole, revokeAccess } = useTeamStore()
   const { settings, fetchSettings, isLoading: settingsLoading, updateSettings } = useSettingsStore()
   const { profile: currentUser } = useAuthStore()
   const isSuperAdmin = currentUser?.role === 'super_admin'
@@ -89,6 +89,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchMembers()
+    fetchDynamicRoles()
     fetchSettings()
   }, [])
 
@@ -339,37 +340,30 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-6">
                         <Badge variant="outline" className="capitalize px-3 py-0.5 font-bold tracking-tight bg-background">
-                          {member.role}
+                          {member.dynamic_role_name || member.role}
                         </Badge>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {/* Only super_admin can grant the admin role */}
-                            {isSuperAdmin && (
+                            {dynamicRoles.map(role => (
                               <DropdownMenuItem 
+                                key={role.id}
                                 onClick={async () => {
-                                  try { await useTeamStore.getState().updateMemberRole(member.id, 'admin'); toast.success(`${member.full_name || member.email} is now an Admin.`) }
+                                  try { 
+                                    await assignDynamicRole(member.id, role.id)
+                                    toast.success(`Role updated to ${role.name}.`) 
+                                  }
                                   catch (e: any) { toast.error(e.message) }
                                 }} 
                                 className="font-medium"
+                                disabled={member.dynamic_role_id === role.id}
                               >
-                                <Shield className="mr-2 h-3.5 w-3.5 text-amber-500" /> Make Admin
+                                <Shield className="mr-2 h-3.5 w-3.5 text-primary" /> {role.name}
+                                {member.dynamic_role_id === role.id && <span className="ml-auto text-[10px] text-primary font-black">CURRENT</span>}
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem onClick={async () => {
-                              try { await useTeamStore.getState().updateMemberRole(member.id, 'manager'); toast.success(`Role updated to HR.`) }
-                              catch (e: any) { toast.error(e.message) }
-                            }} className="font-medium">
-                              Make HR
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async () => {
-                              try { await useTeamStore.getState().updateMemberRole(member.id, 'employee'); toast.success(`Role updated to Employee.`) }
-                              catch (e: any) { toast.error(e.message) }
-                            }} className="font-medium">
-                              Make Employee
-                            </DropdownMenuItem>
+                            ))}
                             <Separator className="my-1" />
                             <DropdownMenuItem 
                               className="text-rose-500 font-bold focus:text-rose-600 focus:bg-rose-50" 
@@ -546,10 +540,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {/* Only super_admin can invite someone directly as Admin */}
-                  {isSuperAdmin && <SelectItem value="admin">Admin</SelectItem>}
-                  <SelectItem value="manager">HR</SelectItem>
-                  <SelectItem value="employee">Employee</SelectItem>
+                  {dynamicRoles.map(role => (
+                    <SelectItem key={role.id} value={role.name.toLowerCase()}>{role.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

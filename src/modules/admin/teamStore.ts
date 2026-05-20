@@ -5,28 +5,31 @@ export interface Profile {
   id: string
   full_name: string | null
   avatar_url: string | null
-  role: 'super_admin' | 'admin' | 'manager' | 'employee' | 'client'
+  role: string // legacy column — kept for backward compat
+  dynamic_role_id?: string | null  // from user_roles join
+  dynamic_role_name?: string | null // from roles join
   status: 'pending' | 'active' | 'denied'
   email: string | null
   hourly_rate?: number
   created_at: string
+  department?: string | null
+  department_id?: string | null
 }
 
-// Roles that can be assigned via the Team Settings UI.
-// 'super_admin' is intentionally EXCLUDED — it cannot be granted by any UI action.
-export type AssignableRole = 'admin' | 'manager' | 'employee' | 'client'
+export interface DynamicRole {
+  id: string
+  name: string
+  description: string
+  is_system: boolean
+}
 
 interface TeamState {
   members: Profile[]
+  dynamicRoles: DynamicRole[]
   isLoading: boolean
   fetchMembers: () => Promise<void>
-  /**
-   * Update a member's role.
-   * - Calls the secure `update_member_role` database function.
-   * - The DB function enforces: only super_admin can set role = 'admin'.
-   * - 'super_admin' role cannot be granted by anyone via this method.
-   */
-  updateMemberRole: (id: string, role: AssignableRole) => Promise<void>
+  fetchDynamicRoles: () => Promise<void>
+  assignDynamicRole: (userId: string, roleId: string) => Promise<void>
   updateMemberStatus: (id: string, status: Profile['status']) => Promise<void>
   updateMemberHourlyRate: (id: string, rate: number) => Promise<void>
   revokeAccess: (id: string) => Promise<void>
@@ -34,6 +37,7 @@ interface TeamState {
 
 export const useTeamStore = create<TeamState>((set, get) => ({
   members: [],
+  dynamicRoles: [],
   isLoading: false,
 
   fetchMembers: async () => {
@@ -44,7 +48,17 @@ export const useTeamStore = create<TeamState>((set, get) => ({
 
       let query = supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, role, status, email, hourly_rate, created_at')
+        .select(`
+          *,
+          user_roles (
+            role_id,
+            roles:role_id ( id, name )
+          ),
+          department_members (
+            is_primary,
+            departments:department_id ( id, name )
+          )
+        `)
 
       // Super admin sees all profiles globally; admins see only their org
       if (currentUser?.role !== 'super_admin' && orgId) {
@@ -54,10 +68,25 @@ export const useTeamStore = create<TeamState>((set, get) => ({
       const { data, error } = await query.order('created_at', { ascending: true })
       if (error) throw error
 
+      // Map the joined data to flat profile objects
+      const mapped = (data || []).map((m: any) => {
+        const userRole = m.user_roles?.[0]
+        const primaryDeptMember = m.department_members?.find((dm: any) => dm.is_primary) || m.department_members?.[0]
+        return {
+          ...m,
+          dynamic_role_id: userRole?.roles?.id || null,
+          dynamic_role_name: userRole?.roles?.name || null,
+          department: primaryDeptMember?.departments?.name || null,
+          department_id: primaryDeptMember?.departments?.id || null,
+          user_roles: undefined, // clean up nested data
+          department_members: undefined,
+        }
+      })
+
       // Never expose the super_admin profile in the team list for regular admins
       const filtered = currentUser?.role === 'super_admin'
-        ? (data || [])
-        : (data || []).filter(m => m.role !== 'super_admin')
+        ? mapped
+        : mapped.filter((m: any) => m.role !== 'super_admin')
 
       set({ members: filtered as Profile[] })
     } catch (error) {
@@ -67,35 +96,54 @@ export const useTeamStore = create<TeamState>((set, get) => ({
     }
   },
 
-  updateMemberRole: async (id, role) => {
-    // Client-side guard: prevent any attempt to set super_admin via UI
-    if ((role as string) === 'super_admin') {
-      throw new Error('The super_admin role cannot be assigned. There can only be one super_admin.')
-    }
-
+  fetchDynamicRoles: async () => {
     try {
       const { profile: currentUser } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = currentUser?.organization_id
+      if (!orgId) return
 
-      // Client-side guard: only super_admin can assign the 'admin' role
-      if (role === 'admin' && currentUser?.role !== 'super_admin') {
-        throw new Error('Only the super admin can grant the admin role.')
-      }
+      const { data, error } = await supabase
+        .from('roles')
+        .select('id, name, description, is_system')
+        .eq('organization_id', orgId)
+        .order('is_system', { ascending: false })
+        .order('name')
 
-      // Use the secure server-side RPC function that enforces these rules at DB level
-      const { error } = await supabase.rpc('update_member_role', {
-        target_user_id: id,
-        new_role: role
+      if (error) throw error
+
+      // Filter out Super Admin from assignable roles
+      const assignable = (data || []).filter(r => r.name.toLowerCase() !== 'super admin')
+      set({ dynamicRoles: assignable as DynamicRole[] })
+    } catch (error) {
+      console.error('Error fetching dynamic roles:', error)
+    }
+  },
+
+  assignDynamicRole: async (userId, roleId) => {
+    try {
+      const { profile: currentUser } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      if (!currentUser) throw new Error('Not authenticated.')
+
+      const { error } = await supabase.rpc('assign_user_role', {
+        p_user_id: userId,
+        p_role_id: roleId,
+        p_assigned_by: currentUser.id,
       })
 
       if (error) throw error
 
+      // Update local state with the new role
+      const roleName = get().dynamicRoles.find(r => r.id === roleId)?.name || null
       set({
-        members: get().members.map(m => m.id === id ? { ...m, role } : m),
+        members: get().members.map(m =>
+          m.id === userId
+            ? { ...m, dynamic_role_id: roleId, dynamic_role_name: roleName }
+            : m
+        ),
       })
     } catch (error: any) {
-      console.error('Error updating member role:', error)
-      // Surface the friendly DB error message if available
-      throw new Error(error?.message?.replace('FORBIDDEN: ', '') || 'Failed to update role.')
+      console.error('Error assigning role:', error)
+      throw new Error(error?.message || 'Failed to assign role.')
     }
   },
 

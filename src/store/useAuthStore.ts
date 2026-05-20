@@ -8,6 +8,7 @@ export interface UserProfile {
   full_name: string | null
   avatar_url: string | null
   role: 'super_admin' | 'admin' | 'manager' | 'employee' | 'client'
+  dynamic_role?: string | null // The dynamic name from the 'roles' table
   status: 'pending' | 'active' | 'denied'
   organization_id: string | null
   email: string | null
@@ -90,14 +91,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, _isFetching: true } as any)
     
     try {
+      // 1. Fetch Profile
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle()
       
-      if (error) throw error
+      if (error) {
+        // Self-healing safeguard: if token is invalid, expired, or unauthorized (401), clear session and sign out
+        if (error.status === 401 || error.message?.toLowerCase().includes("jwt") || error.message?.toLowerCase().includes("invalid token")) {
+          console.warn("[Auth] Invalid or expired credentials detected. Auto-resetting session.");
+          await get().signOut();
+          return;
+        }
+        throw error
+      }
+
+      // 2. Resolve Dynamic Role Name
+      let dynamicRoleName = null
+      if (profile) {
+        try {
+          const { data: userRoleData, error: rpcError } = await supabase
+            .rpc('get_user_dynamic_role', { p_user_id: user.id })
+          
+          if (!rpcError && userRoleData && userRoleData.length > 0) {
+            dynamicRoleName = userRoleData[0].role_name
+          } else {
+            // Fallback manual query
+            const { data: qData } = await supabase
+              .from('user_roles')
+              .select('roles(name)')
+              .eq('user_id', user.id)
+              .limit(1)
+            if (qData && qData.length > 0) {
+              const roleInfo = qData[0].roles
+              dynamicRoleName = Array.isArray(roleInfo) ? roleInfo[0]?.name : (roleInfo as any)?.name
+            }
+          }
+        } catch (roleErr) {
+          console.error("Dynamic role resolution error:", roleErr)
+        }
+      }
       
+      // 3. Check Org Status
       let is_org_suspended = false
       if (profile && profile.role !== 'super_admin') {
         const { data: orgStatus } = await supabase.rpc('check_org_status', {}, { timeout: 5000 })
@@ -106,11 +143,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      const { data: perms, error: permsError } = await supabase.rpc('get_user_permissions', { p_user_id: user.id }, { timeout: 5000 })
+      // 4. Resolve Permissions
+      const { data: perms, error: permsError } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: user.id }, { timeout: 5000 })
       if (permsError) console.error("Permissions fetch error:", permsError)
       
       const finalProfile = profile || await get().createMissingProfile(user)
-      const newProfileState = { ...finalProfile, permissions: perms || [], is_org_suspended } as UserProfile
+      const newProfileState = { 
+        ...finalProfile, 
+        dynamic_role: dynamicRoleName,
+        permissions: (perms || []).map((p: any) => p.permission_code || p), // handle both RPC result formats
+        is_org_suspended 
+      } as UserProfile
       
       // DEEP EQUALITY CHECK to prevent reference-based re-render loops
       const currentProfile = get().profile

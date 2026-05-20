@@ -22,13 +22,18 @@ import {
 } from "@/components/ui/sheet"
 import { Sidebar } from "./Sidebar"
 import { useNotificationsStore } from "@/modules/notifications"
+import { usePermissions } from "@/hooks/usePermissions"
 import { useEffect } from "react"
 import { GlobalSearch } from "../GlobalSearch"
+import { TimeDeskClock } from "@/modules/time-tracking/components/TimeDeskClock"
 
 export function Navbar() {
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { user, profile, signOut } = useAuthStore()
+  const { hasPermission } = usePermissions()
+
+  // ... (rest of store destructuring)
   const { 
     notifications, 
     unreadCount, 
@@ -170,13 +175,7 @@ export function Navbar() {
                 </Avatar>
                 <span className="hidden lg:flex lg:items-center">
                   <span className="ml-4 text-sm font-black leading-6 tracking-tight text-foreground uppercase" aria-hidden="true">
-                    {profile?.role === 'admin' ? (
-                      <span className="text-primary">ROOT ADMIN</span>
-                    ) : profile?.role === 'manager' ? (
-                      'HR'
-                    ) : (
-                      profile?.full_name || user?.email?.split('@')[0] || 'Guest'
-                    )}
+                    {profile?.dynamic_role || profile?.full_name || user?.email?.split('@')[0] || 'Guest'}
                   </span>
                 </span>
               </Button>
@@ -186,7 +185,7 @@ export function Navbar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => navigate("/profile")}>Profile</DropdownMenuItem>
               
-              {profile?.role === 'admin' && (
+              {hasPermission('module.admin') && (
                 <DropdownMenuItem onClick={() => navigate("/settings")}>Settings</DropdownMenuItem>
               )}
               

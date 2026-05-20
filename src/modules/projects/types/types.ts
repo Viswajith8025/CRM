@@ -13,6 +13,7 @@ export interface Project {
   budget: number | null
   created_at: string
   updated_at: string
+  department_id?: string | null
   client?: { name: string } // Joined data
   task_stats?: {
     total: number

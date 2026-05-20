@@ -16,7 +16,7 @@ import {
 } from '@dnd-kit/sortable'
 import { useDashboardStore, type WidgetId, WIDGET_REGISTRY } from '../dashboardStore'
 import { SortableWidget } from './SortableWidget'
-import { usePermissions } from '@/hooks/usePermissions.tsx'
+import { usePermissions } from '@/hooks/usePermissions'
 
 // Lazy load actual widgets to keep initial bundle small
 import { RevenueWidget } from './widgets/RevenueWidget'

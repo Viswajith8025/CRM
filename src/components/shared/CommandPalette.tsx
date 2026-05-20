@@ -22,7 +22,7 @@ import {
   Loader2,
   ChevronRight
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useDebounce } from "@/hooks/useDebounce"
 
@@ -37,6 +37,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 import { cn } from "@/lib/utils"
 
 interface SearchResult {
@@ -56,7 +57,13 @@ export function CommandPalette() {
   const [isSearching, setIsSearching] = React.useState(false)
   const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
+  const location = useLocation()
   const { profile, logout } = useAuthStore()
+
+  // Strict Security Override: Disable global search commands on public client-facing portal links
+  const isPublicPortal = location.pathname.includes('/onboarding/portal/')
+  if (isPublicPortal) return null
+
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -96,13 +103,17 @@ export function CommandPalette() {
     handleSearch(debouncedQuery)
   }, [debouncedQuery, handleSearch])
 
+  const { hasPermission } = usePermissions()
+
   const runCommand = React.useCallback((command: () => void) => {
     setOpen(false)
     setQuery("")
     command()
   }, [])
 
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+  const canManageAdmin = hasPermission('module.admin')
+  const canManageCRM = hasPermission('module.crm')
+  const canManageBilling = hasPermission('module.billing')
 
   const groupedResults = results.reduce((acc, result) => {
     if (!acc[result.type]) acc[result.type] = []
@@ -149,7 +160,7 @@ export function CommandPalette() {
                 <span>Create New Task</span>
                 <CommandShortcut>⌘T</CommandShortcut>
               </CommandItem>
-              {isAdmin && (
+              {canManageCRM && (
                 <CommandItem onSelect={() => runCommand(() => navigate("/crm"))}>
                   <Plus className="mr-2 h-4 w-4 text-emerald-500" />
                   <span>Add New Lead</span>
@@ -178,17 +189,17 @@ export function CommandPalette() {
                 <Layout className="mr-2 h-4 w-4" />
                 <span>Projects Portfolio</span>
               </CommandItem>
-              {isAdmin && (
-                <>
-                  <CommandItem onSelect={() => runCommand(() => navigate("/crm"))}>
-                    <Target className="mr-2 h-4 w-4" />
-                    <span>CRM & Sales Pipeline</span>
-                  </CommandItem>
-                  <CommandItem onSelect={() => runCommand(() => navigate("/billing"))}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    <span>Financial Center</span>
-                  </CommandItem>
-                </>
+              {canManageCRM && (
+                <CommandItem onSelect={() => runCommand(() => navigate("/crm"))}>
+                  <Target className="mr-2 h-4 w-4" />
+                  <span>CRM & Sales Pipeline</span>
+                </CommandItem>
+              )}
+              {canManageBilling && (
+                <CommandItem onSelect={() => runCommand(() => navigate("/billing"))}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  <span>Financial Center</span>
+                </CommandItem>
               )}
             </CommandGroup>
           </>
@@ -227,7 +238,7 @@ export function CommandPalette() {
             <User className="mr-2 h-4 w-4" />
             <span>My User Profile</span>
           </CommandItem>
-          {isAdmin && (
+          {canManageAdmin && (
             <CommandItem onSelect={() => runCommand(() => navigate("/settings"))}>
               <Settings className="mr-2 h-4 w-4" />
               <span>System Settings</span>

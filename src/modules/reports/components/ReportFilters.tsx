@@ -1,138 +1,99 @@
-import { useState, useEffect } from "react"
-import { Search, Filter, X, Calendar as CalendarIcon, FileSpreadsheet, FileText } from "lucide-react"
+
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search, Filter, X, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { format } from "date-fns"
+import { useState } from "react"
 
 export interface FilterOption {
   label: string
   value: string
+  type: 'select' | 'date' | 'search'
   options?: { label: string; value: string }[]
-  type: 'select' | 'date' | 'text'
 }
 
 interface ReportFiltersProps {
-  title: string
-  description?: string
-  onSearch: (value: string) => void
-  onFilterChange: (filters: Record<string, any>) => void
-  onExportCSV?: () => void
-  onExportPDF?: () => void
   options: FilterOption[]
   activeFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+  onSearch: (query: string) => void
   searchPlaceholder?: string
 }
 
 export function ReportFilters({
-  title,
-  description,
-  onSearch,
-  onFilterChange,
-  onExportCSV,
-  onExportPDF,
   options,
   activeFilters,
+  onFilterChange,
+  onSearch,
   searchPlaceholder = "Search records..."
 }: ReportFiltersProps) {
   const [searchValue, setSearchValue] = useState("")
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onSearch(searchValue)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [searchValue])
 
-  const handleFilterChange = (key: string, value: any) => {
-    const newFilters = { ...activeFilters, [key]: value }
-    if (value === 'all' || !value) delete newFilters[key]
-    onFilterChange(newFilters)
+  const handleClear = () => {
+    onFilterChange({})
+    onSearch("")
+    setSearchValue("")
   }
 
-  const hasActiveFilters = Object.keys(activeFilters).length > 0 || searchValue !== ""
-
   return (
-    <div className="bg-background px-8 py-4 border-b border-border/50">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* LEFT: TITLE */}
-        <div>
-          <h2 className="text-lg font-black tracking-tight">{title}</h2>
-          {description && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{description}</p>}
-        </div>
+    <div className="px-8 pt-8 flex flex-col md:flex-row md:items-center gap-4">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+        <Input 
+          placeholder={searchPlaceholder}
+          className="pl-10 h-11 border-border/50 bg-card/30 font-medium text-sm"
+          value={searchValue}
+          onChange={(e) => {
+            setSearchValue(e.target.value)
+            onSearch(e.target.value)
+          }}
+        />
+      </div>
 
-        {/* RIGHT: FILTERS & EXPORTS */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Filters */}
-          {options.map((option) => (
-            <div key={option.value} className="min-w-[140px]">
-              <Select
-                value={activeFilters[option.value] || 'all'}
-                onValueChange={(val) => handleFilterChange(option.value, val)}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
+        {options.map((opt) => (
+          <div key={opt.value} className="shrink-0">
+            {opt.type === 'select' ? (
+              <Select 
+                value={activeFilters[opt.value] || ""} 
+                onValueChange={(val) => onFilterChange({ ...activeFilters, [opt.value]: val })}
               >
-                <SelectTrigger className="h-8 bg-muted/30 border-border/50 text-[10px] font-bold uppercase">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <SelectValue placeholder={`All ${option.label}`} />
+                <SelectTrigger className="h-11 min-w-[140px] border-border/50 bg-card/30 font-bold uppercase tracking-tighter text-[10px]">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-3 w-3 opacity-50" />
+                    <SelectValue placeholder={opt.label} />
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all" className="text-[10px] uppercase font-bold">All {option.label}</SelectItem>
-                  {option.options?.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[10px] uppercase font-bold">
-                      {opt.label}
+                  {opt.options?.map((o) => (
+                    <SelectItem key={o.value} value={o.value} className="text-[10px] font-bold uppercase">
+                      {o.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          ))}
-
-          {/* Export Buttons (matching screenshot) */}
-          <div className="flex items-center gap-1 ml-2 border-l border-border/50 pl-2">
-            <Button variant="outline" size="sm" onClick={onExportCSV} className="h-8 gap-1.5 text-[10px] font-black uppercase border-border/50 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
-              CSV
-            </Button>
-            <Button variant="outline" size="sm" onClick={onExportPDF} className="h-8 gap-1.5 text-[10px] font-black uppercase border-border/50 hover:bg-rose-50 hover:text-rose-600 transition-colors">
-              <FileText className="h-3.5 w-3.5 text-rose-500" />
-              PDF
-            </Button>
+            ) : opt.type === 'date' ? (
+              <Input 
+                type="date"
+                className="h-11 border-border/50 bg-card/30 font-bold uppercase tracking-tighter text-[10px] w-[180px]"
+                onChange={(e) => onFilterChange({ ...activeFilters, [opt.value]: e.target.value })}
+              />
+            ) : null}
           </div>
-        </div>
-      </div>
+        ))}
 
-      {/* Active Badges */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          {searchValue && (
-            <Badge variant="secondary" className="gap-1 pl-2 pr-1 h-5 font-bold text-[9px] uppercase tracking-tighter">
-              Search: {searchValue}
-              <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => setSearchValue("")} />
-            </Badge>
-          )}
-          {Object.entries(activeFilters).map(([key, value]) => {
-            const option = options.find(o => o.value === key)
-            if (!option) return null
-            const displayValue = option.options?.find(o => o.value === value)?.label || value
-            return (
-              <Badge key={key} variant="secondary" className="gap-1 pl-2 pr-1 h-5 font-bold text-[9px] uppercase tracking-tighter">
-                {option.label}: {displayValue}
-                <X className="h-2.5 w-2.5 cursor-pointer" onClick={() => handleFilterChange(key, null)} />
-              </Badge>
-            )
-          })}
-        </div>
-      )}
+        {(Object.keys(activeFilters).length > 0 || searchValue) && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleClear}
+            className="h-11 px-4 gap-2 font-black uppercase tracking-widest text-[9px] text-rose-500 hover:bg-rose-500/10"
+          >
+            <X className="h-3 w-3" />
+            Clear
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

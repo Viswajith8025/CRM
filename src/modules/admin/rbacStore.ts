@@ -48,7 +48,7 @@ interface RBACState {
   // Actions
   fetchRoles: () => Promise<void>
   fetchPermissions: () => Promise<void>
-  fetchUserPermissions: (userId: string) => Promise<void>
+  fetchUserPermissions: (userId: string, force?: boolean) => Promise<void>
   createRole: (role: Partial<Role>, permissionIds: string[]) => Promise<void>
   updateRole: (roleId: string, updates: Partial<Role>, permissionIds: string[]) => Promise<void>
   deleteRole: (roleId: string) => Promise<void>
@@ -56,12 +56,13 @@ interface RBACState {
 }
 
 // ============================================================
-// SYSTEM ROLES — the three roles that must always exist
+// ENTERPRISE ROLE PRESETS (Only bootstrap essentials)
+// Any additional roles are created dynamically by the Super Admin.
 // ============================================================
 const SYSTEM_ROLES = [
   { name: 'Administrator', description: 'Full organization access and team management' },
   { name: 'HR',            description: 'Manage employee directory, attendance and leave' },
-  { name: 'Employee',      description: 'Standard workspace access for operations' },
+  { name: 'Employee',      description: 'Standard workspace access for daily operations' },
 ]
 
 // ============================================================
@@ -167,12 +168,19 @@ export const useRBACStore = create<RBACState>((set, get) => ({
 
       // 5. Fetch total permission count if not already set
       if (get().totalPermissionCount === 0) {
-        const { count, error: countErr } = await supabase
+        const { data: permData, error: countErr } = await supabase
           .from('permissions')
-          .select('*', { count: 'exact', head: true })
+          .select('code, module')
         
-        if (!countErr && count !== null) {
-          set({ totalPermissionCount: count })
+        if (!countErr && permData) {
+          const INACTIVE_MODULE_CODES = ['module.documents', 'module.support']
+          const INACTIVE_MODULE_NAMES = ['documents', 'support', 'document vault']
+          const activePerms = permData.filter(p => {
+            if (INACTIVE_MODULE_CODES.includes(p.code)) return false
+            if (p.module && INACTIVE_MODULE_NAMES.includes(p.module.toLowerCase())) return false
+            return true
+          })
+          set({ totalPermissionCount: activePerms.length })
         }
       }
 
@@ -199,7 +207,19 @@ export const useRBACStore = create<RBACState>((set, get) => ({
         .select('*')
         .order('module')
       if (error) throw error
-      set({ permissions: data || [] })
+      
+      const INACTIVE_MODULE_CODES = ['module.documents', 'module.support']
+      const INACTIVE_MODULE_NAMES = ['documents', 'support', 'document vault']
+      const activeData = (data || []).filter(p => {
+        if (INACTIVE_MODULE_CODES.includes(p.code)) return false
+        if (p.module && INACTIVE_MODULE_NAMES.includes(p.module.toLowerCase())) return false
+        return true
+      })
+      
+      set({ 
+        permissions: activeData,
+        totalPermissionCount: activeData.length
+      })
     } catch (err: any) {
       console.error('[RBAC] fetchPermissions error:', err.message)
     } finally {
@@ -211,14 +231,14 @@ export const useRBACStore = create<RBACState>((set, get) => ({
   // fetchUserPermissions — resolves what a user can do.
   // Throttled: won't re-fetch for the same user within 5s.
   // ----------------------------------------------------------
-  fetchUserPermissions: async (userId: string) => {
+  fetchUserPermissions: async (userId: string, force = false) => {
     const s = get() as any
     const now = Date.now()
     const THROTTLE_MS = 5000
 
-    // Already fetching, or fetched recently for same user
+    // Already fetching, or fetched recently for same user (bypass if forced)
     if (s.__fetchingUserPerms) return
-    if (s.__lastUserPermsFetchAt && now - s.__lastUserPermsFetchAt < THROTTLE_MS && s.__lastPermUserId === userId) return
+    if (!force && s.__lastUserPermsFetchAt && now - s.__lastUserPermsFetchAt < THROTTLE_MS && s.__lastPermUserId === userId) return
 
     s.__fetchingUserPerms = true
     s.__lastPermUserId = userId
@@ -226,27 +246,17 @@ export const useRBACStore = create<RBACState>((set, get) => ({
     set({ isPermissionsLoading: true })
 
     try {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select(`
-          role:roles (
-            role_permissions (
-              permission:permissions ( code )
-            )
-          )
-        `)
-        .eq('user_id', userId)
+      // Use the high-performance V2 RPC to fetch all user permissions (with legacy-role auto fallback)
+      const { data, error } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: userId })
 
       if (error) throw error
 
-      const perms = new Set<string>()
-      ;(data || []).forEach((ur: any) => {
-        ;(ur.role?.role_permissions || []).forEach((rp: any) => {
-          if (rp.permission?.code) perms.add(rp.permission.code)
-        })
-      })
+      // map array to permission codes and sort
+      const sorted = (data || [])
+        .map((p: any) => p.permission_code || p)
+        .filter(Boolean)
+        .sort()
 
-      const sorted = Array.from(perms).sort()
       // Only update state if the permissions actually changed
       if (JSON.stringify(get().userPermissions) !== JSON.stringify(sorted)) {
         set({ userPermissions: sorted })
@@ -258,6 +268,8 @@ export const useRBACStore = create<RBACState>((set, get) => ({
       ;(get() as any).__fetchingUserPerms = false
     }
   },
+
+
 
   // ----------------------------------------------------------
   // createRole
@@ -345,6 +357,9 @@ export const useRBACStore = create<RBACState>((set, get) => ({
   hasPermission: (code) => {
     const profile = useAuthStore.getState().profile
     if (profile?.role === 'super_admin') return true
-    return get().userPermissions.includes(code)
+    
+    // Resilient dual check: check both cached RBAC store and auth store profile fallback
+    const authPermissions = profile?.permissions || []
+    return get().userPermissions.includes(code) || authPermissions.includes(code)
   },
 }))

@@ -29,7 +29,7 @@ export function PageWrapper({ children, title, description, actions, breadcrumbs
           <motion.h1 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            className="text-4xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent"
+            className="text-4xl font-black tracking-tight text-foreground"
           >
             {title}
           </motion.h1>

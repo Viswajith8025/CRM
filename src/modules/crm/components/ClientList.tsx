@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, Trash2, Search, MoreHorizontal, FileText, Loader2, Eye } from "lucide-react"
+import { Edit2, Trash2, Search, MoreHorizontal, FileText, Eye, Info } from "lucide-react"
 import { useCRMStore } from "../crmStore"
 
 import type { Client } from "../types"
@@ -40,6 +40,8 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useSearchParams } from "react-router-dom"
+import { ClientDetailSheet } from "./ClientDetailSheet"
 
 interface ClientListProps {
   onEdit: (client: Client) => void
@@ -49,14 +51,20 @@ interface ClientListProps {
 
 export function ClientList({ onEdit, onCreateProposal, onViewProposals }: ClientListProps) {
   const { clients, isLoading, deleteClient, fetchClients } = useCRMStore()
-  const [search, setSearch] = useState("")
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [timelineClient, setTimelineClient] = useState<Client | null>(null)
+  const [detailClient, setDetailClient] = useState<Client | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     fetchClients()
-  }, [fetchClients])
+    const urlSearch = searchParams.get("search")
+    if (urlSearch && urlSearch !== search) {
+      setSearch(urlSearch)
+    }
+  }, [fetchClients, searchParams])
 
   const handleDeleteClient = async () => {
     if (!deleteId) return
@@ -137,9 +145,18 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-2 border-sky-200 hover:bg-sky-50 text-sky-600 font-bold"
+                        onClick={() => setDetailClient(client)}
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                        Details
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         className="h-8 gap-2 border-primary/20 hover:bg-primary/10 text-primary"
                         onClick={() => navigate(`/billing?client=${client.id}`)}
                       >
@@ -156,7 +173,7 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                           <DropdownMenuItem onClick={() => onEdit(client)} className="gap-2">
                             <Edit2 className="h-4 w-4" /> Edit Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="gap-2 cursor-pointer"
                             onClick={() => onCreateProposal(client)}
                           >
@@ -177,8 +194,8 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                             <Eye className="h-4 w-4" />
                             View Proposals
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-bold" 
+                          <DropdownMenuItem
+                            className="text-rose-500 focus:text-rose-600 focus:bg-rose-50 gap-2 font-bold"
                             onClick={() => setDeleteId(client.id)}
                           >
                             <Trash2 className="h-4 w-4" /> Remove Client
@@ -237,6 +254,13 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      {/* Client Detail Sheet */}
+      <ClientDetailSheet
+        client={detailClient}
+        open={!!detailClient}
+        onOpenChange={(open) => !open && setDetailClient(null)}
+      />
     </div>
   )
 }

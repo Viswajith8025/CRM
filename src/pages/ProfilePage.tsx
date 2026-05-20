@@ -6,40 +6,53 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/useAuthStore"
-import { Mail, User, Shield, Calendar, Loader2 } from "lucide-react"
+import { Mail, User, Shield, Calendar, Loader2, Building2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { usePermissions } from "@/hooks/usePermissions"
 
 export default function ProfilePage() {
-  const { user, updateProfile } = useAuthStore()
+  const { user, profile, updateProfile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [fullName, setFullName] = useState("")
-  const [role, setRole] = useState("User")
   const [isUpdating, setIsUpdating] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [departmentName, setDepartmentName] = useState<string>("Not Assigned")
 
   useEffect(() => {
-    if (user) {
-      setFullName(user.user_metadata?.full_name || "")
-      fetchProfile()
+    if (profile) {
+      setFullName(profile.full_name || "")
     }
-  }, [user])
+  }, [profile])
 
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      
-      if (data) setRole(data.role)
-    } catch (error) {
-      console.error("Error fetching profile:", error)
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    if (!profile?.id) return
+
+    const fetchUserDepartment = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("department_members")
+          .select(`
+            department:departments(
+              name
+            )
+          `)
+          .eq("profile_id", profile.id)
+          .maybeSingle()
+
+        if (!error && data) {
+          const dept = data.department as any
+          if (dept && dept.name) {
+            setDepartmentName(dept.name)
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch user department:", err)
+      }
     }
-  }
+
+    fetchUserDepartment()
+  }, [profile])
 
   const handleSave = async () => {
     if (!fullName.trim()) return toast.error("Full name cannot be empty")
@@ -54,6 +67,9 @@ export default function ProfilePage() {
       setIsUpdating(false)
     }
   }
+
+  const roleDisplay = profile?.dynamic_role || profile?.role || "User"
+  const canAccessSettings = hasPermission('module.admin')
 
   return (
     <PageWrapper 
@@ -84,7 +100,13 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase text-[10px] tracking-widest">
                   <Shield className="h-3.5 w-3.5" /> Access Level
                 </div>
-                <span className="font-black capitalize px-2 py-0.5 rounded bg-primary/10 text-primary">{isLoading ? "..." : (role === 'manager' ? 'HR' : role)}</span>
+                <span className="font-black capitalize px-2 py-0.5 rounded bg-primary/10 text-primary">{roleDisplay}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase text-[10px] tracking-widest">
+                  <Building2 className="h-3.5 w-3.5" /> Department
+                </div>
+                <span className="font-black capitalize px-2 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400">{departmentName}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground font-bold uppercase text-[10px] tracking-widest">
@@ -138,11 +160,11 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card className={cn("border-border/50 border-dashed bg-transparent transition-opacity", role === 'manager' && "opacity-75")}>
+          <Card className={cn("border-border/50 border-dashed bg-transparent transition-opacity", !canAccessSettings && "opacity-75")}>
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
                 Account Settings
-                {role === 'manager' && <Shield className="h-3 w-3 text-amber-500" />}
+                {!canAccessSettings && <Shield className="h-3 w-3 text-amber-500" />}
               </CardTitle>
               <CardDescription className="text-xs">
                 To manage security, passwords, or two-factor authentication, please visit the 
@@ -150,7 +172,7 @@ export default function ProfilePage() {
                   variant="link" 
                   className="h-auto p-0 px-1 text-xs font-bold" 
                   onClick={() => {
-                    if (role === 'manager') {
+                    if (!canAccessSettings) {
                       toast.error("Access Restricted: You don't have permission to manage workspace settings.")
                     } else {
                       window.location.href='/settings'

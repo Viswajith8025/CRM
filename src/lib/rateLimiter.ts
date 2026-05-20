@@ -1,70 +1,85 @@
 import { supabase } from './supabase'
 
-export interface LockoutStatus {
-  isLocked: boolean
-  remainingSeconds: number
-  message: string
+export interface RateLimitStatus {
+  allowed: boolean
+  remaining: number
+  limit: number
+  resetAfter: number
+  message?: string
 }
 
 /**
- * Enterprise Rate Limiter Utility
+ * Enterprise Rate Limiter Utility (OWASP Hardened)
  * 
- * Works in tandem with the 'auth_events' table and 'check_auth_lockout' SQL function.
+ * Interacts with the 'check_rate_limit' SQL function to enforce 
+ * IP and User-based throttling across all sensitive actions.
  */
 export const rateLimiter = {
   /**
-   * Checks if an email or IP address is currently under lockout.
+   * Checks if a specific action is allowed for a given identifier (email, IP, or userId).
+   * 
+   * @param identifier The unique string to rate limit (e.g. email, user UUID)
+   * @param action The name of the action (e.g. 'login', 'create_invoice')
+   * @param maxHits Maximum allowed hits in the window
+   * @param windowSeconds The time window in seconds
    */
-  async checkLockout(email: string): Promise<LockoutStatus> {
+  async check(
+    identifier: string, 
+    action: string, 
+    maxHits: number = 5, 
+    windowSeconds: number = 60
+  ): Promise<RateLimitStatus> {
     try {
-      // We don't have easy access to client IP in browser-side JS 
-      // but Supabase RPC will see the client IP if we use 'p_ip' as optional or let DB handle it.
-      // For now we primarily lock by email as it's the primary attack vector.
-      const { data, error } = await supabase.rpc('check_auth_lockout', {
-        p_email: email,
-        p_ip: '' // DB will handle IP if needed or we can pass a placeholder
+      const key = `${action}:${identifier.toLowerCase().trim()}`
+      
+      const { data, error } = await supabase.rpc('check_rate_limit', {
+        p_key: key,
+        p_max_hits: maxHits,
+        p_window_seconds: windowSeconds
       })
 
       if (error) {
-        console.error('[RateLimiter] Check failed:', error)
-        return { isLocked: false, remainingSeconds: 0, message: '' }
+        console.error('[RateLimiter] RPC Check failed:', error)
+        // Fail open if the rate limiter is down to avoid blocking legitimate users,
+        // but log the failure for security auditing.
+        return { allowed: true, remaining: 1, limit: maxHits, resetAfter: 0 }
       }
 
-      const status = data?.[0] || { is_locked: false, remaining_seconds: 0, message: '' }
-      
       return {
-        isLocked: status.is_locked,
-        remainingSeconds: status.remaining_seconds,
-        message: status.message
+        allowed: data.allowed,
+        remaining: data.remaining,
+        limit: data.limit,
+        resetAfter: data.reset_after,
+        message: data.message
       }
     } catch (err) {
       console.error('[RateLimiter] Critical error:', err)
-      return { isLocked: false, remainingSeconds: 0, message: '' }
+      return { allowed: true, remaining: 1, limit: maxHits, resetAfter: 0 }
     }
   },
 
   /**
-   * Logs an authentication event to the database.
+   * Logs security-related events for auditing.
    */
-  async logAuthEvent(email: string, eventType: 'LOGIN_ATTEMPT' | 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'LOCKOUT', isSuccess: boolean, metadata: any = {}) {
+  async logSecurityEvent(eventType: string, metadata: any = {}) {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      
       const { error } = await supabase
-        .from('auth_events')
+        .from('security_logs')
         .insert({
-          email: email.toLowerCase().trim(),
+          user_id: user?.id || null,
           event_type: eventType,
-          is_success: isSuccess,
-          user_agent: navigator.userAgent,
           metadata: {
             ...metadata,
             timestamp: new Date().toISOString(),
-            platform: navigator.platform
+            userAgent: navigator.userAgent
           }
         })
 
-      if (error) console.warn('[RateLimiter] Logging failed:', error.message)
+      if (error) console.warn('[Security] Logging failed:', error.message)
     } catch (err) {
-      console.warn('[RateLimiter] Critical logging failure:', err)
+      console.warn('[Security] Critical logging failure:', err)
     }
   }
 }
