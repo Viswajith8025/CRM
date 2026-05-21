@@ -237,37 +237,40 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       const currentTask = get().tasks.find(t => t.id === id)
 
-      // Guard: remap legacy 'completed' → 'done' (DB enum only accepts 'done')
-      if ((updates as any).status === 'completed') {
-        (updates as any).status = 'done'
+      // Extract co-owners and dependencies updates if provided, and sanitize status
+      const { collaborators, dependencies, status: rawStatus, ...restDetails } = updates as any
+
+      // Remap 'completed' → 'done' (DB task_status enum only has: todo, in_progress, review, done)
+      const safeStatus = rawStatus === 'completed' ? 'done' : rawStatus
+      const taskDetails = {
+        ...restDetails,
+        ...(rawStatus !== undefined ? { status: safeStatus } : {}),
       }
 
-      // A. Client-side Task Dependency Check
-      if (updates.status === 'completed' || updates.status === 'done') {
+      console.log('[updateTask] PATCH payload:', taskDetails)
+
+      // A. Client-side Task Dependency Check (run after sanitizing status)
+      if (safeStatus === 'done') {
         const { data: deps, error: depError } = await supabase
           .from('task_dependencies')
           .select('depends_on_task_id, depends_on:tasks!depends_on_task_id(title, status)')
           .eq('task_id', id)
 
-        if (depError) console.error("Dependency check read failed:", depError)
-        
+        if (depError) console.warn("Dependency check skipped:", depError.message)
+
         if (deps && deps.length > 0) {
           const unresolved = deps.filter((d: any) => {
             const status = d.depends_on?.status
-            return status !== 'completed' && status !== 'done'
+            return status !== 'done'
           })
-
           if (unresolved.length > 0) {
             const firstUnresolvedTitle = unresolved[0].depends_on?.title || "Unfinished parent task"
-            throw new Error(`Cannot complete task. It is blocked by unfinished dependency: "${firstUnresolvedTitle}"`)
+            throw new Error(`Cannot complete task. Blocked by: "${firstUnresolvedTitle}"`)
           }
         }
       }
 
-      // Extract co-owners and dependencies updates if provided
-      const { collaborators, dependencies, ...taskDetails } = updates as any
-
-      // B. Update core task properties — no .select() to avoid PATCH+RETURNING RLS conflict
+      // B. Update core task properties
       const { error } = await supabase
         .from('tasks')
         .update(taskDetails)
