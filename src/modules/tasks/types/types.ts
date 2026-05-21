@@ -1,4 +1,5 @@
-export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'blocked' | 'completed' | 'done';
+// Valid DB enum: 'todo' | 'in_progress' | 'review' | 'done'
+export type TaskStatus = 'todo' | 'in_progress' | 'review' | 'blocked' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Task {

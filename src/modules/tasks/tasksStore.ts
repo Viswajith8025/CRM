@@ -237,6 +237,11 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       const currentTask = get().tasks.find(t => t.id === id)
 
+      // Guard: remap legacy 'completed' → 'done' (DB enum only accepts 'done')
+      if ((updates as any).status === 'completed') {
+        (updates as any).status = 'done'
+      }
+
       // A. Client-side Task Dependency Check
       if (updates.status === 'completed' || updates.status === 'done') {
         const { data: deps, error: depError } = await supabase

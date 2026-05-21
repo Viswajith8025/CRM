@@ -172,8 +172,8 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
 
   const handleToggleStatus = async (task: any) => {
     setUpdatingTaskId(task.id)
-    const isCompleted = task.status === "completed" || task.status === "done"
-    const nextStatus = isCompleted ? "todo" : "completed"
+    const isCompleted = task.status === 'done'
+    const nextStatus = isCompleted ? 'in_progress' : 'done'
 
     try {
       if (activeTimer && activeTimer.task_id === task.id) {
@@ -181,7 +181,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
       }
       await updateTask(task.id, { status: nextStatus })
       await fetchTasks({ projectId })
-      toast.success(`Task marked as ${nextStatus}`)
+      toast.success(nextStatus === 'done' ? `Task marked complete` : `Task reopened`)
     } catch (err: any) {
       toast.error(err.message || "Failed to toggle task status")
     } finally {
@@ -494,7 +494,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
               ) : (
                 selectedModuleTasks.map(task => {
                   const member = members.find(m => m.id === task.assigned_to)
-                  const isCompleted = task.status === 'completed' || task.status === 'done'
+                  const isCompleted = task.status === 'done'
                   const isUpdating = updatingTaskId === task.id
                   const isTimerRunning = activeTimer?.task_id === task.id
                   const taskAny = task as any
