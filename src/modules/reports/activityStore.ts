@@ -48,7 +48,7 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
 
   logActivity: async (activity) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       const { useAuthStore } = await import('@/store/useAuthStore')

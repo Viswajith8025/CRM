@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { TimeDeskDashboardClock } from "../components/TimeDeskDashboardClock"
 import TimeDeskSettings from "./TimeDeskSettings"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useRBACStore } from "@/modules/admin/rbacStore"
 
 export default function TimeDeskMonitor() {
   const { activeSessions, fetchOrganizationActivity } = useTimeDeskStore()
@@ -26,7 +27,8 @@ export default function TimeDeskMonitor() {
   const [logs, setLogs] = useState<any[]>([])
   const [isLogsLoading, setIsLogsLoading] = useState(false)
 
-  const isAdminOrSuperAdmin = profile?.role === 'admin' || profile?.role === 'super_admin'
+  const { hasPermission } = useRBACStore()
+  const isAdminOrSuperAdmin = hasPermission('hr.manage_attendance')
 
   useEffect(() => {
     fetchOrganizationActivity()

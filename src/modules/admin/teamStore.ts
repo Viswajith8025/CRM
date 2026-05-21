@@ -8,7 +8,7 @@ export interface Profile {
   role: string // legacy column — kept for backward compat
   dynamic_role_id?: string | null  // from user_roles join
   dynamic_role_name?: string | null // from roles join
-  status: 'pending' | 'active' | 'denied'
+  status: 'pending' | 'active' | 'denied' | 'archived'
   email: string | null
   hourly_rate?: number
   created_at: string
@@ -33,6 +33,7 @@ interface TeamState {
   updateMemberStatus: (id: string, status: Profile['status']) => Promise<void>
   updateMemberHourlyRate: (id: string, rate: number) => Promise<void>
   revokeAccess: (id: string) => Promise<void>
+  archiveMember: (id: string) => Promise<void>
 }
 
 export const useTeamStore = create<TeamState>((set, get) => ({
@@ -219,9 +220,37 @@ export const useTeamStore = create<TeamState>((set, get) => ({
       set({
         members: get().members.map(m => m.id === id ? { ...m, status: 'denied' } : m),
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error revoking access:', error)
       throw error
     }
   },
+
+  archiveMember: async (id) => {
+    try {
+      const { profile: currentUser } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = currentUser?.organization_id
+
+      // Cannot archive the super_admin
+      const target = get().members.find(m => m.id === id)
+      if (target?.role === 'super_admin') {
+        throw new Error('The super admin account cannot be archived.')
+      }
+
+      let query = supabase.from('profiles').update({ status: 'archived' }).eq('id', id)
+      if (currentUser?.role !== 'super_admin' && orgId) {
+        query = query.eq('organization_id', orgId)
+      }
+
+      const { error } = await query
+      if (error) throw error
+
+      set({
+        members: get().members.map(m => m.id === id ? { ...m, status: 'archived' } : m),
+      })
+    } catch (error) {
+      console.error('Error archiving member:', error)
+      throw error
+    }
+  }
 }))

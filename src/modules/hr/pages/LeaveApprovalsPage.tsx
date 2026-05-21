@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { supabase } from "@/lib/supabase"
 import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 import { format, differenceInDays } from "date-fns"
 import { 
   CheckCircle2, 
@@ -68,6 +69,7 @@ interface LeaveRequest {
 
 export default function LeaveApprovalsPage() {
   const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -101,6 +103,7 @@ export default function LeaveApprovalsPage() {
         `)
         .eq('organization_id', profile.organization_id)
         .order('created_at', { ascending: false })
+        .limit(100)
 
       if (error) throw error
       // Normalise: map 'user' to 'profile' for template compatibility
@@ -117,6 +120,25 @@ export default function LeaveApprovalsPage() {
   const handleAction = async () => {
     if (!selectedRequest) return
     
+    // 1. Prevent self-approval
+    if (selectedRequest.user_id === profile?.id) {
+      toast.error("You cannot approve or reject your own leave request.")
+      return
+    }
+
+    // 2. Enforce Hierarchy/Role via dynamic permissions
+    const isAuthorized = profile?.role === 'super_admin' || hasPermission('hr.manage_leave') || hasPermission('hr.manage_attendance')
+    if (!isAuthorized) {
+      toast.error("You do not have sufficient HR authorization to process leave requests.")
+      return
+    }
+
+    // 3. Mandatory Rejection Note
+    if (actionType === 'reject' && !actionNote.trim()) {
+      toast.error("Enterprise compliance requires a mandatory note when rejecting a leave request.")
+      return
+    }
+
     const newStatus = actionType === 'approve' ? 'approved' : 
                      actionType === 'reject' ? 'rejected' : 
                      'clarification_required'

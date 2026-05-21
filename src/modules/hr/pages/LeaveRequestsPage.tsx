@@ -76,6 +76,7 @@ export default function LeaveRequestsPage() {
   const { profile } = useAuthStore()
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
+  const [balances, setBalances] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null)
@@ -103,6 +104,16 @@ export default function LeaveRequestsPage() {
         .eq('is_active', true)
       
       setLeaveTypes(types || [])
+
+      // Fetch balances for the current year
+      const currentYear = new Date().getFullYear()
+      const { data: bals } = await supabase
+        .from('leave_balances')
+        .select('*')
+        .eq('user_id', profile.id)
+        .eq('year', currentYear)
+        
+      setBalances(bals || [])
 
       // Fetch requests along with active log actions for clarification notes
       const { data: reqs, error } = await supabase
@@ -278,15 +289,23 @@ export default function LeaveRequestsPage() {
                               </p>
                             </div>
                             
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                               <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
                                 <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Yearly Limit</p>
                                 <p className="text-xl font-black">{leaveTypes.find(t => t.id === formData.leave_type_id)?.policies?.[0]?.yearly_limit || '0'} Days</p>
                               </div>
                               <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
-                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Approval</p>
-                                <p className="text-sm font-bold uppercase">{leaveTypes.find(t => t.id === formData.leave_type_id)?.policies?.[0]?.approval_required ? 'Required' : 'Automatic'}</p>
+                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Used</p>
+                                <p className="text-xl font-black">{balances.find(b => b.leave_type_id === formData.leave_type_id)?.used || '0'} Days</p>
                               </div>
+                              <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
+                                <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Pending</p>
+                                <p className="text-xl font-black">{balances.find(b => b.leave_type_id === formData.leave_type_id)?.pending || '0'} Days</p>
+                              </div>
+                            </div>
+                            <div className="p-4 bg-muted/30 rounded-xl border border-border/50 mt-4">
+                              <p className="text-[10px] font-black text-muted-foreground uppercase mb-1">Approval</p>
+                              <p className="text-sm font-bold uppercase">{leaveTypes.find(t => t.id === formData.leave_type_id)?.policies?.[0]?.approval_required ? 'Required' : 'Automatic'}</p>
                             </div>
                           </div>
                         </DialogContent>
@@ -311,6 +330,7 @@ export default function LeaveRequestsPage() {
                     <Input 
                       type="date" 
                       value={formData.start_date}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
                     />
                   </div>
@@ -319,6 +339,7 @@ export default function LeaveRequestsPage() {
                     <Input 
                       type="date" 
                       value={formData.end_date}
+                      min={formData.start_date || new Date().toISOString().split('T')[0]}
                       onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
                     />
                   </div>

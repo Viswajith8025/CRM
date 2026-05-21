@@ -37,7 +37,8 @@ import {
   Building,
   CheckCircle,
   HelpCircle,
-  Download
+  Download,
+  Mail
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -79,6 +80,7 @@ export default function ClientStatementsPage() {
   const [transactionId, setTransactionId] = useState("")
   const [notes, setNotes] = useState("")
   const [linkedInvoiceId, setLinkedInvoiceId] = useState<string>("none")
+  const [isSending, setIsSending] = useState(false)
 
   // Load clients and billing invoices
   useEffect(() => {
@@ -309,8 +311,76 @@ export default function ClientStatementsPage() {
     document.body.removeChild(link)
     toast.success("Ledger statement CSV exported successfully!")
   }
-
   const selectedClient = clients.find(c => c.id === selectedClientId)
+
+  const handleSendStatement = async () => {
+    if (!selectedClient || statement.length === 0) {
+      toast.error("No statement entries to send.")
+      return
+    }
+
+    if (!selectedClient.email) {
+      toast.error("This client does not have an email address on file.")
+      return
+    }
+
+    setIsSending(true)
+    try {
+      const headers = ["Transaction Date", "Reference", "Description", "Debit (Billed)", "Credit (Paid)", "Running Balance"]
+      const rows = statement.map(entry => [
+        format(new Date(entry.entry_date), "yyyy-MM-dd HH:mm"),
+        entry.reference_number,
+        entry.description ? entry.description.replace(/"/g, '""') : "",
+        entry.debit,
+        entry.credit,
+        entry.running_balance
+      ])
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map(r => r.map(val => `"${val}"`).join(","))
+      ].join("\n")
+      
+      const csvBase64 = btoa(csvContent)
+
+      const { sendEmail } = await import('@/lib/email')
+      
+      await sendEmail({
+        to: selectedClient.email,
+        subject: `Account Statement - ${selectedClient.name}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <h2 style="color: #0f172a; margin-bottom: 20px;">Account Statement</h2>
+            <p>Hello <strong>${selectedClient.name}</strong>,</p>
+            <p>Please find your up-to-date account ledger statement attached to this email as a CSV file.</p>
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
+              <p style="margin: 0; color: #64748b; font-size: 14px;">Outstanding Balance</p>
+              <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #0f172a;">₹${balance?.outstanding_balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+            </div>
+            <p>If you have any questions, please reply to this email.</p>
+            <p style="margin-top: 30px; font-size: 12px; color: #94a3b8;">
+              This is an automated message from your service provider.
+            </p>
+            <p>Thank you for your business!</p>
+            <p><strong>- ECRAFTZ Team</strong></p>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `Statement_${selectedClient.name.replace(/\s+/g, "_")}.csv`,
+            content: csvBase64,
+            encoding: "base64"
+          }
+        ]
+      })
+
+      toast.success(`Statement emailed to ${selectedClient.email} successfully!`)
+    } catch (err: any) {
+      toast.error(err.message || "Failed to send statement email.")
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   return (
     <PageWrapper
@@ -333,6 +403,14 @@ export default function ClientStatementsPage() {
             disabled={!selectedClientId || statement.length === 0}
           >
             <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2 border-border/60 font-semibold text-sky-600"
+            onClick={handleSendStatement}
+            disabled={!selectedClientId || statement.length === 0 || isSending}
+          >
+            <Mail className="h-4 w-4" /> {isSending ? "Sending..." : "Email Statement"}
           </Button>
           <Button
             className="gap-2 font-bold"

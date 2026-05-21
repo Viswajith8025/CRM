@@ -2,29 +2,24 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import type { ActivityAction, AuditSeverity, AuditTargetType } from '@/lib/auditLogger'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface AuditRecord {
   id: string
   user_id: string
-  action: ActivityAction
-  target_type: AuditTargetType
+  action: ActivityAction | string
+  target_type: string
   target_id: string
   target_name: string
   metadata: {
     description?: string
-    previous_value?: string | number | null
-    new_value?: string | number | null
-    related_entity_id?: string
-    related_entity_type?: string
+    previous_value?: any
+    new_value?: any
     [key: string]: any
   }
-  severity: AuditSeverity
+  severity: string
   is_system: boolean
   organization_id: string
   created_at: string
   checksum?: string
-  // joined from profiles
   profiles?: {
     full_name: string | null
     avatar_url: string | null
@@ -33,14 +28,14 @@ export interface AuditRecord {
 
 export interface AuditFilters {
   userId?: string
-  action?: ActivityAction | ''
-  targetType?: AuditTargetType | ''
+  action?: string | ''
+  targetType?: string | ''
   targetId?: string
-  severity?: AuditSeverity | ''
+  severity?: string | ''
   relatedEntityId?: string
-  fromDate?: string   // ISO string
-  toDate?: string     // ISO string
-  search?: string     // text search on target_name / description
+  fromDate?: string
+  toDate?: string
+  search?: string
   limit?: number
   page?: number
 }
@@ -68,7 +63,40 @@ const DEFAULT_FILTERS: AuditFilters = {
   toDate: new Date().toISOString(),
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
+function mapAuditLogToRecord(row: any): AuditRecord {
+  let mappedAction = row.action
+  if (mappedAction === 'INSERT') mappedAction = 'CREATE'
+  
+  let targetName = row.table_name
+  const dataToCheck = row.new_data || row.old_data || {}
+  if (dataToCheck.name) targetName = dataToCheck.name
+  else if (dataToCheck.title) targetName = dataToCheck.title
+  else if (dataToCheck.invoice_number) targetName = dataToCheck.invoice_number
+  else if (dataToCheck.first_name) targetName = `${dataToCheck.first_name} ${dataToCheck.last_name || ''}`.trim()
+  
+  let targetType = row.table_name
+  if (targetType.endsWith('ies')) targetType = targetType.slice(0, -3) + 'y' // e.g. activities -> activity, categories -> category
+  else if (targetType.endsWith('s') && targetType !== 'status') targetType = targetType.slice(0, -1) // e.g. projects -> project
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    action: mappedAction,
+    target_type: targetType,
+    target_id: row.record_id,
+    target_name: targetName,
+    metadata: {
+      description: `Record ${row.action} in ${row.table_name}`,
+      previous_value: row.old_data,
+      new_value: row.new_data
+    },
+    severity: row.action === 'DELETE' ? 'critical' : 'info',
+    is_system: !row.user_id,
+    organization_id: row.organization_id,
+    created_at: row.created_at,
+    profiles: row.profiles
+  }
+}
 
 export const useAuditStore = create<AuditState>((set, get) => ({
   records: [],
@@ -100,63 +128,39 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       const offset = (page - 1) * limit
 
       let query = supabase
-        .from('activities')
+        .from('audit_logs')
         .select(`
-          id, user_id, action, target_type, target_id, target_name,
-          metadata, severity, is_system, organization_id, created_at, checksum,
+          id, user_id, action, table_name, record_id, old_data, new_data, organization_id, created_at,
           profiles:user_id ( full_name, avatar_url )
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1)
 
-      // Org scoping (super_admin skips this)
       if (profile?.role !== 'super_admin' && orgId) {
         query = query.eq('organization_id', orgId)
       }
 
-      // Apply filters
       if (f.userId)      query = query.eq('user_id', f.userId)
-      if (f.action)      query = query.eq('action', f.action)
-      if (f.targetType)  query = query.eq('target_type', f.targetType)
-      if (f.targetId)    query = query.eq('target_id', f.targetId)
-      if (f.severity)    query = query.eq('severity', f.severity)
+      if (f.action) {
+        let dbAction = f.action
+        if (dbAction === 'CREATE') dbAction = 'INSERT'
+        query = query.eq('action', dbAction)
+      }
+      if (f.targetType)  query = query.eq('table_name', f.targetType)
+      if (f.targetId)    query = query.eq('record_id', f.targetId)
       if (f.fromDate)    query = query.gte('created_at', f.fromDate)
       if (f.toDate)      query = query.lte('created_at', f.toDate)
-
-      // Text search (matches target_name or description inside metadata)
-      if (f.search) {
-        query = query.ilike('target_name', `%${f.search}%`)
-      }
 
       const { data, error, count } = await query
 
       if (error) throw error
 
-      let results = (data ?? []) as AuditRecord[]
-
-      // If looking for a related entity, also query for activities referencing this ID
-      if (f.relatedEntityId && f.relatedEntityId !== f.targetId) {
-        const { data: relatedData } = await supabase
-          .from('activities')
-          .select(`id, user_id, action, target_type, target_id, target_name, metadata, severity, is_system, organization_id, created_at, checksum, profiles:user_id(full_name, avatar_url)`)
-          .eq('target_id', f.relatedEntityId)
-          .order('created_at', { ascending: false })
-          .limit(limit)
-
-        if (relatedData) {
-          const ids = new Set(results.map(r => r.id))
-          const merged = [
-            ...results,
-            ...(relatedData as AuditRecord[]).filter(r => !ids.has(r.id))
-          ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          results = merged
-        }
-      }
+      const mapped = (data || []).map(mapAuditLogToRecord)
 
       set({ 
-        records: results, 
-        activities: results, 
-        totalCount: count ?? results.length, 
+        records: mapped, 
+        activities: mapped, 
+        totalCount: count ?? mapped.length, 
         error: null 
       })
     } catch (err: any) {
@@ -171,8 +175,6 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   subscribeToAudit: () => {
     const { profile } = (() => {
       try {
-        // Dynamic import is async, so we use a closure-safe way to get the state
-        // or assume the store is already initialized in the browser.
         return (window as any).useAuthStore?.getState() || { profile: null };
       } catch {
         return { profile: null }
@@ -186,23 +188,21 @@ export const useAuditStore = create<AuditState>((set, get) => ({
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'activities',
-          // If org-scoped, filter at channel level for efficiency
+          table: 'audit_logs',
           ...(profile?.organization_id && profile?.role !== 'super_admin'
             ? { filter: `organization_id=eq.${profile.organization_id}` }
             : {}),
         },
         async (payload) => {
-          // Fetch with profile join for the new record
           const { data } = await supabase
-            .from('activities')
+            .from('audit_logs')
             .select(`*, profiles:user_id(full_name, avatar_url)`)
             .eq('id', payload.new.id)
             .single()
 
           if (data) {
             set(state => ({
-              records: [data as AuditRecord, ...state.records],
+              records: [mapAuditLogToRecord(data), ...state.records],
               totalCount: state.totalCount + 1,
             }))
           }

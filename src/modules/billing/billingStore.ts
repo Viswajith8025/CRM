@@ -159,7 +159,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
           payment_method: 'manual',
           paid_at: new Date().toISOString()
         })
-        get().fetchPayments(true)
+        get().fetchPayments({ force: true })
       }
 
       logActivity({
@@ -228,7 +228,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
             payment_method: 'manual',
             paid_at: new Date().toISOString()
           })
-          get().fetchPayments(true)
+          get().fetchPayments({ force: true })
         }
       }
 
@@ -325,24 +325,38 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
+      const invoice = get().invoices.find(inv => inv.id === id)
+      if (!invoice) throw new Error("Invoice not found in local store.")
+
+      // 1. Record the signature metadata on the invoice
       const { error } = await supabase
         .from('invoices')
         .update({
           signature_data: signatureData.signature,
           signer_name: signatureData.name,
-          signed_at: new Date().toISOString(),
-          status: 'paid'
+          signed_at: new Date().toISOString()
         })
         .eq('id', id)
         .eq('organization_id', orgId)
 
       if (error) throw error
       
-      set(state => ({
-        invoices: state.invoices.map(inv => 
-          inv.id === id ? { ...inv, status: 'paid', signer_name: signatureData.name } : inv
-        )
-      }))
+      // 2. Process the payment via RPC to ensure paid_amount and audit trails trigger
+      const { data: payData, error: payError } = await supabase.rpc('process_invoice_payment', {
+        p_invoice_id: id,
+        p_org_id: orgId,
+        p_user_id: profile.id,
+        p_amount: invoice.amount, // Full payment via signature
+        p_method: 'E-Signature',
+        p_notes: `Authorized via e-signature by ${signatureData.name}`
+      })
+
+      if (payError) throw payError
+      if (payData && !payData.success) throw new Error(payData.error)
+
+      // 3. Refresh local state
+      get().fetchInvoices({ force: true })
+      get().fetchPayments({ force: true })
     } catch (err) {
       console.error("Failed to sign invoice:", err)
       throw err
@@ -368,7 +382,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (error) throw error
       if (data && !data.success) throw new Error(data.error)
 
-      get().fetchPayments(true)
+      get().fetchPayments({ force: true })
       get().fetchInvoices(true)
     } catch (err) {
       throw toFriendlyError(err, "Failed to record payment.")
@@ -393,7 +407,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       if (error) throw error
 
-      get().fetchPayments(true)
+      get().fetchPayments({ force: true })
       get().fetchInvoices(true)
     } catch (err) {
       throw toFriendlyError(err, "Failed to verify payment.")
@@ -528,14 +542,22 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   },
 
   subscribeToInvoices: () => {
-    const channel = supabase
-      .channel('billing_invoices_sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'invoices' },
-        () => get().fetchInvoices({ force: true })
-      )
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+    let channel: any = null;
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      const orgId = useAuthStore.getState().profile?.organization_id
+      if (!orgId) return
+
+      channel = supabase
+        .channel(`billing_invoices_sync_${orgId}_${Math.random()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'invoices', filter: `organization_id=eq.${orgId}` },
+          () => get().fetchInvoices({ force: true })
+        )
+        .subscribe()
+    })
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }
 }))

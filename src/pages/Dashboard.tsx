@@ -58,8 +58,8 @@ export default function Dashboard() {
   const [chartReady, setChartReady] = useState(false)
   const { hasPermission } = usePermissions()
   const { profile } = useAuthStore()
-  const isEmployee = profile?.role === 'employee'
-  const isTeamLead = profile?.role === 'team_lead'
+  const isEmployee = !hasPermission('module.admin') && !hasPermission('projects.manage')
+  const isTeamLead = !hasPermission('module.admin') && hasPermission('projects.manage')
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'departments'>('overview')
   const [workspaceMode, setWorkspaceMode] = useState<'time_desk' | 'analytics'>('time_desk')
 

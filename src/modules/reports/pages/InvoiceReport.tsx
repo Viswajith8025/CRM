@@ -51,6 +51,7 @@ export default function InvoiceReport() {
   
   const { 
     data: invoices, 
+    aggregates,
     isLoading, 
     totalCount, 
     page, 
@@ -129,9 +130,10 @@ export default function InvoiceReport() {
   ]
 
   const summaryMetrics = useMemo(() => {
-    const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + Number(i.amount || 0), 0)
-    const pendingRevenue = invoices.filter(i => ['sent', 'partially_paid'].includes(i.status)).reduce((sum, i) => sum + (Number(i.amount || 0) - Number(i.paid_amount || 0)), 0)
-    const overdueCount = invoices.filter(i => i.status === 'overdue').length
+    // USE SERVER-SIDE AGGREGATES TO PREVENT BROWSER CRASHES ON MASSIVE DATASETS
+    const totalRevenue = aggregates.total_revenue || 0;
+    const pendingRevenue = aggregates.pending_revenue || 0;
+    const overdueCount = aggregates.overdue_count || 0;
 
     return [
       {
@@ -142,13 +144,13 @@ export default function InvoiceReport() {
       },
       {
         label: 'Verified Revenue',
-        value: `₹${totalRevenue.toLocaleString()}`,
+        value: `₹${Number(totalRevenue).toLocaleString()}`,
         icon: DollarSign,
         description: 'Settled accounts'
       },
       {
         label: 'Awaiting Payment',
-        value: `₹${pendingRevenue.toLocaleString()}`,
+        value: `₹${Number(pendingRevenue).toLocaleString()}`,
         icon: Clock,
         description: 'Projected cashflow'
       },
@@ -159,7 +161,7 @@ export default function InvoiceReport() {
         description: 'Immediate action required'
       }
     ]
-  }, [invoices, totalCount])
+  }, [aggregates, totalCount])
 
   const handleExportPDF = () => {
     ReportExportService.exportToPDF({

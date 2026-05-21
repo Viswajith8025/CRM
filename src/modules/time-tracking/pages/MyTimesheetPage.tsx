@@ -16,7 +16,7 @@ interface TimesheetEntry {
   end_time: string | null
   status: string
   breaks: any[]
-  tasks: any[]
+  all_tasks: { id: string, title: string, is_completed: boolean, type: string }[]
 }
 
 export default function MyTimesheetPage() {
@@ -52,11 +52,31 @@ export default function MyTimesheetPage() {
 
         const tasks = taskData || []
         
+        const { data: officialTaskData } = await supabase
+          .from('tasks')
+          .select('id, title, status, updated_at, created_at')
+          .eq('assigned_to', profile.id)
+          .limit(1000)
+          
+        const officialTasks = officialTaskData || []
+
         const mappedSessions = (data as any || []).map((session: any) => {
           const sessionDate = session.start_time.split('T')[0]
+          
+          const dTasks = tasks.filter(t => t.task_date === sessionDate).map((t: any) => ({
+            id: t.id, title: t.title, is_completed: t.is_completed, type: 'self'
+          }))
+          
+          const oTasks = officialTasks.filter(t => (t.updated_at.split('T')[0] === sessionDate || t.created_at.split('T')[0] === sessionDate)).map((t: any) => ({
+            id: t.id, title: t.title, is_completed: (t.status === 'done' || t.status === 'completed'), type: 'assigned'
+          }))
+          
+          // Deduplicate just in case
+          const all_tasks = [...dTasks, ...oTasks].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+
           return {
             ...session,
-            daily_tasks: tasks.filter(t => t.task_date === sessionDate)
+            all_tasks
           }
         })
 
@@ -98,7 +118,7 @@ export default function MyTimesheetPage() {
       }, 0) || 0
 
       totalMinutes += (grossMinutes - breakMinutes)
-      totalTasksCompleted += (session.daily_tasks?.filter(t => t.is_completed).length || 0)
+      totalTasksCompleted += (session.all_tasks?.filter((t: any) => t.is_completed).length || 0)
     })
 
     return {
@@ -256,19 +276,24 @@ export default function MyTimesheetPage() {
                   {/* Tasks */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Completed Tasks</h4>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Assigned & Self Tasks</h4>
                       <CheckSquare className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    {session.daily_tasks?.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No tasks recorded.</p>
+                    {session.all_tasks?.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No tasks recorded today.</p>
                     ) : (
                       <div className="space-y-2">
-                        {session.daily_tasks?.map(t => (
-                          <div key={t.id} className="flex items-start gap-2 text-xs">
-                            <CheckSquare className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                            <span className={t.is_completed ? "text-muted-foreground line-through" : "font-medium"}>
-                              {t.title}
-                            </span>
+                        {session.all_tasks?.map((t: any) => (
+                          <div key={t.id} className="flex items-start gap-2 text-xs bg-muted/20 p-2 rounded-lg">
+                            <CheckSquare className={`h-4 w-4 shrink-0 mt-0.5 ${t.is_completed ? 'text-emerald-500' : 'text-slate-300'}`} />
+                            <div className="flex flex-col">
+                              <span className={t.is_completed ? "text-muted-foreground line-through" : "font-medium"}>
+                                {t.title}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">
+                                {t.type === 'assigned' ? 'Assigned to me' : 'Self task'} • {t.is_completed ? 'Done' : 'Pending'}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>

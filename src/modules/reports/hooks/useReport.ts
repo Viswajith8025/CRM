@@ -24,6 +24,7 @@ export function useReport<T>({
   defaultSortBy = 'created_at'
 }: UseReportProps) {
   const [data, setData] = useState<T[]>([])
+  const [aggregates, setAggregates] = useState<Record<string, any>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
@@ -103,6 +104,32 @@ export function useReport<T>({
 
       setData(result || [])
       setTotalCount(count || 0)
+
+      // Fetch Server-Side Aggregates for specific reports to prevent client-side crash
+      if (['invoices', 'renewals', 'projects', 'tasks'].includes(tableName)) {
+        // Map table name to report type
+        const reportTypeMap: Record<string, string> = {
+          'invoices': 'invoices',
+          'renewals': 'renewals',
+          'projects': 'profitability', // Or projects
+          'tasks': 'productivity'
+        }
+        
+        try {
+          const { data: aggData } = await supabase.rpc('get_report_aggregates', {
+            p_report_type: reportTypeMap[tableName],
+            p_org_id: orgId,
+            p_filters: filters,
+            p_search: search || null
+          }).abortSignal(controller.signal)
+          
+          if (aggData && !aggData.error) {
+            setAggregates(aggData)
+          }
+        } catch (aggErr) {
+          console.warn("Failed to fetch server aggregates, falling back to basic metrics", aggErr)
+        }
+      }
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('AbortError')) return
       console.error(`[Enterprise Report] Fetch Error (${tableName}):`, err)
@@ -121,6 +148,7 @@ export function useReport<T>({
 
   return {
     data,
+    aggregates,
     isLoading,
     totalCount,
     page,

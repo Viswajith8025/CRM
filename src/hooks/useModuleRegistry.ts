@@ -22,28 +22,40 @@ export function useModuleRegistry() {
   const { profile } = useAuthStore()
 
   useEffect(() => {
-    supabase
-      .from('module_registry')
-      .select('*')
-      .eq('is_enabled', true)
-      .order('sort_order')
-      .then(({ data }) => {
-        setModules(data || [])
-        setIsModulesLoading(false)
+    const fetchModules = async () => {
+      const { data } = await supabase
+        .from('module_registry')
+        .select('*')
+        .eq('is_enabled', true)
+        .order('sort_order')
+      
+      setModules(data || [])
+      setIsModulesLoading(false)
+    }
+
+    fetchModules()
+
+    const channelId = `module-registry-${Math.random()}`
+    const subscription = supabase.channel(channelId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'module_registry' }, () => {
+        fetchModules()
       })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(subscription)
+    }
   }, [])
 
   const isSuperAdmin = profile?.role === 'super_admin'
-
-  const MANAGEMENT_ROLES = ['super_admin', 'admin', 'hr']
-  const isManagementRole = MANAGEMENT_ROLES.includes(profile?.role || '')
+  const isManagementRole = hasPermission('hr.manage_attendance') || hasPermission('module.admin')
 
   const filter = (category: 'top' | 'bottom') =>
     modules
       .filter(m => m.category === category)
       .filter(m => {
         // Hide personal timesheet from management roles (they use Team Timesheets)
-        if (m.key === 'timesheet' && (profile?.role === 'super_admin' || profile?.role === 'admin')) {
+        if (m.key === 'timesheet' && hasPermission('module.admin')) {
           return false
         }
         // Hide Leave Requests from management — they only use Leave Approvals

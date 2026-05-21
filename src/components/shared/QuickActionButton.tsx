@@ -10,13 +10,16 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useRBACStore } from '@/modules/admin/rbacStore'
 
 export function QuickActionButton() {
   const [isOpen, setIsOpen] = useState(false)
   const navigate = useNavigate()
   const { profile } = useAuthStore()
+  const { hasPermission } = useRBACStore()
 
-  if (profile?.role === 'employee') return null
+  // Hide Quick Action button for non-management roles
+  if (!hasPermission('projects.manage')) return null
 
   const actions = [
     { 

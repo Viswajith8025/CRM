@@ -218,16 +218,12 @@ export const useRBACStore = create<RBACState>((set, get) => ({
   // ----------------------------------------------------------
   fetchUserPermissions: async (userId: string, force = false) => {
     const s = get() as any
-    const now = Date.now()
-    const THROTTLE_MS = 5000
 
-    // Already fetching, or fetched recently for same user (bypass if forced)
-    if (s.__fetchingUserPerms) return
-    if (!force && s.__lastUserPermsFetchAt && now - s.__lastUserPermsFetchAt < THROTTLE_MS && s.__lastPermUserId === userId) return
+    // Already fetching, bypass if forced
+    if (s.__fetchingUserPerms && !force) return
 
     s.__fetchingUserPerms = true
     s.__lastPermUserId = userId
-    s.__lastUserPermsFetchAt = now
     set({ isPermissionsLoading: true })
 
     try {

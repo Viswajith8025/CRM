@@ -106,9 +106,16 @@ const TaskCard = memo(({ task, isOverlay, isSyncing, onEdit, onDelete, onOpenDet
         </div>
       )}
       <div className="flex items-start justify-between">
-        <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", priorityColors[task.priority])}>
-          {task.priority}
-        </Badge>
+        <div className="flex gap-2">
+          <Badge variant="outline" className={cn("text-[10px] uppercase font-bold", priorityColors[task.priority])}>
+            {task.priority}
+          </Badge>
+          {task.is_overdue_completion && (
+            <Badge variant="destructive" className="text-[10px] uppercase font-bold bg-rose-600">
+              Late Penalty
+            </Badge>
+          )}
+        </div>
         
         <div className="flex items-center gap-1">
           <DropdownMenu>

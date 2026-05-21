@@ -63,7 +63,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         await get().processOfflineQueue()
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       // Fetch active work session
@@ -101,7 +101,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
   checkIn: async () => {
     set({ isSyncing: true })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user || !profile?.organization_id) return
 
@@ -156,7 +156,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
   checkOut: async () => {
     set({ isSyncing: true })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       // Enforce Daily Task Completion
@@ -426,7 +426,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
     set({ isSyncing: true })
     try {
       const queue = JSON.parse(queueStr) as { action: string; timestamp: string; payload?: any }[]
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       for (const item of queue) {

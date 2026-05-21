@@ -103,8 +103,11 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
+      const { useRBACStore } = await import('@/modules/admin/rbacStore')
+      const canManageProjects = useRBACStore.getState().hasPermission('projects.manage')
+
       let userDeptId: string | null = null
-      if (profile?.role === 'employee') {
+      if (!canManageProjects) {
         const { data: deptData } = await supabase
           .from('department_members')
           .select('department_id')
@@ -140,6 +143,11 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
       if (!includeArchived) {
         baseQuery = baseQuery.or('is_archived.is.null,is_archived.eq.false')
+      }
+
+      // Enforce department scoping for employees at the query level
+      if (!canManageProjects && userDeptId) {
+        baseQuery = baseQuery.eq('department_id', userDeptId)
       }
 
       const result = await fetchPaginatedData<any>(baseQuery, {
@@ -245,13 +253,8 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         }
       })
 
-      let finalProjects = projectsWithStats
-      if (profile?.role === 'employee' && userDeptId) {
-        finalProjects = projectsWithStats.filter(p => p.department_id === userDeptId)
-      }
-
       set({ 
-        projects: finalProjects as Project[], 
+        projects: projectsWithStats as Project[], 
         pagination: {
           totalCount: result.totalCount,
           page: result.page,
@@ -653,23 +656,28 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
   },
 
   subscribeToProjects: () => {
-    const orgId = (window as any)._lastOrgId || 'global'
-    
-    const channel = supabase
-      .channel(`projects_sync_${orgId}`)
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'projects'
-        },
-        () => get().fetchProjects({ force: true })
-      )
-      .subscribe()
+    let channel: any = null;
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      const orgId = useAuthStore.getState().profile?.organization_id
+      if (!orgId) return
+      
+      channel = supabase
+        .channel(`projects_sync_${orgId}_${Math.random()}`)
+        .on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'projects',
+            filter: `organization_id=eq.${orgId}`
+          },
+          () => get().fetchProjects({ force: true })
+        )
+        .subscribe()
+    })
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
     }
   },
 

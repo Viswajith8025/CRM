@@ -14,7 +14,7 @@ export const useCalendarStore = create<CalendarState>((set) => ({
   fetchEvents: async () => {
     set({ isLoading: true })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       // Helper to fetch and handle errors (e.g. table not found)

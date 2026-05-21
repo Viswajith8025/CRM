@@ -562,27 +562,43 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   subscribeToLeads: () => {
-    const channel = supabase
-      .channel('crm_leads_sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'leads' },
-        () => get().fetchLeads({ force: true })
-      )
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+    let channel: any = null;
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      const orgId = useAuthStore.getState().profile?.organization_id
+      if (!orgId) return
+
+      channel = supabase
+        .channel(`crm_leads_sync_${orgId}_${Math.random()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'leads', filter: `organization_id=eq.${orgId}` },
+          () => get().fetchLeads({ force: true })
+        )
+        .subscribe()
+    })
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   },
 
   subscribeToClients: () => {
-    const channel = supabase
-      .channel('crm_clients_sync')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'clients' },
-        () => get().fetchClients({ force: true })
-      )
-      .subscribe()
-    return () => supabase.removeChannel(channel)
+    let channel: any = null;
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      const orgId = useAuthStore.getState().profile?.organization_id
+      if (!orgId) return
+
+      channel = supabase
+        .channel(`crm_clients_sync_${orgId}_${Math.random()}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'clients', filter: `organization_id=eq.${orgId}` },
+          () => get().fetchClients({ force: true })
+        )
+        .subscribe()
+    })
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }
 }))
 

@@ -27,8 +27,9 @@ interface AuthState {
   fetchProfile: () => Promise<void>
   subscribeToProfile: () => (() => void)
   signOut: () => Promise<void>
-  updateProfile: (data: { full_name?: string; avatar_url?: string }) => Promise<void>
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>
   createMissingProfile: (user: any) => Promise<any>
+  registerOrganization: (orgName: string, userFullName?: string) => Promise<string>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -177,7 +178,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         id: user.id,
         email: user.email,
         role: 'employee',
-        status: 'pending'
+        status: 'pending',
+        organization_id: '00000000-0000-0000-0000-000000000000'
       })
       .select()
       .single()
@@ -195,5 +197,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     await supabase.from('profiles').update(data).eq('id', user.id)
     await get().fetchProfile()
+  },
+
+  registerOrganization: async (orgName: string, userFullName?: string) => {
+    set({ isLoading: true })
+    try {
+      const { data, error } = await supabase.rpc('register_organization_with_owner', {
+        p_org_name: orgName,
+        p_user_full_name: userFullName || null
+      })
+
+      if (error) {
+        console.error("Organization Registration Failed:", error)
+        throw new Error(error.message || "Failed to register organization.")
+      }
+
+      // Re-fetch the profile immediately since they are now a super_admin of the new org
+      await get().fetchProfile()
+      return data // Returns the new UUID
+    } catch (err) {
+      set({ isLoading: false })
+      throw err
+    }
   }
 }))

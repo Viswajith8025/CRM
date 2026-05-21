@@ -4,6 +4,7 @@ import { Navbar } from "./Navbar"
 import { NetworkIndicator } from "../shared/NetworkIndicator"
 import { QuickActionButton } from "../shared/QuickActionButton"
 import { useNotificationsStore } from "@/modules/notifications"
+import { useIdleTracking } from "@/modules/time-tracking/hooks/useIdleTracking"
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -11,6 +12,9 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { fetchNotifications, subscribeToNotifications } = useNotificationsStore()
+  
+  // Initialize Global Idle Tracking
+  useIdleTracking()
 
   useEffect(() => {
     fetchNotifications()

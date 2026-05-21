@@ -50,6 +50,7 @@ export default function RenewalsReport() {
   
   const { 
     data: renewals, 
+    aggregates,
     isLoading, 
     totalCount, 
     page, 
@@ -148,9 +149,11 @@ export default function RenewalsReport() {
   ]
 
   const summaryMetrics = useMemo(() => {
-    const totalValue = renewals.reduce((sum, r) => sum + Number(r.amount || 0), 0)
-    const criticalCount = renewals.filter(r => r.status !== 'paid' && isBefore(new Date(r.expiry_date), addDays(new Date(), 30))).length
-    const collectionRate = renewals.length > 0 ? (renewals.filter(r => r.status === 'paid').length / renewals.length) * 100 : 0
+    // USE SERVER-SIDE AGGREGATES
+    const totalValue = aggregates.total_value || 0;
+    const criticalCount = aggregates.critical_count || 0;
+    const paidCount = aggregates.paid_count || 0;
+    const collectionRate = totalCount > 0 ? (paidCount / totalCount) * 100 : 0;
 
     return [
       {
@@ -178,7 +181,7 @@ export default function RenewalsReport() {
         description: 'Current period health'
       }
     ]
-  }, [renewals, totalCount])
+  }, [aggregates, totalCount])
 
   const handleExportPDF = () => {
     ReportExportService.exportToPDF({

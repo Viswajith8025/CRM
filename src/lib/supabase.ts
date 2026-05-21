@@ -15,7 +15,12 @@ export const supabase = createClient(
       storage: window.sessionStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      lock: async (name, timeout, fn) => {
+        // Passthrough lock to prevent React StrictMode from triggering AbortError
+        // when multiple components mount concurrently and race for the GoTrue session lock.
+        return fn();
+      }
     }
   }
 )

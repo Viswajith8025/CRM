@@ -99,12 +99,45 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       }
 
       let templateId = template.id
+      let isNewVersion = false
+
       if (templateId) {
-        const { error } = await supabase
-          .from('form_templates')
-          .update(templatePayload)
-          .eq('id', templateId)
-        if (error) throw error
+        // SCHEMAS VERSIONING CHECK: Does this template have existing submissions?
+        const { count, error: countError } = await supabase
+          .from('form_submissions')
+          .select('*', { count: 'exact', head: true })
+          .eq('template_id', templateId)
+
+        if (countError) throw countError
+
+        if (count && count > 0) {
+          // Fork a new version to protect historical data integrity
+          isNewVersion = true
+          
+          // Archive old version
+          await supabase
+            .from('form_templates')
+            .update({ is_active: false, is_archived: true })
+            .eq('id', templateId)
+
+          // Insert new template version (omitting ID so DB generates a new one)
+          const { id: _, ...payloadWithoutId } = templatePayload
+          const { data, error } = await supabase
+            .from('form_templates')
+            .insert({ ...payloadWithoutId, name: `${templatePayload.name} (v${Date.now().toString().slice(-4)})` })
+            .select()
+            .single()
+          
+          if (error) throw error
+          templateId = data.id
+        } else {
+          // No submissions exist, safe to update in-place
+          const { error } = await supabase
+            .from('form_templates')
+            .update(templatePayload)
+            .eq('id', templateId)
+          if (error) throw error
+        }
       } else {
         const { data, error } = await supabase
           .from('form_templates')
@@ -115,9 +148,8 @@ export const useFormsStore = create<FormsState>((set, get) => ({
         templateId = data.id
       }
 
-      // 2. Clear old sections (simpler than structural diffs for dynamic field builder)
-      if (template.id) {
-        // Fetch current sections to safely wipe fields
+      // 2. Clear old sections ONLY if we are doing an in-place update (not a fork)
+      if (template.id && !isNewVersion) {
         const { data: oldSections } = await supabase
           .from('form_sections')
           .select('id')

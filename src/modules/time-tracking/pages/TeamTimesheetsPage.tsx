@@ -3,6 +3,7 @@ import { PageWrapper } from "@/components/shared/PageWrapper"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuthStore } from "@/store/useAuthStore"
+import { usePermissions } from "@/hooks/usePermissions"
 import { format, differenceInMinutes } from "date-fns"
 import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
@@ -48,13 +49,14 @@ interface TeamSession {
     role: string
   }
   break_sessions: any[]
-  daily_tasks: any[]
+  all_tasks: { id: string, title: string, is_completed: boolean, type: string }[]
   is_flagged?: boolean
   admin_note?: string
 }
 
 export default function TeamTimesheetsPage() {
   const { profile } = useAuthStore()
+  const { hasPermission } = usePermissions()
   const [sessions, setSessions] = useState<TeamSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -68,7 +70,32 @@ export default function TeamTimesheetsPage() {
       if (!profile?.organization_id) return
       
       try {
-        const { data, error } = await supabase
+        const canManageAll = profile?.role === 'super_admin' || hasPermission('hr.manage_attendance')
+        let allowedUserIds: string[] | null = null
+
+        // If not a full admin, scope to the team lead's department
+        if (!canManageAll) {
+          const { data: deptData } = await supabase
+            .from('department_members')
+            .select('department_id')
+            .eq('profile_id', profile.id)
+            .eq('is_primary', true)
+            .limit(1)
+
+          if (deptData && deptData.length > 0) {
+            const { data: members } = await supabase
+              .from('department_members')
+              .select('profile_id')
+              .eq('department_id', deptData[0].department_id)
+            
+            allowedUserIds = (members || []).map(m => m.profile_id)
+          } else {
+            // No department assigned, return empty results
+            allowedUserIds = ['00000000-0000-0000-0000-000000000000']
+          }
+        }
+
+        let sessionQuery = supabase
           .from('work_sessions')
           .select(`
             *,
@@ -78,6 +105,12 @@ export default function TeamTimesheetsPage() {
           .eq('organization_id', profile.organization_id)
           .order('start_time', { ascending: false })
           .limit(100)
+
+        if (allowedUserIds) {
+          sessionQuery = sessionQuery.in('user_id', allowedUserIds)
+        }
+
+        const { data, error } = await sessionQuery
 
         if (error) throw error
 
@@ -91,11 +124,31 @@ export default function TeamTimesheetsPage() {
 
         const tasks = taskData || []
         
+        const { data: officialTaskData } = await supabase
+          .from('tasks')
+          .select('id, title, status, assigned_to, updated_at, created_at')
+          .eq('organization_id', profile.organization_id)
+          .limit(2000)
+
+        const officialTasks = officialTaskData || []
+
         const mappedSessions = (data as any || []).map((session: any) => {
           const sessionDate = session.start_time.split('T')[0]
+          
+          const dTasks = tasks.filter(t => t.user_id === session.user_id && t.task_date === sessionDate).map((t: any) => ({
+            id: t.id, title: t.title, is_completed: t.is_completed, type: 'self'
+          }))
+          
+          const oTasks = officialTasks.filter(t => t.assigned_to === session.user_id && (t.updated_at.split('T')[0] === sessionDate || t.created_at.split('T')[0] === sessionDate)).map((t: any) => ({
+            id: t.id, title: t.title, is_completed: (t.status === 'done' || t.status === 'completed'), type: 'assigned'
+          }))
+          
+          // Deduplicate just in case
+          const all_tasks = [...dTasks, ...oTasks].filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+
           return {
             ...session,
-            daily_tasks: tasks.filter(t => t.user_id === session.user_id && t.task_date === sessionDate)
+            all_tasks
           }
         })
 
@@ -230,8 +283,8 @@ export default function TeamTimesheetsPage() {
                       return acc + differenceInMinutes(new Date(b.end_time), new Date(b.start_time))
                     }, 0) || 0
                     
-                    const completedTasks = session.daily_tasks?.filter(t => t.is_completed).length || 0
-                    const totalTasks = session.daily_tasks?.length || 0
+                    const completedTasks = session.all_tasks?.filter((t: any) => t.is_completed).length || 0
+                    const totalTasks = session.all_tasks?.length || 0
 
                     return (
                       <TableRow key={session.id} className="group">
@@ -370,17 +423,22 @@ export default function TeamTimesheetsPage() {
               </div>
               
               <div className="space-y-4">
-                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground border-b pb-2">Completed Tasks</h4>
-                {selectedSession?.daily_tasks?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No tasks recorded.</p>
+                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground border-b pb-2">Assigned & Self Tasks</h4>
+                {selectedSession?.all_tasks?.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">No tasks recorded today.</p>
                 ) : (
                   <div className="space-y-2">
-                    {selectedSession?.daily_tasks?.map(t => (
-                      <div key={t.id} className="flex items-start gap-3 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                        <CheckSquare className="h-4 w-4 text-emerald-500 mt-0.5" />
-                        <span className={cn("text-sm", t.is_completed ? "text-muted-foreground" : "font-medium")}>
-                          {t.title}
-                        </span>
+                    {selectedSession?.all_tasks?.map((t: any) => (
+                      <div key={t.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/20 border border-border/50">
+                        <CheckSquare className={`h-4 w-4 shrink-0 mt-0.5 ${t.is_completed ? 'text-emerald-500' : 'text-slate-300'}`} />
+                        <div className="flex flex-col">
+                          <span className={cn("text-sm", t.is_completed ? "text-muted-foreground line-through" : "font-medium")}>
+                            {t.title}
+                          </span>
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground">
+                            {t.type === 'assigned' ? 'Assigned to member' : 'Self task'} • {t.is_completed ? 'Done' : 'Pending'}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>

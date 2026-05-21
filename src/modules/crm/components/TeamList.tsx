@@ -10,7 +10,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Search, Mail, Shield, UserCheck, UserX, ChevronDown } from "lucide-react"
+import { Search, Mail, Shield, UserCheck, UserX, ChevronDown, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -30,14 +30,14 @@ export function TeamList() {
   const { 
     members, dynamicRoles, isLoading, 
     fetchMembers, fetchDynamicRoles, assignDynamicRole,
-    updateMemberStatus, updateMemberHourlyRate 
+    updateMemberStatus, updateMemberHourlyRate, archiveMember
   } = useTeamStore()
   const { departments, fetchDepartments, reassignMember } = useDepartmentStore()
   const { profile: currentUser } = useAuthStore()
   const { hasPermission } = usePermissions()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get("search") || "")
-  const [tab, setTab] = useState<'active' | 'pending' | 'denied'>('active')
+  const [tab, setTab] = useState<'active' | 'pending' | 'denied' | 'archived'>('active')
 
   useEffect(() => {
     fetchMembers()
@@ -64,8 +64,9 @@ export function TeamList() {
   const pendingMembers = members.filter(m => m.status === 'pending')
   const activeMembers = members.filter(m => m.status === 'active')
   const deniedMembers = members.filter(m => m.status === 'denied')
+  const archivedMembers = members.filter(m => m.status === 'archived')
 
-  const displayMembers = (tab === 'active' ? activeMembers : tab === 'pending' ? pendingMembers : deniedMembers)
+  const displayMembers = (tab === 'active' ? activeMembers : tab === 'pending' ? pendingMembers : tab === 'denied' ? deniedMembers : archivedMembers)
     .filter((member) =>
       member.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       member.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -116,11 +117,22 @@ export function TeamList() {
   }
 
   const handleDeny = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to deny access for ${name}?`)) return
     try {
       await updateMemberStatus(id, 'denied')
-      toast.success(`${name || 'User'} access denied`)
-    } catch {
-      toast.error("Failed to deny user")
+      toast.success('Access denied.')
+    } catch (error) {
+      toast.error('Failed to deny access.')
+    }
+  }
+
+  const handleArchive = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to archive ${name}? This acts as a soft-delete and retains all their historical records.`)) return
+    try {
+      await archiveMember(id)
+      toast.success('Member archived successfully.')
+    } catch (error) {
+      toast.error('Failed to archive member.')
     }
   }
 
@@ -156,7 +168,7 @@ export function TeamList() {
 
       {/* Tabs */}
       <div className="flex items-center gap-2">
-        {(['active', 'pending', 'denied'] as const).map(t => (
+        {(['active', 'pending', 'denied', 'archived'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -170,7 +182,7 @@ export function TeamList() {
             <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${
               tab === t ? 'bg-primary-foreground/20' : 'bg-muted'
             }`}>
-              {t === 'active' ? activeMembers.length : t === 'pending' ? pendingMembers.length : deniedMembers.length}
+              {t === 'active' ? activeMembers.length : t === 'pending' ? pendingMembers.length : t === 'denied' ? deniedMembers.length : archivedMembers.length}
             </span>
           </button>
         ))}
@@ -358,6 +370,7 @@ export function TeamList() {
                       <div className={`h-1.5 w-1.5 rounded-full ${
                         member.status === 'active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' :
                         member.status === 'pending' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)] animate-pulse' :
+                        member.status === 'archived' ? 'bg-gray-500' :
                         'bg-rose-500'
                       }`} />
                       <span className={`text-[10px] font-black uppercase tracking-widest ${statusColors[member.status]}`}>
@@ -395,10 +408,10 @@ export function TeamList() {
                             size="sm"
                             variant="ghost"
                             className="h-7 gap-1.5 text-xs text-rose-500 hover:bg-rose-500/10"
-                            onClick={() => handleDeny(member.id, member.full_name || '')}
+                            onClick={() => handleArchive(member.id, member.full_name || '')}
                           >
-                            <UserX className="h-3 w-3" />
-                            Revoke
+                            <Trash2 className="h-3 w-3" />
+                            Archive
                           </Button>
                         )}
                         {member.status === 'denied' && (
@@ -410,6 +423,17 @@ export function TeamList() {
                           >
                             <UserCheck className="h-3 w-3" />
                             Reinstate
+                          </Button>
+                        )}
+                        {member.status === 'archived' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1.5 text-xs border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+                            onClick={() => handleApprove(member.id, member.full_name || '')}
+                          >
+                            <UserCheck className="h-3 w-3" />
+                            Restore
                           </Button>
                         )}
                       </div>

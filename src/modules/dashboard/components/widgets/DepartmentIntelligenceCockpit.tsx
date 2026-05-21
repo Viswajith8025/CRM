@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useRBACStore } from "@/modules/admin/rbacStore"
 import { useTasksStore } from "@/modules/tasks/tasksStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import type { Profile } from "@/modules/admin/teamStore"
@@ -254,8 +255,9 @@ export function DepartmentIntelligenceCockpit() {
   }, [activeDept, departmentsList])
 
   // Check RBAC + Department Level Security
-  const isSuperAdmin = profile?.role === 'super_admin' || profile?.role === 'admin'
-  const isTeamLead = profile?.role === 'team_lead'
+  const { hasPermission } = useRBACStore()
+  const isSuperAdmin = hasPermission('module.admin')
+  const isTeamLead = !isSuperAdmin && hasPermission('projects.manage')
   const userDeptSlug = profile?.department?.toLowerCase() || 'development'
 
   // If Team Lead, lock down the active department selector context to ONLY their department

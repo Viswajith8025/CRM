@@ -70,7 +70,10 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .eq('organization_id', orgId)
         .is('deleted_at', null)
 
-      if (profile?.role === 'employee') {
+      const { useRBACStore } = await import('@/modules/admin/rbacStore')
+      const canManageTasks = useRBACStore.getState().hasPermission('projects.manage')
+      
+      if (!canManageTasks) {
         baseQuery = baseQuery.eq('assigned_to', profile.id)
       }
       
@@ -127,7 +130,6 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .eq('assigned_to', userId)
         .is('deleted_at', null)
         .or('is_archived.is.null,is_archived.eq.false')
-        .neq('status', 'done')
         .order('due_date', { ascending: true, nullsFirst: false })
 
       if (error) throw error
@@ -375,27 +377,25 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   deleteTask: async (id) => {
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      // Hard delete: columns like deleted_at or is_archived do not exist on tasks
-      // RLS and foreign key constraints will protect tasks with billable time logs
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
       const { error } = await supabase
         .from('tasks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
+        .eq('organization_id', orgId)
 
-      if (error) {
-        // If it fails due to FK constraint (e.g., time logs), throw a friendly error
-        if (error.code === '23503') {
-          throw new Error("Cannot delete task with time logs or dependencies. Please remove them first.")
-        }
-        throw error
-      }
+      if (error) throw error
       
-      // Remove from local state so it disappears from the UI immediately
-      set({
-        tasks: get().tasks.filter((t) => t.id !== id)
+      const previousTasks = get().tasks
+      set({ 
+        tasks: previousTasks.filter(t => t.id !== id),
+        myTasks: get().myTasks.filter(t => t.id !== id)
       })
     } catch (err) {
-      throw toFriendlyError(err, "Failed to delete task.")
+      console.error("Failed to delete task:", err)
+      throw getFriendlySupabaseError(err, "Failed to delete task.")
     }
   },
 
@@ -572,26 +572,35 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   },
 
   subscribeToTasks: (projectId) => {
-    const orgId = (window as any)._lastOrgId || 'global'
-    const channelName = projectId ? `tasks_sync_${projectId}_${orgId}` : `tasks_sync_global_${orgId}`
-    
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'tasks'
-        },
-        () => {
-          get().fetchTasks({ projectId, force: true } as any)
-        }
-      )
-      .subscribe()
+    let channel: any = null;
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      const orgId = useAuthStore.getState().profile?.organization_id
+      if (!orgId) return
+
+      const channelName = projectId ? `tasks_sync_${projectId}_${orgId}_${Math.random()}` : `tasks_sync_global_${orgId}_${Math.random()}`
+      const filterConfig = projectId 
+        ? `project_id=eq.${projectId}` 
+        : `organization_id=eq.${orgId}`
+      
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'tasks',
+            filter: filterConfig
+          },
+          () => {
+            get().fetchTasks({ projectId, force: true } as any)
+          }
+        )
+        .subscribe()
+    })
 
     return () => {
-      supabase.removeChannel(channel)
+      if (channel) supabase.removeChannel(channel)
     }
   }
 }))

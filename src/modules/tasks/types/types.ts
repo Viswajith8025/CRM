@@ -18,6 +18,7 @@ export interface Task {
   module_id: string | null
   created_at: string
   updated_at: string
+  is_overdue_completion?: boolean
   project?: { name: string }
   assignee?: { full_name: string, avatar_url: string }
   comments?: { count: number }[]

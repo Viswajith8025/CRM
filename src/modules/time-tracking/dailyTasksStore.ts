@@ -30,7 +30,7 @@ export const useDailyTasksStore = create<DailyTasksState>((set, get) => ({
   fetchTasks: async () => {
     set({ isLoading: true })
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
       const today = new Date().toISOString().split('T')[0]
@@ -53,7 +53,7 @@ export const useDailyTasksStore = create<DailyTasksState>((set, get) => ({
 
   addTask: async (title) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user || !profile?.organization_id) return
 
