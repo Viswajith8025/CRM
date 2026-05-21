@@ -363,7 +363,8 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const mergedTask = currentTask ? { ...currentTask, ...taskDetails } : null
       if (mergedTask) {
         set({
-          tasks: get().tasks.map((t) => t.id === id ? mergedTask as Task : t)
+          tasks: get().tasks.map((t) => t.id === id ? mergedTask as Task : t),
+          myTasks: get().myTasks.map((t) => t.id === id ? mergedTask as Task : t)
         })
       }
     } catch (err) {

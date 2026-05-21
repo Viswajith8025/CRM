@@ -133,7 +133,7 @@ export function MyAssignedTasksWidget() {
         await stopTimer()
       }
       await updateTask(task.id, { status: 'done' })
-      await fetchMyTasks()
+      // Intentionally NOT refetching here so the task stays on screen with a green tick
       toast.success(`"${task.title}" completed!`)
     } catch (err: any) {
       toast.error(err.message || "Failed to complete task")
