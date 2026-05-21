@@ -1,28 +1,38 @@
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/useAuthStore'
-import { useWorkforceStore } from '../store/workforceStore'
-import { Filter } from 'lucide-react'
+import { Filter, Settings2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DynamicDashboardEngine } from './DynamicDashboardEngine'
+
+import { useDashboardEngine } from '@/modules/dashboard/dashboardEngineStore'
+import { DynamicWidgetRenderer } from '@/modules/dashboard/components/engine/EngineWidgets'
 
 export function WorkforceAnalyticsWorkspace() {
   const { profile } = useAuthStore()
-  const { kpis, layouts, isLoading, fetchKPIs, fetchLayout } = useWorkforceStore()
-  const department = profile?.department || 'development' // Fallback to development for testing
+  const department = profile?.department || 'development' 
+  
+  const { 
+    currentTemplate, 
+    isLoading, 
+    initializeEngine,
+    fetchPerformanceLogs
+  } = useDashboardEngine()
 
   useEffect(() => {
-    fetchKPIs(department)
-    fetchLayout(department)
-  }, [department, fetchKPIs, fetchLayout])
-
-  const layout = layouts.find(l => l.department === department) || null
+    if (profile) {
+      initializeEngine(profile.role, profile.department)
+      // Fetch the last 30 days of logs for this user
+      const endDate = new Date().toISOString().split('T')[0]
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      fetchPerformanceLogs(profile.id, startDate, endDate)
+    }
+  }, [profile, initializeEngine, fetchPerformanceLogs])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card/50 p-4 rounded-2xl border border-border/50 backdrop-blur-sm">
         <div>
           <h2 className="text-lg font-black tracking-tight text-foreground">
-            {department.charAt(0).toUpperCase() + department.slice(1)} Analytics
+            {currentTemplate ? currentTemplate.name : `${department.charAt(0).toUpperCase() + department.slice(1)} Analytics`}
           </h2>
           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
             Real-time workforce intelligence
@@ -37,11 +47,35 @@ export function WorkforceAnalyticsWorkspace() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center p-12">
-          <div className="h-8 w-8 border-4 border-sky-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <Loader2 className="h-8 w-8 text-sky-500 animate-spin" />
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400 animate-pulse">
+            Loading Dynamic Workspace Architecture...
+          </p>
+        </div>
+      ) : !currentTemplate ? (
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+          <Settings2 className="h-10 w-10 text-slate-300" />
+          <p className="text-sm font-black text-slate-500">No dashboard template assigned for your role.</p>
+          <p className="text-xs text-slate-400">Please contact your administrator to provision your dashboard.</p>
         </div>
       ) : (
-        <DynamicDashboardEngine layout={layout} kpis={kpis} department={department} />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 auto-rows-min">
+          {currentTemplate.layouts
+            ?.sort((a, b) => a.sort_order - b.sort_order)
+            .map(layout => {
+              let colSpanClass = 'col-span-1'
+              if (layout.grid_position?.w === 2) colSpanClass = 'md:col-span-2'
+              if (layout.grid_position?.w === 3) colSpanClass = 'xl:col-span-3'
+              if (layout.grid_position?.w === 4) colSpanClass = 'col-span-full'
+              
+              return (
+                <div key={layout.id} className={`${colSpanClass}`}>
+                  <DynamicWidgetRenderer layout={layout} />
+                </div>
+              )
+            })}
+        </div>
       )}
     </div>
   )
