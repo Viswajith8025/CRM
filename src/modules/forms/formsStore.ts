@@ -251,14 +251,15 @@ export const useFormsStore = create<FormsState>((set, get) => ({
   },
 
   subscribeToTemplates: () => {
-    let channel: any
+    const channelId = `form_templates_${Math.random()}`
+    const channel = supabase.channel(channelId)
+    
     const setup = async () => {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel = supabase
-        .channel('public:form_templates')
+      channel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_templates', filter: `organization_id=eq.${orgId}` }, () => {
           get().fetchTemplates()
         })
@@ -266,7 +267,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
     setup()
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      supabase.removeChannel(channel)
     }
   },
 
@@ -298,14 +299,15 @@ export const useFormsStore = create<FormsState>((set, get) => ({
   },
 
   subscribeToSubmissions: () => {
-    let channel: any
+    const channelId = `form_submissions_${Math.random()}`
+    const channel = supabase.channel(channelId)
+    
     const setup = async () => {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel = supabase
-        .channel('public:form_submissions')
+      channel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions', filter: `organization_id=eq.${orgId}` }, () => {
           get().fetchSubmissions()
         })
@@ -313,7 +315,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
     setup()
     return () => {
-      if (channel) supabase.removeChannel(channel)
+      supabase.removeChannel(channel)
     }
   },
 
