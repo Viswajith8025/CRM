@@ -138,21 +138,30 @@ ALTER TABLE public.employee_performance_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.department_performance_configs ENABLE ROW LEVEL SECURITY;
 
 -- 11. Policies
+DROP POLICY IF EXISTS kpi_registry_read ON public.kpi_registry;
 CREATE POLICY kpi_registry_read ON public.kpi_registry FOR SELECT USING (true);
+DROP POLICY IF EXISTS graph_registry_read ON public.graph_registry;
 CREATE POLICY graph_registry_read ON public.graph_registry FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS dashboard_templates_all ON public.dashboard_templates;
 CREATE POLICY dashboard_templates_all ON public.dashboard_templates FOR ALL USING (organization_id = public.get_my_org_id());
+DROP POLICY IF EXISTS dashboard_layouts_all ON public.dashboard_layouts;
 CREATE POLICY dashboard_layouts_all ON public.dashboard_layouts FOR ALL USING (
   template_id IN (SELECT id FROM public.dashboard_templates WHERE organization_id = public.get_my_org_id())
 );
+DROP POLICY IF EXISTS dashboard_metrics_all ON public.dashboard_metrics;
 CREATE POLICY dashboard_metrics_all ON public.dashboard_metrics FOR ALL USING (
   layout_id IN (SELECT id FROM public.dashboard_layouts WHERE template_id IN (SELECT id FROM public.dashboard_templates WHERE organization_id = public.get_my_org_id()))
 );
 
+DROP POLICY IF EXISTS perf_logs_admin_read ON public.employee_performance_logs;
 CREATE POLICY perf_logs_admin_read ON public.employee_performance_logs FOR SELECT USING (organization_id = public.get_my_org_id());
+DROP POLICY IF EXISTS perf_logs_self_read ON public.employee_performance_logs;
 CREATE POLICY perf_logs_self_read ON public.employee_performance_logs FOR SELECT USING (employee_id = auth.uid());
+DROP POLICY IF EXISTS perf_logs_all_write ON public.employee_performance_logs;
 CREATE POLICY perf_logs_all_write ON public.employee_performance_logs FOR ALL USING (organization_id = public.get_my_org_id());
 
+DROP POLICY IF EXISTS dept_perf_configs_all ON public.department_performance_configs;
 CREATE POLICY dept_perf_configs_all ON public.department_performance_configs FOR ALL USING (organization_id = public.get_my_org_id());
 
 -- Reload schema notification

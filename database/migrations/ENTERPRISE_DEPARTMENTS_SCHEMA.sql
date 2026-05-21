@@ -147,12 +147,14 @@ ALTER TABLE department_dashboards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE department_reports ENABLE ROW LEVEL SECURITY;
 
 -- 1. Policy for Departments
+DROP POLICY IF EXISTS tenant_departments_access ON departments;
 CREATE POLICY tenant_departments_access ON departments
   FOR ALL
   USING (organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()))
   WITH CHECK (organization_id = (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
 -- 2. Policy for Department Members mapping
+DROP POLICY IF EXISTS tenant_members_access ON department_members;
 CREATE POLICY tenant_members_access ON department_members
   FOR ALL
   USING (
@@ -163,6 +165,7 @@ CREATE POLICY tenant_members_access ON department_members
   );
 
 -- 3. Policy for Settings
+DROP POLICY IF EXISTS tenant_settings_access ON department_settings;
 CREATE POLICY tenant_settings_access ON department_settings
   FOR ALL
   USING (
@@ -173,6 +176,7 @@ CREATE POLICY tenant_settings_access ON department_settings
   );
 
 -- 4. Policy for KPIs
+DROP POLICY IF EXISTS tenant_kpis_access ON department_kpis;
 CREATE POLICY tenant_kpis_access ON department_kpis
   FOR ALL
   USING (
@@ -183,6 +187,7 @@ CREATE POLICY tenant_kpis_access ON department_kpis
   );
 
 -- 5. Policy for Dashboards Layout
+DROP POLICY IF EXISTS tenant_dashboards_access ON department_dashboards;
 CREATE POLICY tenant_dashboards_access ON department_dashboards
   FOR ALL
   USING (
@@ -193,6 +198,7 @@ CREATE POLICY tenant_dashboards_access ON department_dashboards
   );
 
 -- 6. Policy for Reports
+DROP POLICY IF EXISTS tenant_reports_access ON department_reports;
 CREATE POLICY tenant_reports_access ON department_reports
   FOR ALL
   USING (
