@@ -8,6 +8,36 @@ import {
   Lock, RefreshCw, AlertCircle, ChevronRight, HelpCircle
 } from 'lucide-react'
 
+const TERM_DESCRIPTIONS: Record<string, string> = {
+  'B2B': 'Business-to-Business (selling products/services to other companies)',
+  'B2C': 'Business-to-Consumer (selling products/services directly to individuals)',
+  'Ecommerce': 'Selling physical or digital products online',
+  'SaaS': 'Software as a Service (subscription-based software)',
+  'Hybrid': 'A combination of multiple business models',
+}
+
+const OptionsTooltip = ({ options }: { options: string[] }) => {
+  const describedOptions = options.filter(opt => TERM_DESCRIPTIONS[opt])
+  if (describedOptions.length === 0) return null
+
+  return (
+    <div className="group relative ml-1.5 inline-flex items-center">
+      <HelpCircle className="h-3.5 w-3.5 text-sky-500 cursor-help transition-colors group-hover:text-sky-600" />
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 p-3 bg-slate-800 text-white text-[11px] rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none z-50 scale-95 group-hover:scale-100 origin-bottom">
+        <ul className="space-y-1.5 text-left">
+          {describedOptions.map(opt => (
+            <li key={opt} className="leading-tight">
+              <strong className="text-sky-300 font-black">{opt}:</strong> <span className="text-slate-300">{TERM_DESCRIPTIONS[opt]}</span>
+            </li>
+          ))}
+        </ul>
+        {/* Tooltip Arrow */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-full border-4 border-transparent border-t-slate-800"></div>
+      </div>
+    </div>
+  )
+}
+
 export default function PremiumOnboardingPortal() {
   const { id: submissionId } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -450,8 +480,9 @@ export default function PremiumOnboardingPortal() {
                   if (field.field_type === 'dropdown') {
                     return (
                       <div key={field.id} className="space-y-2">
-                        <label className="text-xs font-bold text-slate-700">
-                          {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
+                        <label className="text-xs font-bold text-slate-700 flex items-center">
+                          {field.label} {field.is_required && <span className="text-rose-500 font-bold ml-1">*</span>}
+                          {field.config?.options && <OptionsTooltip options={field.config.options} />}
                         </label>
                         <select
                           value={formData[field.code] || ''}
@@ -482,8 +513,9 @@ export default function PremiumOnboardingPortal() {
 
                     return (
                       <div key={field.id} className="space-y-3">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
+                        <label className="text-xs font-bold text-slate-700 flex items-center">
+                          {field.label} {field.is_required && <span className="text-rose-500 font-bold ml-1">*</span>}
+                          {field.config?.options && <OptionsTooltip options={field.config.options} />}
                         </label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                           {field.config?.options?.map(opt => {
@@ -519,8 +551,9 @@ export default function PremiumOnboardingPortal() {
                   if (field.field_type === 'radio') {
                     return (
                       <div key={field.id} className="space-y-2.5">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
+                        <label className="text-xs font-bold text-slate-700 flex items-center">
+                          {field.label} {field.is_required && <span className="text-rose-500 font-bold ml-1">*</span>}
+                          {field.config?.options && <OptionsTooltip options={field.config.options} />}
                         </label>
                         <div className="flex gap-4">
                           {field.config?.options?.map(opt => {
