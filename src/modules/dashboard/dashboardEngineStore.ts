@@ -74,7 +74,7 @@ export const useDashboardEngine = create<DashboardEngineState>((set, get) => ({
       // 2. Fetch Template based on role/department
       // Try to find an exact match first, or fallback to default
       let query = supabase.from('dashboard_templates')
-        .select(\
+        .select(`
           *,
           layouts:dashboard_layouts(
             *,
@@ -83,7 +83,7 @@ export const useDashboardEngine = create<DashboardEngineState>((set, get) => ({
               kpi:kpi_registry(*)
             )
           )
-        \)
+        `)
         .eq('organization_id', orgId)
 
       const { data: templates } = await query
@@ -133,7 +133,7 @@ export const useDashboardEngine = create<DashboardEngineState>((set, get) => ({
 
       const kpi = get().kpis.find(k => k.code === kpiCode)
       if (!kpi) {
-        console.warn(\KPI \ not found in registry\)
+        console.warn(`KPI ${kpiCode} not found in registry`)
         return
       }
 
