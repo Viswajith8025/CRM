@@ -95,17 +95,15 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
     try {
       const { profile } = useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) {
-        console.warn("No organization context found. Using fallback departments.")
-        set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
-        return
+
+      let query = supabase.from('departments').select('*').order('name', { ascending: true })
+      
+      // Filter by org if one exists, otherwise fetch all (super_admin case)
+      if (orgId) {
+        query = query.eq('organization_id', orgId)
       }
 
-      const { data, error } = await supabase
-        .from('departments')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('name', { ascending: true })
+      const { data, error } = await query
 
       if (error) {
         // Fallback silently if table doesn't exist
@@ -117,9 +115,9 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
         throw error
       }
 
-      // If DB returns empty (org mismatch or migration not run), use the fallback
+      // If DB returns empty (migration not run), use the fallback
       if (!data || data.length === 0) {
-        console.warn("No departments found in DB for this org. Using fallback list.")
+        console.warn("No departments found in DB. Please run REPLACE_DEPARTMENTS.sql. Using fallback list.")
         set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
         return
       }
@@ -127,7 +125,6 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
       set({ departments: data, isLoading: false })
     } catch (err: any) {
       console.error("Error fetching departments:", err)
-      // Always keep fallback on error, never leave departments empty
       set({ error: err.message, departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
     }
   },
