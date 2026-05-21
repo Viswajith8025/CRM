@@ -262,17 +262,14 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       // Extract co-owners and dependencies updates if provided
       const { collaborators, dependencies, ...taskDetails } = updates as any
 
-      // B. Update core task properties — filter by id only (RLS enforces org isolation)
-      let query = supabase
+      // B. Update core task properties — no .select() to avoid PATCH+RETURNING RLS conflict
+      const { error } = await supabase
         .from('tasks')
         .update(taskDetails)
         .eq('id', id)
 
-      const { data, error } = await query
-        .select()
-        .single()
-
       if (error) {
+        console.error('[updateTask] Supabase error:', error.code, error.message, error.details)
         throw error
       }
 
@@ -349,14 +346,18 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         action: updates.status ? 'STATUS_CHANGE' : 'UPDATE',
         targetType: 'task',
         targetId: id,
-        targetName: data.title,
+        targetName: currentTask?.title || '',
         description: updates.status ? `Task status changed to ${updates.status}` : `Updated task details`,
         organization_id: orgId
       })
 
-      set({
-        tasks: get().tasks.map((t) => (t.id === id ? { ...data, collaborators, dependencies } as Task : t))
-      })
+      // Reconstruct updated task from local state + applied changes
+      const mergedTask = currentTask ? { ...currentTask, ...taskDetails } : null
+      if (mergedTask) {
+        set({
+          tasks: get().tasks.map((t) => t.id === id ? mergedTask as Task : t)
+        })
+      }
     } catch (err) {
       throw toFriendlyError(err, "Failed to update task.")
     }

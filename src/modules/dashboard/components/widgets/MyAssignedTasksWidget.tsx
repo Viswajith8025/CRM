@@ -132,7 +132,7 @@ export function MyAssignedTasksWidget() {
       if (activeTimer && activeTimer.task_id === task.id) {
         await stopTimer()
       }
-      await updateTask(task.id, { status: 'completed' })
+      await updateTask(task.id, { status: 'done' })
       await fetchMyTasks()
       toast.success(`"${task.title}" completed!`)
     } catch (err: any) {
