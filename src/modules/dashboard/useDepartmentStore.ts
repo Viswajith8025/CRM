@@ -324,7 +324,28 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
 
   reassignMember: async (profileId, newDeptId, isPrimary = true) => {
     try {
-      // 1. Delete existing primary mappings if this reassignment is primary
+      const { departments } = get()
+      
+      // Check if the dept ID is a real UUID or a fake fallback ID (like "d1")
+      const isRealUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newDeptId)
+      
+      if (!isRealUUID) {
+        // Fallback mode: just update the profile's department text field directly
+        const dept = departments.find(d => d.id === newDeptId)
+        if (!dept) throw new Error('Department not found')
+        
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .update({ department: dept.name })
+          .eq('id', profileId)
+        
+        if (profileErr) throw profileErr
+        toast.success(`Department updated to "${dept.name}"`)
+        return
+      }
+
+      // Normal path: department has a real UUID, use department_members table
+      // 1. Delete existing primary mappings
       if (isPrimary) {
         const { error: delErr } = await supabase
           .from('department_members')
@@ -335,7 +356,7 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
         if (delErr) throw delErr
       }
 
-      // 2. Insert or Update new member relation
+      // 2. Upsert new member relation
       const { error: upsertErr } = await supabase
         .from('department_members')
         .upsert({
