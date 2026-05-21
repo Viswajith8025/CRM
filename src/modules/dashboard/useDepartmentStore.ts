@@ -72,11 +72,14 @@ interface DepartmentState {
 
 // Fallback departments in case database migration hasn't run yet
 const LOCAL_FALLBACK_DEPTS: Department[] = [
-  { id: "d1", organization_id: "00000000-0000-0000-0000-000000000000", name: "Development", slug: "development", description: "Core engineering, sprint planning, and bug tracking.", status: "active", created_at: new Date().toISOString() },
-  { id: "d2", organization_id: "00000000-0000-0000-0000-000000000000", name: "Design", slug: "design", description: "UI/UX prototypes, review pipelines, and graphic elements.", status: "active", created_at: new Date().toISOString() },
-  { id: "d3", organization_id: "00000000-0000-0000-0000-000000000000", name: "SEO", slug: "seo", description: "Keyword analytics, domain authority metrics, and optimization.", status: "active", created_at: new Date().toISOString() },
-  { id: "d4", organization_id: "00000000-0000-0000-0000-000000000000", name: "Sales", slug: "sales", description: "Lead conversions, proposal trackers, and target pipelines.", status: "active", created_at: new Date().toISOString() },
-  { id: "d5", organization_id: "00000000-0000-0000-0000-000000000000", name: "Content", slug: "content", description: "Editorial pipelines, publishing queues, and reviews.", status: "active", created_at: new Date().toISOString() },
+  { id: "d1", organization_id: "00000000-0000-0000-0000-000000000000", name: "Web Developing", slug: "web_developing", description: "Core engineering, frontend, and backend architecture.", status: "active", created_at: new Date().toISOString() },
+  { id: "d2", organization_id: "00000000-0000-0000-0000-000000000000", name: "Video Editing", slug: "video_editing", description: "Post-production, rendering, and visual effects.", status: "active", created_at: new Date().toISOString() },
+  { id: "d3", organization_id: "00000000-0000-0000-0000-000000000000", name: "Videography", slug: "videography", description: "Camera operations, live shooting, and lighting.", status: "active", created_at: new Date().toISOString() },
+  { id: "d4", organization_id: "00000000-0000-0000-0000-000000000000", name: "Graphic Designing", slug: "graphic_designing", description: "UI/UX prototypes, branding, and graphic elements.", status: "active", created_at: new Date().toISOString() },
+  { id: "d5", organization_id: "00000000-0000-0000-0000-000000000000", name: "Digital Marketing", slug: "digital_marketing", description: "Campaigns, SEO, and paid ad management.", status: "active", created_at: new Date().toISOString() },
+  { id: "d6", organization_id: "00000000-0000-0000-0000-000000000000", name: "Content Writer", slug: "content_writer", description: "Editorial pipelines, publishing queues, and reviews.", status: "active", created_at: new Date().toISOString() },
+  { id: "d7", organization_id: "00000000-0000-0000-0000-000000000000", name: "CRM", slug: "crm", description: "Client relations, onboarding, and support tickets.", status: "active", created_at: new Date().toISOString() },
+  { id: "d8", organization_id: "00000000-0000-0000-0000-000000000000", name: "BDE", slug: "bde", description: "Business development, sales pipelines, and outreach.", status: "active", created_at: new Date().toISOString() },
 ]
 
 export const useDepartmentStore = create<DepartmentState>((set, get) => ({
