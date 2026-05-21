@@ -173,14 +173,7 @@ export const useRBACStore = create<RBACState>((set, get) => ({
           .select('code, module')
         
         if (!countErr && permData) {
-          const INACTIVE_MODULE_CODES = ['module.documents', 'module.support']
-          const INACTIVE_MODULE_NAMES = ['documents', 'support', 'document vault']
-          const activePerms = permData.filter(p => {
-            if (INACTIVE_MODULE_CODES.includes(p.code)) return false
-            if (p.module && INACTIVE_MODULE_NAMES.includes(p.module.toLowerCase())) return false
-            return true
-          })
-          set({ totalPermissionCount: activePerms.length })
+          set({ totalPermissionCount: permData.length })
         }
       }
 
@@ -208,17 +201,9 @@ export const useRBACStore = create<RBACState>((set, get) => ({
         .order('module')
       if (error) throw error
       
-      const INACTIVE_MODULE_CODES = ['module.documents', 'module.support']
-      const INACTIVE_MODULE_NAMES = ['documents', 'support', 'document vault']
-      const activeData = (data || []).filter(p => {
-        if (INACTIVE_MODULE_CODES.includes(p.code)) return false
-        if (p.module && INACTIVE_MODULE_NAMES.includes(p.module.toLowerCase())) return false
-        return true
-      })
-      
       set({ 
-        permissions: activeData,
-        totalPermissionCount: activeData.length
+        permissions: data || [],
+        totalPermissionCount: (data || []).length
       })
     } catch (err: any) {
       console.error('[RBAC] fetchPermissions error:', err.message)
