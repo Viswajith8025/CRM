@@ -64,13 +64,14 @@ export interface Department {
 }
 
 const DEFAULT_DEPARTMENTS: Department[] = [
-  { id: "d1", name: "Development", slug: "development", description: "Core engineering, sprint planning, and bug tracking.", weekly_capacity: 40 },
-  { id: "d2", name: "Design", slug: "design", description: "UI/UX prototypes, review pipelines, and graphic elements.", weekly_capacity: 40 },
-  { id: "d3", name: "SEO", slug: "seo", description: "Keyword analytics, domain authority metrics, and optimization.", weekly_capacity: 40 },
-  { id: "d4", name: "Sales", slug: "sales", description: "Lead conversions, proposal trackers, and target pipelines.", weekly_capacity: 40 },
-  { id: "d5", name: "Content", slug: "content", description: "Editorial pipelines, publishing queues, and reviews.", weekly_capacity: 40 },
-  { id: "d6", name: "HR & Operations", slug: "hr", description: "Team staffing, onboarding checklist, and attendance trackers.", weekly_capacity: 40 },
-  { id: "d7", name: "Finance", slug: "finance", description: "Revenue records, ledger matching, and invoice allocations.", weekly_capacity: 40 },
+  { id: "d1", name: "Web Developing", slug: "web_developing", description: "Core engineering, frontend, and backend architecture.", weekly_capacity: 40 },
+  { id: "d2", name: "Video Editing", slug: "video_editing", description: "Post-production, rendering, and visual effects.", weekly_capacity: 40 },
+  { id: "d3", name: "Videography", slug: "videography", description: "Camera operations, live shooting, and lighting.", weekly_capacity: 40 },
+  { id: "d4", name: "Graphic Designing", slug: "graphic_designing", description: "UI/UX prototypes, branding, and graphic elements.", weekly_capacity: 40 },
+  { id: "d5", name: "Digital Marketing", slug: "digital_marketing", description: "Campaigns, SEO, and paid ad management.", weekly_capacity: 40 },
+  { id: "d6", name: "Content Writer", slug: "content_writer", description: "Editorial pipelines, publishing queues, and reviews.", weekly_capacity: 40 },
+  { id: "d7", name: "CRM", slug: "crm", description: "Client relations, onboarding, and support tickets.", weekly_capacity: 40 },
+  { id: "d8", name: "BDE", slug: "bde", description: "Business development, sales pipelines, and outreach.", weekly_capacity: 40 },
 ]
 
 const isValidUUID = (id: string) => 
@@ -321,35 +322,53 @@ export function DepartmentIntelligenceCockpit() {
       return dbKPIs
     }
     switch (activeDept) {
-      case 'development':
+      case 'web_developing':
         return [
           { name: "Sprint Velocity", current: 88, target: 100, unit: "pts", color: "#6366f1" },
           { name: "Bug Resolution SLA", current: 95, target: 99, unit: "%", color: "#10b981" },
           { name: "Deployments Executed", current: 14, target: 15, unit: "deploys", color: "#8b5cf6" }
         ]
-      case 'sales':
+      case 'video_editing':
         return [
-          { name: "Lead Conversion Rate", current: 24.2, target: 30.0, unit: "%", color: "#10b981" },
-          { name: "Closed Deals Monthly", current: 180000, target: 250000, unit: "$", color: "#0ea5e9" },
-          { name: "Client Proposal SLA", current: 98, target: 95, unit: "%", color: "#f59e0b" }
+          { name: "Render Times", current: 12, target: 15, unit: "hrs", color: "#ec4899" },
+          { name: "First-Review Approvals", current: 78, target: 85, unit: "%", color: "#8b5cf6" },
+          { name: "Videos Published", current: 5, target: 6, unit: "vids", color: "#10b981" }
         ]
-      case 'seo':
+      case 'videography':
         return [
-          { name: "Organic Traffic Growth", current: 12.5, target: 15.0, unit: "%", color: "#6366f1" },
-          { name: "Target Keyword In Top 3", current: 42, target: 50, unit: "words", color: "#10b981" },
-          { name: "Deliverables Completed", current: 88, target: 90, unit: "%", color: "#ec4899" }
+          { name: "Shoots Completed", current: 4, target: 5, unit: "shoots", color: "#6366f1" },
+          { name: "Raw Footage Logged", current: 120, target: 100, unit: "GB", color: "#f59e0b" },
+          { name: "Equipment Readiness", current: 100, target: 100, unit: "%", color: "#10b981" }
         ]
-      case 'design':
+      case 'graphic_designing':
         return [
           { name: "Concept Deliveries", current: 32, target: 35, unit: "assets", color: "#ec4899" },
           { name: "First-Review Approvals", current: 78, target: 85, unit: "%", color: "#8b5cf6" },
           { name: "Workload Uniformity", current: 85, target: 90, unit: "%", color: "#10b981" }
         ]
-      case 'content':
+      case 'digital_marketing':
+        return [
+          { name: "Campaign ROI", current: 3.2, target: 4.0, unit: "x", color: "#10b981" },
+          { name: "Lead Generation", current: 450, target: 500, unit: "leads", color: "#0ea5e9" },
+          { name: "Ad Spend Efficiency", current: 92, target: 90, unit: "%", color: "#8b5cf6" }
+        ]
+      case 'content_writer':
         return [
           { name: "Articles Drafted", current: 48, target: 50, unit: "posts", color: "#f59e0b" },
           { name: "SEO Compliance Check", current: 100, target: 100, unit: "%", color: "#10b981" },
           { name: "Weekly Content SLA", current: 92, target: 95, unit: "%", color: "#0ea5e9" }
+        ]
+      case 'crm':
+        return [
+          { name: "Tickets Resolved", current: 124, target: 150, unit: "tix", color: "#10b981" },
+          { name: "Avg Response Time", current: 1.2, target: 2.0, unit: "hrs", color: "#f59e0b" },
+          { name: "Client Satisfaction", current: 4.8, target: 4.5, unit: "/ 5", color: "#0ea5e9" }
+        ]
+      case 'bde':
+        return [
+          { name: "Lead Conversion Rate", current: 24.2, target: 30.0, unit: "%", color: "#10b981" },
+          { name: "Closed Deals Monthly", current: 180000, target: 250000, unit: "$", color: "#0ea5e9" },
+          { name: "Client Proposal SLA", current: 98, target: 95, unit: "%", color: "#f59e0b" }
         ]
       default:
         return [
@@ -362,7 +381,11 @@ export function DepartmentIntelligenceCockpit() {
   // Custom Chart Data per Department
   const departmentChartData = useMemo(() => {
     switch (activeDept) {
-      case 'development':
+      case 'web_developing':
+      case 'graphic_designing':
+      case 'video_editing':
+      case 'videography':
+      case 'content_writer':
         return [
           { name: 'Mon', hours: 32, bugs: 4 },
           { name: 'Tue', hours: 44, bugs: 2 },
@@ -370,19 +393,21 @@ export function DepartmentIntelligenceCockpit() {
           { name: 'Thu', hours: 52, bugs: 1 },
           { name: 'Fri', hours: 48, bugs: 3 },
         ]
-      case 'sales':
+      case 'bde':
+      case 'digital_marketing':
         return [
           { name: 'Week 1', revenue: 45000, deals: 3 },
           { name: 'Week 2', revenue: 58000, deals: 5 },
           { name: 'Week 3', revenue: 62000, deals: 4 },
           { name: 'Week 4', revenue: 78000, deals: 6 },
         ]
-      case 'seo':
+      case 'crm':
         return [
-          { name: 'Domain Auth', score: 62, keywords: 120 },
-          { name: 'Page Rank', score: 68, keywords: 145 },
-          { name: 'Traffic Value', score: 74, keywords: 180 },
-          { name: 'Organic Hits', score: 85, keywords: 220 },
+          { name: 'Mon', score: 62, keywords: 120 },
+          { name: 'Tue', score: 68, keywords: 145 },
+          { name: 'Wed', score: 74, keywords: 180 },
+          { name: 'Thu', score: 85, keywords: 220 },
+          { name: 'Fri', score: 82, keywords: 200 },
         ]
       default:
         return [
@@ -563,7 +588,7 @@ export function DepartmentIntelligenceCockpit() {
             </CardHeader>
             <CardContent className="pt-6">
               <div className="h-[280px] w-full">
-                {activeDept === 'development' ? (
+                {['web_developing', 'graphic_designing', 'video_editing', 'videography', 'content_writer'].includes(activeDept) ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={departmentChartData}>
                       <defs>
@@ -579,7 +604,7 @@ export function DepartmentIntelligenceCockpit() {
                       <Area type="monotone" dataKey="hours" stroke="#6366f1" fillOpacity={1} fill="url(#colorHours)" strokeWidth={2.5} />
                     </AreaChart>
                   </ResponsiveContainer>
-                ) : activeDept === 'sales' ? (
+                ) : ['bde', 'digital_marketing'].includes(activeDept) ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <BarChart data={departmentChartData}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
@@ -602,7 +627,7 @@ export function DepartmentIntelligenceCockpit() {
                       <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
                       <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
                       <ChartTooltip />
-                      <Area type="monotone" dataKey="load" stroke="#0ea5e9" fillOpacity={1} fill="url(#colorGeneral)" strokeWidth={2.5} />
+                      <Area type="monotone" dataKey="score" stroke="#0ea5e9" fillOpacity={1} fill="url(#colorGeneral)" strokeWidth={2.5} />
                     </AreaChart>
                   </ResponsiveContainer>
                 )}

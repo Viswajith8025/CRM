@@ -107,15 +107,15 @@ BEGIN
   VALUES (
     NEW.id,
     CASE 
-      WHEN NEW.slug = 'development' THEN '{"columns": 3, "widgets": [{"name": "active_sprints", "h": 2}, {"name": "bug_backlog", "h": 1}]}'::jsonb
-      WHEN NEW.slug = 'sales' THEN '{"columns": 3, "widgets": [{"name": "pipeline_value", "h": 2}, {"name": "deal_tracker", "h": 1}]}'::jsonb
-      WHEN NEW.slug = 'seo' THEN '{"columns": 3, "widgets": [{"name": "campaign_status", "h": 2}, {"name": "keywords_tracked", "h": 1}]}'::jsonb
+      WHEN NEW.slug = 'web_developing' THEN '{"columns": 3, "widgets": [{"name": "active_sprints", "h": 2}, {"name": "bug_backlog", "h": 1}]}'::jsonb
+      WHEN NEW.slug = 'bde' THEN '{"columns": 3, "widgets": [{"name": "pipeline_value", "h": 2}, {"name": "deal_tracker", "h": 1}]}'::jsonb
+      WHEN NEW.slug = 'digital_marketing' THEN '{"columns": 3, "widgets": [{"name": "campaign_status", "h": 2}, {"name": "keywords_tracked", "h": 1}]}'::jsonb
       ELSE '{"columns": 3, "widgets": [{"name": "activity_log", "h": 2}, {"name": "general_tasks", "h": 1}]}'::jsonb
     END,
     CASE
-      WHEN NEW.slug = 'development' THEN ARRAY['development_projects', 'sprint_tasks', 'bug_tracker', 'resource_workload']
-      WHEN NEW.slug = 'sales' THEN ARRAY['sales_pipeline', 'conversion_metrics', 'proposal_tracker', 'revenue_gauge']
-      WHEN NEW.slug = 'seo' THEN ARRAY['seo_campaigns', 'keyword_ranks', 'content_deadlines', 'deliverables_grid']
+      WHEN NEW.slug = 'web_developing' THEN ARRAY['development_projects', 'sprint_tasks', 'bug_tracker', 'resource_workload']
+      WHEN NEW.slug = 'bde' THEN ARRAY['sales_pipeline', 'conversion_metrics', 'proposal_tracker', 'revenue_gauge']
+      WHEN NEW.slug = 'digital_marketing' THEN ARRAY['seo_campaigns', 'keyword_ranks', 'content_deadlines', 'deliverables_grid']
       ELSE ARRAY['general_metrics', 'task_distribution', 'activity_stream']
     END
   ) ON CONFLICT (department_id) DO NOTHING;
