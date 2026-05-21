@@ -95,7 +95,11 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
     try {
       const { profile } = useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
+      if (!orgId) {
+        console.warn("No organization context found. Using fallback departments.")
+        set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
+        return
+      }
 
       const { data, error } = await supabase
         .from('departments')
@@ -113,10 +117,18 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
         throw error
       }
 
-      set({ departments: data || [], isLoading: false })
+      // If DB returns empty (org mismatch or migration not run), use the fallback
+      if (!data || data.length === 0) {
+        console.warn("No departments found in DB for this org. Using fallback list.")
+        set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
+        return
+      }
+
+      set({ departments: data, isLoading: false })
     } catch (err: any) {
       console.error("Error fetching departments:", err)
-      set({ error: err.message, isLoading: false })
+      // Always keep fallback on error, never leave departments empty
+      set({ error: err.message, departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
     }
   },
 

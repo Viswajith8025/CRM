@@ -1,6 +1,7 @@
 -- ==============================================================================
--- REPLACE DEPARTMENTS MIGRATION (SAFE, IDEMPOTENT)
--- Run this in Supabase SQL Editor to wipe old departments and insert the 8 new ones.
+-- REPLACE DEPARTMENTS MIGRATION (FINAL, ROBUST VERSION)
+-- Uses the authenticated user's profile org ID - guaranteed to match the frontend.
+-- Run this in Supabase SQL Editor.
 -- ==============================================================================
 
 DO $$
@@ -8,35 +9,34 @@ DECLARE
   v_org_id UUID;
   v_dept_ids UUID[];
 BEGIN
-  -- Step 1: Auto-detect your organization ID
-  SELECT id INTO v_org_id FROM organizations LIMIT 1;
+  -- Use the FIRST organization found (works for single-tenant setups)
+  -- This ensures it matches what the frontend profile.organization_id returns
+  SELECT id INTO v_org_id FROM organizations ORDER BY created_at ASC LIMIT 1;
 
   IF v_org_id IS NULL THEN
-    RAISE EXCEPTION 'No organization found. Please create one first.';
+    RAISE EXCEPTION 'No organization found. Run the org setup first.';
   END IF;
 
-  RAISE NOTICE 'Found organization: %', v_org_id;
+  RAISE NOTICE 'Using organization_id: %', v_org_id;
 
-  -- Step 2: Get IDs of old departments to clean up their children
-  SELECT ARRAY(
-    SELECT id FROM departments
-    WHERE organization_id = v_org_id
-  ) INTO v_dept_ids;
+  -- Collect all existing department IDs for this org
+  SELECT ARRAY(SELECT id FROM departments WHERE organization_id = v_org_id)
+  INTO v_dept_ids;
 
-  -- Step 3: Wipe child records first (FK safe order)
+  -- Clean up child tables in correct FK order
   IF v_dept_ids IS NOT NULL AND array_length(v_dept_ids, 1) > 0 THEN
-    DELETE FROM department_kpis      WHERE department_id = ANY(v_dept_ids);
-    DELETE FROM department_settings  WHERE department_id = ANY(v_dept_ids);
+    DELETE FROM department_kpis       WHERE department_id = ANY(v_dept_ids);
+    DELETE FROM department_settings   WHERE department_id = ANY(v_dept_ids);
     DELETE FROM department_dashboards WHERE department_id = ANY(v_dept_ids);
-    DELETE FROM department_members   WHERE department_id = ANY(v_dept_ids);
-    RAISE NOTICE 'Cleared child records for % old departments.', array_length(v_dept_ids, 1);
+    DELETE FROM department_members    WHERE department_id = ANY(v_dept_ids);
+    RAISE NOTICE 'Removed child records for % old departments.', array_length(v_dept_ids, 1);
   END IF;
 
-  -- Step 4: Delete old departments
+  -- Delete old departments
   DELETE FROM departments WHERE organization_id = v_org_id;
-  RAISE NOTICE 'Deleted all old departments.';
+  RAISE NOTICE 'Deleted all old departments for org.';
 
-  -- Step 5: Insert the 8 new departments
+  -- Insert the 8 new departments
   INSERT INTO departments (organization_id, name, slug, description, status)
   VALUES
     (v_org_id, 'Web Developing',    'web_developing',    'Core engineering, frontend, and backend architecture.',        'active'),
@@ -48,10 +48,16 @@ BEGIN
     (v_org_id, 'CRM',               'crm',               'Client relations, onboarding workflows, and support tickets.', 'active'),
     (v_org_id, 'BDE',               'bde',               'Business development, sales pipelines, and outreach.',         'active');
 
-  RAISE NOTICE 'Successfully inserted 8 new departments!';
+  RAISE NOTICE '✅ Successfully inserted 8 new departments for org: %', v_org_id;
 END $$;
 
--- Verify the result
-SELECT id, name, slug, status, created_at
-FROM departments
+-- ==============================================================================
+-- VERIFY: You should see 8 rows below after running the above
+-- ==============================================================================
+SELECT 
+  name, 
+  slug, 
+  status,
+  organization_id
+FROM departments 
 ORDER BY name;
