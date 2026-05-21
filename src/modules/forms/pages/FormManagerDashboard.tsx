@@ -11,7 +11,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 
 export default function FormManagerDashboard() {
-  const { templates, submissions, isLoading, fetchTemplates, fetchSubmissions, duplicateTemplate, archiveTemplate, deleteSubmission, toggleTemplateStatus } = useFormsStore()
+  const { templates, submissions, isLoading, fetchTemplates, fetchSubmissions, duplicateTemplate, archiveTemplate, deleteSubmission, toggleTemplateStatus, subscribeToTemplates, subscribeToSubmissions } = useFormsStore()
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<'templates' | 'submissions'>('submissions')
   const [templateStatusFilter, setTemplateStatusFilter] = useState<'all' | 'active'>('active')
@@ -35,6 +35,14 @@ export default function FormManagerDashboard() {
     fetchSubmissions()
     fetchLeads({ limit: 100 })
     fetchClients({ limit: 100 })
+    
+    const unsubTemplates = subscribeToTemplates()
+    const unsubSubmissions = subscribeToSubmissions()
+    
+    return () => {
+      unsubTemplates()
+      unsubSubmissions()
+    }
   }, [])
 
   const handleOpenShareModal = (template: any) => {

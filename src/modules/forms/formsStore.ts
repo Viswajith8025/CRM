@@ -16,6 +16,8 @@ interface FormsState {
   duplicateTemplate: (id: string) => Promise<void>
   archiveTemplate: (id: string) => Promise<void>
   toggleTemplateStatus: (id: string) => Promise<void>
+  subscribeToTemplates: () => () => void
+  subscribeToSubmissions: () => () => void
 
   // Client Portal & Submissions
   fetchSubmissions: () => Promise<void>
@@ -248,6 +250,26 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
   },
 
+  subscribeToTemplates: () => {
+    let channel: any
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
+      channel = supabase
+        .channel('public:form_templates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'form_templates', filter: `organization_id=eq.${orgId}` }, () => {
+          get().fetchTemplates()
+        })
+        .subscribe()
+    }
+    setup()
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
+  },
+
   fetchSubmissions: async () => {
     set({ isLoading: true })
     try {
@@ -272,6 +294,26 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       set({ error: err.message || 'Failed to fetch submissions' })
     } finally {
       set({ isLoading: false })
+    }
+  },
+
+  subscribeToSubmissions: () => {
+    let channel: any
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
+
+      channel = supabase
+        .channel('public:form_submissions')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions', filter: `organization_id=eq.${orgId}` }, () => {
+          get().fetchSubmissions()
+        })
+        .subscribe()
+    }
+    setup()
+    return () => {
+      if (channel) supabase.removeChannel(channel)
     }
   },
 
