@@ -96,7 +96,7 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="flex justify-center mb-8 overflow-hidden">
-          <img src="/logogpt.png" alt="Logo" className="h-32 w-auto object-contain brightness-110 scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]" />
+          <img src="/ecraftzlogo.png" alt="Logo" className="h-32 w-auto object-contain brightness-110 scale-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.1)]" />
         </div>
 
         <Card className="border-border/50 shadow-premium">

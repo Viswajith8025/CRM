@@ -87,7 +87,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
         <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-16">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <img src="/logogpt.png" alt="Logo" className="h-16 w-auto object-contain" />
+              <img src="/ecraftzlogo.png" alt="Logo" className="h-16 w-auto object-contain" />
             </div>
             
             <div className="space-y-2 text-xs text-slate-500 font-medium leading-relaxed max-w-xs">

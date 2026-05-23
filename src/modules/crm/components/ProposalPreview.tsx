@@ -62,7 +62,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
             <div class="content">
               <div class="header">
                 <div>
-                  <img src="/logogpt.png" alt="Logo" style="height: 60px; width: auto; object-fit: contain;" />
+                  <img src="/ecraftzlogo.png" alt="Logo" style="height: 60px; width: auto; object-fit: contain;" />
                 </div>
                 <div>
                   <p class="meta-title">Proposal Ref</p>
@@ -157,7 +157,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
             <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
               <div className="space-y-6">
                 <div className="flex items-center gap-5">
-                  <img src="/logogpt.png" alt="Logo" className="h-20 w-auto object-contain" />
+                  <img src="/ecraftzlogo.png" alt="Logo" className="h-20 w-auto object-contain" />
                 </div>
                 
                 <div className="space-y-2 text-xs text-slate-500 font-bold leading-relaxed max-w-xs">
