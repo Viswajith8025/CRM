@@ -1,4 +1,4 @@
-import { motion } from "framer-motion"
+
 import { useState, useEffect } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useRBACStore } from "@/modules/admin/rbacStore"
@@ -10,25 +10,24 @@ export function LoadingState() {
   const isRBACLoading = useRBACStore(state => state.isLoading)
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSkip(true), 5000)
+    const timer = setTimeout(() => setShowSkip(true), 1000)
     return () => clearTimeout(timer)
   }, [])
 
   return (
     <div className="flex h-[400px] w-full flex-col items-center justify-center gap-6">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse" }}
-      >
+      <div className="animate-pulse duration-1000">
         <img src="/ecraftzlogo.png" alt="Loading" className="h-32 w-auto object-contain brightness-110 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]" />
-      </motion.div>
+      </div>
       <p className="text-muted-foreground animate-pulse font-bold tracking-widest text-xs uppercase">Synchronizing Data...</p>
       
       {showSkip && (
         <div className="flex flex-col items-center gap-4 mt-8">
-          <div className="text-[10px] font-mono text-muted-foreground bg-muted/50 p-2 rounded">
-            Auth: {isAuthLoading ? 'WAITING' : 'OK'} | RBAC: {isRBACLoading ? 'WAITING' : 'OK'}
+          <div className="text-[10px] font-mono text-muted-foreground bg-muted/50 p-2 rounded whitespace-pre text-center">
+            {`Auth: ${isAuthLoading ? 'WAITING' : 'OK'}
+RBAC: ${isRBACLoading ? 'WAITING' : 'OK'}
+Profile: ${useAuthStore.getState().profile ? 'LOADED' : 'NULL'}
+Super: ${useAuthStore.getState().profile?.role === 'super_admin' ? 'YES' : 'NO'}`}
           </div>
           <Button 
             variant="outline" 
@@ -36,7 +35,7 @@ export function LoadingState() {
             className="text-xs"
             onClick={() => {
               useAuthStore.setState({ isLoading: false })
-              useRBACStore.setState({ isLoading: false })
+              useRBACStore.setState({ isLoading: false, isPermissionsLoading: false })
             }}
           >
             Force Skip Loading
