@@ -169,7 +169,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                control={form.control}
+                control={form.control as any}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
@@ -183,7 +183,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
               />
               {isEditing && (
                 <FormField
-                  control={form.control}
+                  control={form.control as any}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
@@ -218,7 +218,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                control={form.control}
+                control={form.control as any}
                 name="service_name"
                 render={({ field }) => (
                   <FormItem>
@@ -231,7 +231,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                 )}
               />
               <FormField
-                control={form.control}
+                control={form.control as any}
                 name="service_type"
                 render={({ field }) => (
                   <FormItem>
@@ -262,7 +262,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
             </div>
 
             <FormField
-              control={form.control}
+              control={form.control as any}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -294,7 +294,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                 <div key={field.id} className="grid grid-cols-12 gap-3 items-start bg-muted/20 p-3 rounded-lg border border-border/50">
                   <div className="col-span-4">
                     <FormField
-                      control={form.control}
+                      control={form.control as any}
                       name={`items.${index}.name`}
                       render={({ field }) => (
                         <FormItem>
@@ -308,7 +308,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                   </div>
                   <div className="col-span-5">
                     <FormField
-                      control={form.control}
+                      control={form.control as any}
                       name={`items.${index}.desc`}
                       render={({ field }) => (
                         <FormItem>
@@ -322,7 +322,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                   </div>
                   <div className="col-span-2">
                     <FormField
-                      control={form.control}
+                      control={form.control as any}
                       name={`items.${index}.price`}
                       render={({ field }) => (
                         <FormItem>
@@ -356,7 +356,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
             {/* ── SECTION 4: GST & Validity ── */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
-                control={form.control}
+                control={form.control as any}
                 name="gst_percent"
                 render={({ field }) => (
                   <FormItem>
@@ -369,7 +369,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
                 )}
               />
               <FormField
-                control={form.control}
+                control={form.control as any}
                 name="valid_until"
                 render={({ field }) => (
                   <FormItem>
@@ -401,7 +401,7 @@ export function ProposalForm({ client, proposal, onSuccess }: ProposalFormProps)
               {termFields.map((field, index) => (
                 <div key={field.id} className="flex gap-2">
                   <FormField
-                    control={form.control}
+                    control={form.control as any}
                     name={`terms.${index}` as any}
                     render={({ field }) => (
                       <FormItem className="flex-1">
