@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import * as zustand from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -68,7 +68,7 @@ const SYSTEM_ROLES = [
 // ============================================================
 // STORE
 // ============================================================
-export const useRBACStore = create<RBACState>((set, get) => ({
+export const useRBACStore = zustand.create<RBACState>((set, get) => ({
   roles: [],
   permissions: [],
   userPermissions: [],

@@ -135,18 +135,27 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         }
       }
       
-      // 3. Check Org Status
       let is_org_suspended = false
       if (profile && profile.role !== 'super_admin') {
-        const { data: orgStatus } = await supabase.rpc('check_org_status', {}, { timeout: 5000 })
-        if (orgStatus && orgStatus.status === 'suspended') {
-          is_org_suspended = true
+        try {
+          const { data: orgStatus } = await supabase.rpc('check_org_status')
+          if (orgStatus && orgStatus.status === 'suspended') {
+            is_org_suspended = true
+          }
+        } catch (orgErr) {
+          console.error("Org status check error:", orgErr)
         }
       }
 
       // 4. Resolve Permissions
-      const { data: perms, error: permsError } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: user.id }, { timeout: 5000 })
-      if (permsError) console.error("Permissions fetch error:", permsError)
+      let perms = null
+      try {
+        const { data, error: permsError } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: user.id })
+        if (permsError) console.error("Permissions fetch error:", permsError)
+        perms = data
+      } catch (permErr) {
+        console.error("Permissions RPC threw error:", permErr)
+      }
       
       const finalProfile = profile || await get().createMissingProfile(user)
       const newProfileState = { 
