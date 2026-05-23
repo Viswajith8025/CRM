@@ -99,6 +99,7 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         .eq('id', user.id)
         .maybeSingle()
       
+      let finalProfileData = profile;
       if (error) {
         // Self-healing safeguard: if token is invalid, expired, or unauthorized (401), clear session and sign out
         if (error.status === 401 || error.message?.toLowerCase().includes("jwt") || error.message?.toLowerCase().includes("invalid token")) {
@@ -106,7 +107,7 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
           await get().signOut();
           return;
         }
-        throw error
+        console.warn("[Auth] RLS or fetch error (e.g. empty string cast). Proceeding to fallback profile creation:", error);
       }
 
       // 2. Resolve Dynamic Role Name
@@ -157,9 +158,9 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         console.error("Permissions RPC threw error:", permErr)
       }
       
-      const finalProfile = profile || await get().createMissingProfile(user)
+      const finalProfile = finalProfileData || await get().createMissingProfile(user)
       const newProfileState = { 
-        ...finalProfile, 
+        ...(finalProfile || { role: 'employee', status: 'pending' }), 
         dynamic_role: dynamicRoleName,
         permissions: (perms || []).map((p: any) => p.permission_code || p), // handle both RPC result formats
         is_org_suspended 
