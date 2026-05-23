@@ -1,4 +1,4 @@
-import { create } from 'zustand'
+import * as zustand from 'zustand'
 import { supabase } from '../lib/supabase'
 
 import type { User, Session } from '@supabase/supabase-js'
@@ -32,7 +32,7 @@ interface AuthState {
   registerOrganization: (orgName: string, userFullName?: string) => Promise<string>
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = zustand.create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   session: null,
