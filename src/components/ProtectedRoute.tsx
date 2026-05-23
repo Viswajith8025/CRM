@@ -13,12 +13,13 @@ export const ProtectedRoute = ({ allowedRoles, permission }: ProtectedRouteProps
   const { session, profile, isLoading } = useAuthStore()
   const { hasPermission, isLoading: isRBACLoading } = usePermissions()
 
-  // Super admins skip the RBAC loading check — they have unrestricted access
+  // Super admins skip all RBAC checks — they have unrestricted access
   const isSuperAdmin = profile?.role === 'super_admin'
 
-  // Block render only if auth OR permissions are still resolving
-  // (super admins don't need permission fetch to resolve)
-  if (isLoading || (isRBACLoading && !isSuperAdmin)) {
+  // Block render ONLY while auth (profile fetch) is resolving.
+  // RBAC permissions load in the background — we never gate on isRBACLoading
+  // because it causes an infinite loop for non-admin users whose RPC may fail.
+  if (isLoading) {
     return <LoadingState />
   }
 

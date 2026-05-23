@@ -88,9 +88,16 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
       return
     }
 
+    // Prevent duplicate concurrent fetches
     if ((get() as any)._isFetching) return
     set({ isLoading: true, _isFetching: true } as any)
-    
+
+    // Hard safety timeout — ensures isLoading is ALWAYS cleared
+    const timeout = setTimeout(() => {
+      console.warn('[Auth] fetchProfile timed out after 10s. Forcing isLoading=false.')
+      set({ isLoading: false, _isFetching: false } as any)
+    }, 10000)
+
     try {
       // 1. Fetch Profile
       const { data: profile, error } = await supabase
@@ -175,8 +182,10 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         isLoading: false,
         _isFetching: false
       } as any)
+      clearTimeout(timeout)
     } catch (err) {
       console.error("Profile fetch error:", err)
+      clearTimeout(timeout)
       set({ isLoading: false, _isFetching: false } as any)
     }
   },
