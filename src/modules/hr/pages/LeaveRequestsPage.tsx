@@ -178,16 +178,13 @@ export default function LeaveRequestsPage() {
 
         toast.success("Leave request updated and resubmitted successfully")
       } else {
-        const { error } = await supabase.from('leave_requests').insert([{
-          organization_id: profile?.organization_id,
-          user_id: profile?.id,
-          leave_type_id: formData.leave_type_id,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          reason: formData.reason,
-          is_emergency: formData.is_emergency,
-          status: 'pending'
-        }])
+        const { data: rpcData, error } = await supabase.rpc('submit_leave_request_v3', {
+          p_leave_type_id: formData.leave_type_id,
+          p_start_date: formData.start_date,
+          p_end_date: formData.end_date,
+          p_reason: formData.reason,
+          p_is_emergency: formData.is_emergency
+        })
 
         if (error) throw error
         toast.success("Leave request submitted successfully")
