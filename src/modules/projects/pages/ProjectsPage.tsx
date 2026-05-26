@@ -27,7 +27,6 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import MarketingDashboard from "@/modules/marketing/pages/MarketingDashboard"
 import { useAuthStore } from "@/store/useAuthStore"
 import { usePermissions } from "@/hooks/usePermissions"
 
@@ -58,7 +57,7 @@ export default function ProjectsPage() {
   return (
     <PageWrapper 
       title="Projects & Growth" 
-      description="Manage active projects and monitor your marketing performance."
+      description="Manage active and archived projects."
       actions={
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
@@ -82,9 +81,6 @@ export default function ProjectsPage() {
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>
           <TabsTrigger value="archived" className="font-bold uppercase tracking-tight text-xs text-muted-foreground">Archived</TabsTrigger>
-          {hasPermission('projects.manage') && (
-            <TabsTrigger value="marketing" className="font-bold uppercase tracking-tight text-xs">Marketing Dashboard</TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="projects" className="space-y-6">
@@ -199,9 +195,6 @@ export default function ProjectsPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="marketing">
-          <MarketingDashboard isEmbedded={true} />
-        </TabsContent>
       </Tabs>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
