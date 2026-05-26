@@ -173,3 +173,6 @@ SELECT r.id, p.id
 FROM public.roles r, public.permissions p
 WHERE r.name = 'Super Admin' AND p.code LIKE 'leave.%'
 ON CONFLICT DO NOTHING;
+
+-- 11. REFRESH SCHEMA CACHE
+NOTIFY pgrst, 'reload schema';
