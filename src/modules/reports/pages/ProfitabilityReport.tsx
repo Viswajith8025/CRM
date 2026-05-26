@@ -26,10 +26,12 @@ import {
 } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { ProjectExpenseModal } from '../components/ProjectExpenseModal'
 
 export default function ProfitabilityReport() {
   const [data, setData] = useState<ProfitabilityData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [expenseModal, setExpenseModal] = useState<{ open: boolean; projectId?: string }>({ open: false })
 
   const fetchProfitability = async () => {
     setIsLoading(true)
@@ -65,7 +67,14 @@ export default function ProfitabilityReport() {
       description="Deep dive into project-level financial performance, labor costs, and margins."
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button
+            className="gap-2 font-black uppercase tracking-wider text-xs"
+            onClick={() => setExpenseModal({ open: true })}
+          >
+            <Receipt className="h-4 w-4" />
+            Add Expense
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => {}}>
             <Download className="h-4 w-4" />
             Export CSV
           </Button>
@@ -172,7 +181,7 @@ export default function ProfitabilityReport() {
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {data.map((item) => (
-                    <tr key={item.project_id} className="hover:bg-muted/10 transition-colors">
+                    <tr key={item.project_id} className="group hover:bg-muted/10 transition-colors">
                       <td className="p-4 font-bold truncate max-w-[200px]">{item.project_name}</td>
                       <td className="p-4 font-mono font-medium">{formatCurrency(item.total_revenue)}</td>
                       <td className="p-4 font-mono text-muted-foreground">{formatCurrency(item.labor_cost)}</td>
@@ -187,6 +196,14 @@ export default function ProfitabilityReport() {
                           )}>
                             {item.margin_percentage}%
                           </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-[9px] font-black uppercase tracking-wide opacity-0 group-hover:opacity-100 transition-opacity text-amber-500 hover:bg-amber-500/10"
+                            onClick={() => setExpenseModal({ open: true, projectId: item.project_id })}
+                          >
+                            + Expense
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -197,6 +214,13 @@ export default function ProfitabilityReport() {
           </CardContent>
         </Card>
       </div>
+
+      <ProjectExpenseModal
+        open={expenseModal.open}
+        onOpenChange={(open) => setExpenseModal({ open })}
+        defaultProjectId={expenseModal.projectId}
+        onSuccess={fetchProfitability}
+      />
     </PageWrapper>
   )
 }
