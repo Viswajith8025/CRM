@@ -10,7 +10,7 @@ export function useIdleTracking() {
 
   // If auto-idle tracking is disabled or settings not loaded, default to 15 mins
   const maxIdleTimeMinutes = workSettings?.auto_break_idle_minutes || 15;
-  const isEnabled = workSettings?.enable_auto_idle_tracking ?? true;
+  const isEnabled = workSettings?.enable_auto_idle_tracking ?? false;
 
   const resetTimer = useCallback(() => {
     if (workerRef.current) {
@@ -34,12 +34,14 @@ export function useIdleTracking() {
       workerRef.current.onmessage = async (e) => {
         if (e.data.type === 'IDLE_TIMEOUT') {
           // The worker detected inactivity!
-          try {
-            toast.warning(`You have been idle for ${maxIdleTimeMinutes} minutes. Auto-starting break.`);
-            await startBreak('short_break');
-          } catch (err) {
-            console.error("Failed to auto-start break:", err);
-          }
+          toast.warning(`You have been idle for ${maxIdleTimeMinutes} minutes.`, {
+            description: "Would you like to start a break?",
+            duration: Infinity,
+            action: {
+              label: "Start Break",
+              onClick: () => startBreak('short_break'),
+            },
+          });
         }
       };
     }
