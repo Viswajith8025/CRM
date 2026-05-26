@@ -31,8 +31,11 @@ import {
 
 import { useSearchParams } from "react-router-dom"
 
+import { useAuthStore } from "@/store/useAuthStore"
+
 export default function TasksPage() {
   usePerfGuard('TasksPage')
+  const { profile } = useAuthStore()
   const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
   const [searchParams] = useSearchParams()
   const [view, setView] = useState<'kanban' | 'list' | 'workload'>('kanban')
@@ -191,15 +194,17 @@ export default function TasksPage() {
               <ListIcon className="h-4 w-4" />
               List
             </Button>
-            <Button 
-              variant={view === 'workload' ? 'secondary' : 'ghost'} 
-              size="sm" 
-              onClick={() => setView('workload')}
-              className="gap-2 font-bold"
-            >
-              <Users className="h-4 w-4" />
-              Workload
-            </Button>
+            {profile?.role !== 'employee' && (
+              <Button 
+                variant={view === 'workload' ? 'secondary' : 'ghost'} 
+                size="sm" 
+                onClick={() => setView('workload')}
+                className="gap-2 font-bold"
+              >
+                <Users className="h-4 w-4" />
+                Workload
+              </Button>
+            )}
           </div>
 
           <div className="relative flex-1 sm:w-64">
