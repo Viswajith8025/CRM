@@ -159,7 +159,13 @@ export const useTeamStore = create<TeamState>((set, get) => ({
         throw new Error('The super admin account status cannot be changed.')
       }
 
-      let query = supabase.from('profiles').update({ status }).eq('id', id)
+      // If approving a user who has no organization, assign them to the admin's org
+      const updatePayload: any = { status }
+      if (status === 'active' && !target?.organization_id && orgId) {
+        updatePayload.organization_id = orgId
+      }
+
+      let query = supabase.from('profiles').update(updatePayload).eq('id', id)
       if (currentUser?.role !== 'super_admin' && orgId) {
         query = query.eq('organization_id', orgId)
       }
@@ -168,7 +174,7 @@ export const useTeamStore = create<TeamState>((set, get) => ({
       if (error) throw error
 
       set({
-        members: get().members.map(m => m.id === id ? { ...m, status } : m),
+        members: get().members.map(m => m.id === id ? { ...m, ...updatePayload } : m),
       })
     } catch (error: any) {
       console.error('Error updating member status:', error)
