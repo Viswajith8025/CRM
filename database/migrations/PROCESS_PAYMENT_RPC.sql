@@ -34,14 +34,14 @@ BEGIN
     END IF;
 
     -- Calculate how much has been paid so far including this new payment
-    SELECT COALESCE(SUM(amount), 0) INTO v_total_paid
-    FROM public.payments
-    WHERE invoice_id = p_invoice_id AND status = 'verified';
+    SELECT COALESCE(SUM(amount_applied), 0) INTO v_total_paid
+    FROM public.payment_receipts
+    WHERE invoice_id = p_invoice_id;
 
     v_total_paid := v_total_paid + p_amount;
 
     -- 3. Determine new status
-    IF v_total_paid >= v_invoice.amount THEN
+    IF v_total_paid >= v_invoice.grand_total THEN
         v_new_status := 'paid';
     ELSIF v_total_paid > 0 THEN
         v_new_status := 'partially_paid';
@@ -51,16 +51,23 @@ BEGIN
 
     -- 4. Insert the payment record
     INSERT INTO public.payments (
-        invoice_id, organization_id, user_id, amount, payment_method, 
-        transaction_id, notes, status, paid_at
+        organization_id, client_id, payment_number, amount, payment_mode, 
+        reference_number, notes, status, date, created_by
     ) VALUES (
-        p_invoice_id, p_org_id, p_user_id, p_amount, p_method, 
-        p_transaction_id, p_notes, 'verified', NOW()
+        p_org_id, v_invoice.client_id, 'PAY-' || substr(md5(random()::text), 1, 8), p_amount, p_method, 
+        p_transaction_id, p_notes, 'verified', CURRENT_DATE, p_user_id
     ) RETURNING id INTO v_payment_id;
 
-    -- 5. Update the invoice status and paid_amount unconditionally
+    -- 5. Create the receipt mapping (This automatically updates invoice via triggers, but we still update status here)
+    INSERT INTO public.payment_receipts (
+        payment_id, invoice_id, amount_applied
+    ) VALUES (
+        v_payment_id, p_invoice_id, p_amount
+    );
+
+    -- 6. Force the status update (since the trigger only updates amounts)
     UPDATE public.invoices 
-    SET status = v_new_status, paid_amount = v_total_paid, updated_at = NOW() 
+    SET status = v_new_status, updated_at = NOW() 
     WHERE id = p_invoice_id;
 
     RETURN jsonb_build_object(
@@ -73,3 +80,5 @@ EXCEPTION WHEN OTHERS THEN
     RETURN jsonb_build_object('success', false, 'error', SQLERRM);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+NOTIFY pgrst, 'reload schema';

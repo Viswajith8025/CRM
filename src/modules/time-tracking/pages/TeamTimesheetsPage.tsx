@@ -36,7 +36,15 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Flag } from "lucide-react"
+import { Flag, Building2 } from "lucide-react"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface TeamSession {
   id: string
@@ -60,7 +68,13 @@ export default function TeamTimesheetsPage() {
   const [sessions, setSessions] = useState<TeamSession[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedDept, setSelectedDept] = useState("all")
   const [selectedSession, setSelectedSession] = useState<TeamSession | null>(null)
+  const { departments, fetchDepartments } = useDepartmentStore()
+
+  useEffect(() => {
+    fetchDepartments()
+  }, [])
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isAdjustOpen, setIsAdjustOpen] = useState(false)
   const [adjustData, setAdjustData] = useState({ start_time: "", end_time: "", admin_note: "" })
@@ -132,6 +146,18 @@ export default function TeamTimesheetsPage() {
 
         const officialTasks = officialTaskData || []
 
+        // Fetch department mappings to support filtering
+        const { data: deptMembers } = await supabase
+          .from('department_members')
+          .select('profile_id, department_id')
+
+        const deptMap = new Map()
+        if (deptMembers) {
+           deptMembers.forEach((m: any) => {
+             deptMap.set(m.profile_id, m.department_id)
+           })
+        }
+
         const mappedSessions = (data as any || []).map((session: any) => {
           const sessionDate = session.start_time.split('T')[0]
           
@@ -148,7 +174,8 @@ export default function TeamTimesheetsPage() {
 
           return {
             ...session,
-            all_tasks
+            all_tasks,
+            department_id: deptMap.get(session.user_id)
           }
         })
 
@@ -213,9 +240,11 @@ export default function TeamTimesheetsPage() {
     }
   }
 
-  const filteredSessions = sessions.filter(s => 
-    s.profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredSessions = sessions.filter(s => {
+    const matchesSearch = s.profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesDept = selectedDept === "all" || (s as any).department_id === selectedDept
+    return matchesSearch && matchesDept
+  })
 
   return (
     <PageWrapper 
@@ -234,6 +263,21 @@ export default function TeamTimesheetsPage() {
             />
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
+            <Select value={selectedDept} onValueChange={setSelectedDept}>
+              <SelectTrigger className="w-[180px]">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Department" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                {departments.map(d => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <Button variant="outline" className="gap-2 w-full sm:w-auto">
               <CalendarIcon className="h-4 w-4" /> Date Range
             </Button>

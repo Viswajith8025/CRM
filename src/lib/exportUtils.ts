@@ -140,7 +140,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   doc.setFontSize(9)
   doc.setTextColor(...colors.slate900)
   doc.setFont('helvetica', 'bold')
-  doc.text(format(new Date(invoice.issued_at), 'MMM dd, yyyy'), 22, barValueY)
+  doc.text(format(new Date((invoice.date || invoice.created_at)), 'MMM dd, yyyy'), 22, barValueY)
   doc.text(format(new Date(invoice.due_date), 'MMM dd, yyyy'), 22 + colWidth, barValueY)
   doc.text(invoice.project?.name || 'General', 22 + colWidth * 2, barValueY)
   doc.text(`INR (${currencySymbol})`, 22 + colWidth * 3, barValueY)
@@ -185,9 +185,9 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
     tableData.push([
       { content: invoice.project?.name || 'Services Rendered', styles: { fontStyle: 'bold', fontSize: 10 } },
       1,
-      `${currencySymbol}${invoice.amount.toLocaleString()}`,
+      `${currencySymbol}${invoice.grand_total.toLocaleString()}`,
       `${invoice.tax_rate || 0}%`,
-      { content: `${currencySymbol}${invoice.amount.toLocaleString()}`, styles: { fontStyle: 'bold', fontSize: 11 } }
+      { content: `${currencySymbol}${invoice.grand_total.toLocaleString()}`, styles: { fontStyle: 'bold', fontSize: 11 } }
     ])
   }
 
@@ -257,7 +257,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   doc.setTextColor(...colors.slate400)
   doc.text('SUBTOTAL', totalsX + 8, finalY + 10)
   doc.setTextColor(...colors.slate900)
-  doc.text(`${currencySymbol}${invoice.amount.toLocaleString()}`, pageWidth - 22, finalY + 10, { align: 'right' })
+  doc.text(`${currencySymbol}${invoice.grand_total.toLocaleString()}`, pageWidth - 22, finalY + 10, { align: 'right' })
   
   doc.setTextColor(...colors.slate400)
   doc.text('TAX COMPONENT', totalsX + 8, finalY + 16)
@@ -272,7 +272,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...colors.slate900)
-  doc.text(`${currencySymbol}${invoice.amount.toLocaleString()}`, totalsX + 8, finalY + 36)
+  doc.text(`${currencySymbol}${invoice.grand_total.toLocaleString()}`, totalsX + 8, finalY + 36)
 
   // 8. FINAL FOOTER
   doc.setFillColor(...colors.slate900)

@@ -113,8 +113,8 @@ export function DepartmentIntelligenceCockpit() {
     const fetchMemberTimeLogs = async () => {
       try {
         const { data, error } = await supabase
-          .from('time_logs')
-          .select('start_time, duration_minutes')
+          .from('work_sessions')
+          .select('start_time, end_time')
           .eq('user_id', selectedMember.id)
           .order('start_time', { ascending: true })
 
@@ -122,14 +122,18 @@ export function DepartmentIntelligenceCockpit() {
           const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
           const hoursByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 } as Record<string, number>
 
-          data.forEach(log => {
-            if (!log.start_time) return
-            const date = new Date(log.start_time)
-            const dayIdx = date.getDay()
+          data.forEach(session => {
+            if (!session.start_time) return
+            const start = new Date(session.start_time)
+            const end = session.end_time ? new Date(session.end_time) : new Date()
+            const diffMs = end.getTime() - start.getTime()
+            const diffHours = diffMs / (1000 * 60 * 60)
+
+            const dayIdx = start.getDay()
             const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
             const dayName = dayNames[dayIdx]
             if (hoursByDay[dayName] !== undefined) {
-              hoursByDay[dayName] += (log.duration_minutes || 0) / 60
+              hoursByDay[dayName] += diffHours
             }
           })
 
@@ -279,23 +283,25 @@ export function DepartmentIntelligenceCockpit() {
     }
     return members.filter(member => {
       // Primary mapping fallback checking
-      const matchesDept = member.department?.toLowerCase() === activeDept
+      const matchesDept = member.department_id === currentDeptObj.id || 
+                          member.department?.toLowerCase().replace(/\s+/g, '_') === activeDept.replace(/\s+/g, '_')
       const isActive = member.status === 'active'
       return matchesDept && isActive
     })
-  }, [members, activeDept, dbMembers])
+  }, [members, activeDept, dbMembers, currentDeptObj.id])
 
   // Resolve department active tasks and projects
   const departmentTasks = useMemo(() => {
     return tasks.filter(task => {
       // Tasks are dynamically mapped to a department based on project department, assigned member department, or title indicators
       const assignedEmployee = members.find(m => m.id === task.assigned_to)
-      const matchesEmployeeDept = assignedEmployee?.department?.toLowerCase() === activeDept
+      const matchesEmployeeDept = assignedEmployee?.department_id === currentDeptObj.id || 
+                                  assignedEmployee?.department?.toLowerCase().replace(/\s+/g, '_') === activeDept.replace(/\s+/g, '_')
       const matchesProjectDept = task.project_name?.toLowerCase().includes(activeDept)
       
       return matchesEmployeeDept || matchesProjectDept
     })
-  }, [tasks, members, activeDept])
+  }, [tasks, members, activeDept, currentDeptObj.id])
 
   // Calculate high-fidelity metrics
   const activeStaffCount = departmentEmployees.length
@@ -591,7 +597,7 @@ export function DepartmentIntelligenceCockpit() {
             <CardContent className="pt-6">
               <div className="h-[280px] w-full">
                 {['web_developing', 'graphic_designing', 'video_editing', 'videography', 'content_writer'].includes(activeDept) ? (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <AreaChart data={departmentChartData}>
                       <defs>
                         <linearGradient id="colorHours" x1="0" y1="0" x2="0" y2="1">
@@ -607,7 +613,7 @@ export function DepartmentIntelligenceCockpit() {
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : ['bde', 'digital_marketing'].includes(activeDept) ? (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <BarChart data={departmentChartData}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                       <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
@@ -617,7 +623,7 @@ export function DepartmentIntelligenceCockpit() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <AreaChart data={departmentChartData}>
                       <defs>
                         <linearGradient id="colorGeneral" x1="0" y1="0" x2="0" y2="1">
@@ -867,7 +873,7 @@ export function DepartmentIntelligenceCockpit() {
                 <div className="p-4 rounded-2xl border border-border/40 bg-card/50">
                   <span className="text-[9px] font-black uppercase text-muted-foreground tracking-wider block mb-4">Daily Attendance Hours</span>
                   <div className="h-[180px] w-full">
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                       <AreaChart data={selectedMemberLogs}>
                         <defs>
                           <linearGradient id="colorMemberHours" x1="0" y1="0" x2="0" y2="1">

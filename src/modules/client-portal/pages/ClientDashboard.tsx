@@ -158,7 +158,7 @@ export default function ClientDashboard() {
                       <span className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{invoice.status}</span>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-emerald-500">${Number(invoice.amount).toLocaleString()}</span>
+                      <span className="text-sm font-black text-emerald-500">${Number(invoice.grand_total).toLocaleString()}</span>
                     </div>
                   </div>
                 ))
