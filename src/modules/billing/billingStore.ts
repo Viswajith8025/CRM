@@ -51,7 +51,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   },
 
   fetchPayments: async (params = {}) => {
-    const { page = 1, limit = 20, sortBy = 'paid_at', sortOrder = 'desc', filters = {} } = params
+    const { page = 1, limit = 20, sortBy = 'date', sortOrder = 'desc', filters = {} } = params
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
@@ -59,7 +59,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       const baseQuery = supabase
         .from('payments')
-        .select('*', { count: 'exact' })
+        .select('*, payment_receipts(invoice_id)', { count: 'exact' })
         .eq('organization_id', orgId)
 
       const result = await fetchPaginatedData<Payment>(baseQuery, {
@@ -173,14 +173,12 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (error) throw error
       
       if (data.status === 'paid') {
-        await supabase.from('payments').insert({
-          user_id: profile?.id,
-          organization_id: orgId,
-          invoice_id: data.id,
-          amount: data.amount,
-          status: 'verified',
-          payment_method: 'manual',
-          paid_at: new Date().toISOString()
+        await supabase.rpc('process_invoice_payment', {
+          p_invoice_id: data.id,
+          p_org_id: orgId,
+          p_user_id: profile?.id,
+          p_amount: data.grand_total,
+          p_method: 'manual'
         })
         get().fetchPayments({ force: true })
       }
@@ -190,11 +188,11 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         targetType: 'invoice',
         targetId: data.id,
         targetName: data.invoice_number,
-        description: `Issued new invoice for ₹${data.amount.toLocaleString()} (${data.status})`,
+        description: `Issued new invoice for ₹${data.grand_total.toLocaleString()} (${data.status})`,
         organization_id: orgId
       })
 
-      notificationService.notifyInvoiceCreated(data.id, data.invoice_number, data.amount)
+      notificationService.notifyInvoiceCreated(data.id, data.invoice_number, data.grand_total)
 
       set({ invoices: [data as Invoice, ...get().invoices] })
     } catch (err) {
@@ -235,21 +233,18 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       if (status === 'paid') {
         const { data: existingPayments } = await supabase
-          .from('payments')
+          .from('payment_receipts')
           .select('id')
           .eq('invoice_id', id)
-          .eq('organization_id', orgId)
           .limit(1)
 
         if (!existingPayments || existingPayments.length === 0) {
-          await supabase.from('payments').insert({
-            user_id: profile?.id,
-            organization_id: orgId,
-            invoice_id: id,
-            amount: data.amount,
-            status: 'verified',
-            payment_method: 'manual',
-            paid_at: new Date().toISOString()
+          await supabase.rpc('process_invoice_payment', {
+            p_invoice_id: id,
+            p_org_id: orgId,
+            p_user_id: profile?.id,
+            p_amount: data.grand_total,
+            p_method: 'manual'
           })
           get().fetchPayments({ force: true })
         }

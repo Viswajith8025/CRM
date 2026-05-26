@@ -23,7 +23,7 @@ export function PaymentVerificationList({ invoiceId }: { invoiceId: string }) {
     fetchPayments()
   }, [])
 
-  const invoicePayments = payments.filter(p => p.invoice_id === invoiceId)
+  const invoicePayments = payments.filter(p => p.payment_receipts?.some((r: any) => r.invoice_id === invoiceId) || (p as any).invoice_id === invoiceId)
 
   if (invoicePayments.length === 0) return null
 
@@ -57,10 +57,10 @@ export function PaymentVerificationList({ invoiceId }: { invoiceId: string }) {
             {invoicePayments.map(p => (
               <TableRow key={p.id}>
                 <TableCell className="font-medium">
-                  {format(new Date(p.paid_at), 'PPP')}
+                  {format(new Date(p.date || (p as any).paid_at), 'PPP')}
                 </TableCell>
                 <TableCell>₹{p.amount.toLocaleString()}</TableCell>
-                <TableCell className="capitalize">{p.payment_method}</TableCell>
+                <TableCell className="capitalize">{p.payment_mode || (p as any).payment_method}</TableCell>
                 <TableCell>
                   {p.status === 'verified' && (
                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20">

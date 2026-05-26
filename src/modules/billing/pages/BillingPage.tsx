@@ -25,12 +25,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { InvoiceForm } from "../components/InvoiceForm"
+import { GSTInvoiceForm } from "../components/GSTInvoiceForm"
+import { GSTSettingsModal } from "../components/GSTSettingsModal"
+import { ShieldCheck } from "lucide-react"
 import { format } from "date-fns"
 
 export default function BillingPage() {
   const { fetchInvoices, invoices } = useBillingStore()
   const navigate = useNavigate()
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isGSTSettingsOpen, setIsGSTSettingsOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
@@ -96,6 +100,10 @@ export default function BillingPage() {
             <Button variant="outline" className="gap-2 font-bold border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
               Bulk Import
+            </Button>
+            <Button variant="outline" className="gap-2 font-bold border-primary/20 hover:bg-primary/5" onClick={() => setIsGSTSettingsOpen(true)}>
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              GST Settings
             </Button>
             <Button variant="outline" className="gap-2 font-bold border-primary/20 hover:bg-primary/5 text-primary" onClick={() => navigate('/reports/profitability')}>
               <TrendingUp className="h-4 w-4" />
@@ -214,19 +222,21 @@ export default function BillingPage() {
       </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Create New Invoice</DialogTitle>
+            <DialogTitle className="text-base font-black uppercase tracking-widest">New GST Invoice</DialogTitle>
             <DialogDescription>
-              Fill out the details to generate a new invoice for a client.
+              Create a GST-compliant tax invoice with CGST/SGST or IGST automatically applied.
             </DialogDescription>
           </DialogHeader>
-          <InvoiceForm 
-            onSuccess={() => setIsFormOpen(false)} 
+          <GSTInvoiceForm
+            onSuccess={() => { setIsFormOpen(false); fetchInvoices() }}
             defaultClientId={initialClient || undefined}
           />
         </DialogContent>
       </Dialog>
+
+      <GSTSettingsModal open={isGSTSettingsOpen} onOpenChange={setIsGSTSettingsOpen} />
     </PageWrapper>
   )
 }
