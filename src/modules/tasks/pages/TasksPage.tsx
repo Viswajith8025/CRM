@@ -87,83 +87,18 @@ export default function TasksPage() {
       description="Collaborate and track progress across all project tasks."
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
-            Bulk Import
-          </Button>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="outline" className={cn("gap-2 font-bold", hasActiveFilters && "border-primary text-primary bg-primary/5")}>
-                <Filter className="h-4 w-4" />
-                Filter {hasActiveFilters && "•"}
+          {profile?.role !== 'employee' && (
+            <>
+              <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+                <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+                Bulk Import
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Filter Tasks</DialogTitle>
-                <DialogDescription>
-                  Apply advanced filters to view specific tasks.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-6">
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Status</Label>
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      <SelectItem value="todo">To Do</SelectItem>
-                      <SelectItem value="in_progress">In Progress</SelectItem>
-                      <SelectItem value="review">Review</SelectItem>
-                      <SelectItem value="done">Done</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Priority</Label>
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All Priorities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      <SelectItem value="urgent">Urgent</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-xl border border-border/50 bg-muted/20">
-                  <div className="space-y-0.5">
-                    <Label className="text-sm font-bold tracking-tight">Overdue Only</Label>
-                    <p className="text-[10px] text-muted-foreground">Show only tasks past their deadline</p>
-                  </div>
-                  <Button 
-                    variant={statusFilter === "overdue" ? "default" : "outline"}
-                    size="sm"
-                    className="font-black text-[10px]"
-                    onClick={() => setStatusFilter(statusFilter === "overdue" ? "all" : "overdue")}
-                  >
-                    {statusFilter === "overdue" ? "ACTIVE" : "ENABLE"}
-                  </Button>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button className="flex-1 font-bold" onClick={clearFilters} variant="outline">Clear All</Button>
-                <DialogTrigger asChild>
-                  <Button className="flex-1 font-bold">Show Results</Button>
-                </DialogTrigger>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New Task
-          </Button>
+              <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New Task
+              </Button>
+            </>
+          )}
         </div>
       }
     >

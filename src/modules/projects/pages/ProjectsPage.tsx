@@ -60,14 +60,18 @@ export default function ProjectsPage() {
       description="Manage active and archived projects."
       actions={
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
-            <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
-            Bulk Import
-          </Button>
-          <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New Project
-          </Button>
+          {profile?.role !== 'employee' && (
+            <>
+              <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+                <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+                Bulk Import
+              </Button>
+              <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
+                <Plus className="h-4 w-4" />
+                New Project
+              </Button>
+            </>
+          )}
         </div>
       }
     >
