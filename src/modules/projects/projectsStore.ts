@@ -133,7 +133,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
             assignee:assigned_to(id, full_name, avatar_url),
             time_logs(duration_minutes, user:profiles(hourly_rate))
           ),
-          invoices(amount, status),
+          invoices(grand_total, status),
           expenses:project_expenses(*)
         `, { count: 'exact' })
         .eq('organization_id', orgId)
@@ -571,7 +571,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           members:project_members(user_id, role, profiles(full_name, email)),
           milestones:project_milestones(*),
           tasks:tasks(*),
-          invoices(amount, status),
+          invoices(grand_total, status),
           expenses:project_expenses(*)
         `)
         .eq('id', id)
