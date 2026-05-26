@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CommentSection } from "@/components/shared/comments/CommentSection"
+
 
 interface TaskDetailsDialogProps {
   task: Task | null
@@ -218,9 +218,9 @@ export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDeta
               </div>
             </div>
 
-            {/* Comments Area */}
+            {/* Comments Area Removed */}
             <div className="flex-1 flex flex-col min-h-0 border-l">
-              <CommentSection entityId={task.id} entityType="task" />
+              
             </div>
           </div>
         </div>
