@@ -77,7 +77,7 @@ export default function InvoiceDetail() {
                 <p>Please find the invoice <strong>${invoice.invoice_number}</strong> attached to this email as a PDF document.</p>
                 <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #2563eb;">
                   <p style="margin: 0; color: #64748b; font-size: 14px;">Amount Due</p>
-                  <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #0f172a;">₹${invoice.amount.toLocaleString()}</p>
+                  <p style="margin: 5px 0; font-size: 24px; font-weight: bold; color: #0f172a;">₹${invoice.grand_total.toLocaleString()}</p>
                   <p style="margin: 5px 0; font-size: 14px; color: #64748b;">Due Date: ${invoice.due_date ? format(new Date(invoice.due_date), 'MMMM dd, yyyy') : 'N/A'}</p>
                 </div>
                 <p>If you have any questions, please reply to this email.</p>
@@ -117,7 +117,7 @@ export default function InvoiceDetail() {
 
   const invoiceData = {
     invoice_number: invoice.invoice_number,
-    issued_at: invoice.issued_at,
+    issued_at: (invoice.date || invoice.created_at),
     due_date: invoice.due_date,
     status: invoice.status as any,
     currency: 'INR',
@@ -126,7 +126,7 @@ export default function InvoiceDetail() {
         id: '1',
         description: invoice.project?.name || "IT Services & Consulting",
         quantity: 1,
-        rate: invoice.amount,
+        rate: invoice.grand_total,
         taxRate: invoice.tax_rate || 0
       }
     ],

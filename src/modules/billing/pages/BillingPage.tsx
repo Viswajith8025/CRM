@@ -58,9 +58,9 @@ export default function BillingPage() {
         ...invoices.map(inv => [
           inv.invoice_number,
           `"${inv.client?.name || 'Unknown'}"`,
-          inv.amount,
+          inv.grand_total,
           inv.status,
-          format(new Date(inv.issued_at), 'yyyy-MM-dd'),
+          format(new Date(inv.date || inv.created_at), 'yyyy-MM-dd'),
           format(new Date(inv.due_date), 'yyyy-MM-dd')
         ].join(","))
       ].join("\n")
@@ -77,8 +77,8 @@ export default function BillingPage() {
       toast.success("Exported successfully")
     }
   
-    const totalInvoiced = invoices.reduce((acc, curr) => acc + curr.amount, 0)
-    const totalPaid = invoices.filter(i => i.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0)
+    const totalInvoiced = invoices.reduce((acc, curr) => acc + (curr.grand_total || 0), 0)
+    const totalPaid = invoices.filter(i => i.status === 'paid').reduce((acc, curr) => acc + (curr.grand_total || 0), 0)
     const outstanding = totalInvoiced - totalPaid
   
     const clearFilters = () => {

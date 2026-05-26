@@ -88,8 +88,8 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   },
 
   fetchInvoices: async (params = {}) => {
-    const { force = false, page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {} } = params
-    if (!force && get().hasFetched && page === get().pagination.invoices.page) return
+    const { page = 1, limit = 20, sortBy = 'created_at', sortOrder = 'desc', filters = {} } = params
+    // Never skip — always re-fetch so filters/sorts are always applied correctly
     
     set({ isLoading: true })
     try {

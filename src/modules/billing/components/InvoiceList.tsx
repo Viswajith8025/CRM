@@ -172,12 +172,12 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
                     </div>
                   </TableCell>
                   <TableCell className="font-black text-sm">
-                    ₹{Number(invoice.amount).toLocaleString()}
+                    ₹{Number(invoice.grand_total || 0).toLocaleString()}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
                       <span className="text-[10px] font-bold uppercase text-muted-foreground">Due: {format(new Date(invoice.due_date), 'MMM d, yyyy')}</span>
-                      <span className="text-[9px] font-medium opacity-40">Issued: {format(new Date(invoice.issued_at), 'MMM d, yyyy')}</span>
+                      <span className="text-[9px] font-medium opacity-40">Issued: {format(new Date(invoice.date || invoice.created_at), 'MMM d, yyyy')}</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -245,7 +245,7 @@ export default function ClientStatementsPage() {
         // Update the invoice status as paid or partially paid
         const targetInvoice = invoices.find(i => i.id === linkedInvoiceId)
         if (targetInvoice) {
-          const unpaid = targetInvoice.amount - payAmount
+          const unpaid = targetInvoice.grand_total - payAmount
           const newStatus = unpaid <= 0 ? "paid" : "sent"
           await supabase
             .from("invoices")
