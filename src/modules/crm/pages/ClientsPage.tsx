@@ -62,10 +62,6 @@ export default function ClientsPage() {
               <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
               Bulk Import
             </Button>
-            <Button className="gap-2 font-bold" onClick={handleAdd}>
-              <Plus className="h-4 w-4" />
-              Add Client
-            </Button>
           </div>
         }
       >
