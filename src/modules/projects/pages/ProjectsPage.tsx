@@ -84,7 +84,9 @@ export default function ProjectsPage() {
       <Tabs defaultValue="projects" className="space-y-6">
         <TabsList className="bg-muted/50 border">
           <TabsTrigger value="projects" className="font-bold uppercase tracking-tight text-xs">Active Projects</TabsTrigger>
-          <TabsTrigger value="archived" className="font-bold uppercase tracking-tight text-xs text-muted-foreground">Archived</TabsTrigger>
+          {profile?.role !== 'employee' && (
+            <TabsTrigger value="archived" className="font-bold uppercase tracking-tight text-xs text-muted-foreground">Archived</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="projects" className="space-y-6">
@@ -157,7 +159,9 @@ export default function ProjectsPage() {
               <p className="text-muted-foreground max-w-xs mx-auto">
                 {search || statusFilter !== "all" 
                   ? "Try adjusting your filters to find what you're looking for." 
-                  : "Get started by creating your first project and assigning it to a client."}
+                  : profile?.role === 'employee'
+                    ? "You have no active projects assigned to you."
+                    : "Get started by creating your first project and assigning it to a client."}
               </p>
             </div>
           ) : view === 'kanban' ? (
@@ -177,27 +181,29 @@ export default function ProjectsPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="archived" className="space-y-6">
-          <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
-            {archivedProjects.length === 0 ? (
-              <>
-                <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
-                  <Archive className="h-10 w-10 text-muted-foreground" />
+        {profile?.role !== 'employee' && (
+          <TabsContent value="archived" className="space-y-6">
+            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed rounded-2xl bg-card/50">
+              {archivedProjects.length === 0 ? (
+                <>
+                  <div className="h-20 w-20 rounded-full bg-accent flex items-center justify-center mb-4">
+                    <Archive className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-xl font-bold">No archived projects</h3>
+                  <p className="text-muted-foreground max-w-xs mx-auto">
+                    Projects that you archive will appear here.
+                  </p>
+                </>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full text-left px-6">
+                  {archivedProjects.map((project) => (
+                    <ProjectCard key={project.id} project={project} />
+                  ))}
                 </div>
-                <h3 className="text-xl font-bold">No archived projects</h3>
-                <p className="text-muted-foreground max-w-xs mx-auto">
-                  Projects that you archive will appear here.
-                </p>
-              </>
-            ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full text-left px-6">
-                {archivedProjects.map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
+              )}
+            </div>
+          </TabsContent>
+        )}
 
       </Tabs>
 
