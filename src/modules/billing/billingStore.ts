@@ -97,18 +97,41 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const baseQuery = supabase
+      let baseQuery = supabase
         .from('invoices')
         .select('*, client:clients(name, email, address), project:projects(name)', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
+
+      const exactFilters: Record<string, any> = {}
+
+      if (filters) {
+        if (filters.search) {
+          baseQuery = baseQuery.ilike('invoice_number', `%${filters.search}%`)
+        }
+        if (filters.startDate || filters.dateFrom) {
+          baseQuery = baseQuery.gte('date', filters.startDate || filters.dateFrom)
+        }
+        if (filters.endDate || filters.dateTo) {
+          baseQuery = baseQuery.lte('date', filters.endDate || filters.dateTo)
+        }
+        if (filters.minAmount !== undefined) {
+          baseQuery = baseQuery.gte('grand_total', filters.minAmount)
+        }
+        if (filters.maxAmount !== undefined) {
+          baseQuery = baseQuery.lte('grand_total', filters.maxAmount)
+        }
+        if (filters.status) {
+          exactFilters.status = filters.status
+        }
+      }
 
       const result = await fetchPaginatedData<Invoice>(baseQuery, {
         page,
         limit,
         sortBy,
         sortOrder,
-        filters
+        filters: exactFilters
       })
 
       set(state => ({ 
@@ -346,7 +369,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         p_invoice_id: id,
         p_org_id: orgId,
         p_user_id: profile.id,
-        p_amount: invoice.amount, // Full payment via signature
+        p_amount: invoice.grand_total, // Full payment via signature
         p_method: 'E-Signature',
         p_notes: `Authorized via e-signature by ${signatureData.name}`
       })
