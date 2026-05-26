@@ -40,12 +40,13 @@ BEGIN
         GROUP BY pe.project_id
     ),
     revenue_stats AS (
-        -- Sum paid invoices for each project
+        -- Sum paid invoices for each project (uses grand_total from enterprise billing schema)
         SELECT 
             i.project_id,
-            SUM(i.amount) as revenue_total
+            SUM(i.grand_total) as revenue_total
         FROM public.invoices i
         WHERE i.status = 'paid'
+          AND i.deleted_at IS NULL
         GROUP BY i.project_id
     )
     SELECT 

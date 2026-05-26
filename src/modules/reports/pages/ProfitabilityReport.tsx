@@ -30,8 +30,6 @@ import { cn } from '@/lib/utils'
 export default function ProfitabilityReport() {
   const [data, setData] = useState<ProfitabilityData[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isReady, setIsReady] = useState(false)
-  const chartContainerRef = React.useRef<HTMLDivElement>(null)
 
   const fetchProfitability = async () => {
     setIsLoading(true)
@@ -48,20 +46,6 @@ export default function ProfitabilityReport() {
 
   useEffect(() => {
     fetchProfitability()
-    
-    // Defer chart rendering until the container has real dimensions
-    const el = chartContainerRef.current
-    if (!el) return
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
-          setTimeout(() => setIsReady(true), 150)
-          observer.disconnect()
-        }
-      }
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
   }, [])
 
   const formatCurrency = (val: number) => {
@@ -143,9 +127,9 @@ export default function ProfitabilityReport() {
             <CardTitle className="text-lg font-bold">Revenue vs Profit</CardTitle>
             <CardDescription>Top projects by verified revenue</CardDescription>
           </CardHeader>
-          <CardContent ref={chartContainerRef} className="h-[400px] w-full pt-4 min-h-[400px]">
-            {isReady && (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+          <CardContent className="h-[400px] w-full pt-4">
+            {!isLoading && data.length > 0 && (
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.slice(0, 10)} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#ffffff10" />
                   <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
@@ -159,6 +143,11 @@ export default function ProfitabilityReport() {
                   <Bar dataKey="profit" name="Net Profit" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+            )}
+            {!isLoading && data.length === 0 && (
+              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                No profitability data available yet.
+              </div>
             )}
           </CardContent>
         </Card>
