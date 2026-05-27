@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useTeamStore } from '@/modules/admin/teamStore'
 import { useFormsStore } from '../formsStore'
 import {
   ArrowLeft, Calendar, FileText, CheckCircle,
@@ -21,6 +22,7 @@ export default function SubmissionReview() {
     approveAndConvertToClient
   } = useFormsStore()
   const { profile } = useAuthStore()
+  const { teamMembers, fetchTeamMembers } = useTeamStore()
   const [attachments, setAttachments] = useState<any[]>([])
 
   // Authorization Check
@@ -41,6 +43,8 @@ export default function SubmissionReview() {
   const [paidAmount, setPaidAmount] = useState('')
   const [paymentStatus, setPaymentStatus] = useState<'unpaid' | 'partial' | 'paid'>('unpaid')
   const [financialNotes, setFinancialNotes] = useState('')
+  const [salesRepId, setSalesRepId] = useState('')
+  const [remarks, setRemarks] = useState('')
   const [isSavingFinancials, setIsSavingFinancials] = useState(false)
   const [financialSuccess, setFinancialSuccess] = useState('')
   const [isConverting, setIsConverting] = useState(false)
@@ -54,6 +58,7 @@ export default function SubmissionReview() {
       getSubmissionById(id)
       fetchAttachments(id).then(setAttachments)
     }
+    fetchTeamMembers()
   }, [id])
 
   useEffect(() => {
@@ -66,6 +71,8 @@ export default function SubmissionReview() {
         setPaidAmount(fd.paid_amount?.toString() || '')
         setPaymentStatus(fd.payment_status || 'unpaid')
         setFinancialNotes(fd.notes || '')
+        setSalesRepId(fd.sales_rep_id || '')
+        setRemarks(fd.remarks || '')
       }
     }
   }, [currentSubmission])
@@ -110,7 +117,9 @@ export default function SubmissionReview() {
         paid_amount: paid,
         balance,
         payment_status: paymentStatus,
-        notes: financialNotes
+        notes: financialNotes,
+        sales_rep_id: salesRepId || undefined,
+        remarks: remarks || undefined
       })
       setFinancialSuccess('Financial data saved successfully!')
       setTimeout(() => setFinancialSuccess(''), 4000)
@@ -350,6 +359,34 @@ export default function SubmissionReview() {
                 <option value="partial">Partially Paid</option>
                 <option value="paid">Fully Paid</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Sales Rep (Who Brought Sale?)</label>
+              <select
+                value={salesRepId}
+                onChange={e => setSalesRepId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
+              >
+                <option value="">Select a sales rep...</option>
+                {teamMembers.map(member => (
+                  <option key={member.id} value={member.id}>
+                    {member.first_name} {member.last_name} ({member.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Sales Remarks</label>
+              <textarea
+                value={remarks}
+                onChange={e => setRemarks(e.target.value)}
+                placeholder="Remarks for us to remember..."
+                rows={1}
+                className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white resize-none h-[42px]"
+              />
             </div>
           </div>
 

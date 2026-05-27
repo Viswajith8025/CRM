@@ -49,6 +49,8 @@ export interface FinancialData {
   balance: number
   payment_status: 'unpaid' | 'partial' | 'paid'
   notes: string
+  sales_rep_id?: string
+  remarks?: string
 }
 
 export interface FormSubmission {
