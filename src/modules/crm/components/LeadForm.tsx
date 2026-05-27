@@ -54,11 +54,23 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     fetchMembers()
   }, [])
 
-  const bdeUsers = (members || []).filter(m => {
+  // Strict filter: sales role/dynamic_role AND department is BDE
+  const strictBdeUsers = (members || []).filter(m => {
     const role = (m.role || '').toLowerCase()
-    const dRole = (m.dynamic_role || '').toLowerCase()
-    return role.includes('sales') || dRole.includes('sales') || dRole.includes('bde') || role.includes('admin')
+    const dynRole = (m.dynamic_role_name || '').toLowerCase()
+    const dept = (m.department || '').toLowerCase()
+    const isSalesRole = role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
+    const isBdeDept = dept === 'bde' || dept.includes('bde')
+    return isSalesRole && isBdeDept
   })
+  // Fallback: if no strict matches, show anyone with a sales/bde role
+  const bdeUsers = strictBdeUsers.length > 0
+    ? strictBdeUsers
+    : (members || []).filter(m => {
+        const role = (m.role || '').toLowerCase()
+        const dynRole = (m.dynamic_role_name || '').toLowerCase()
+        return role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
+      })
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
