@@ -117,11 +117,19 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
       
+      // Strip any fields not in the DB schema (prevents 400 on schema mismatch)
       const { job_title, ...cleanLead } = lead as any;
-      if (cleanLead.email === "") cleanLead.email = null;
-      if (cleanLead.phone === "") cleanLead.phone = null;
+      const LEAD_DB_COLUMNS = ['first_name','last_name','email','phone','company','status','source',
+        'segment','score','value','next_follow_up','last_contacted_at','assigned_to',
+        'requirement','brought_by_id','remarks','organization_id']
+      const safeLead = Object.fromEntries(
+        Object.entries(cleanLead).filter(([k]) => LEAD_DB_COLUMNS.includes(k))
+      )
+      if (safeLead.email === "") safeLead.email = null;
+      if (safeLead.phone === "") safeLead.phone = null;
+      if (!safeLead.brought_by_id) delete safeLead.brought_by_id;
       
-      const leadWithOrg = { ...cleanLead, organization_id: orgId }
+      const leadWithOrg = { ...safeLead, organization_id: orgId }
 
       const { data, error } = await supabase
         .from('leads')
@@ -156,9 +164,16 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
       const currentLead = get().leads.find(l => l.id === id)
       
+      const LEAD_DB_COLUMNS = ['first_name','last_name','email','phone','company','status','source',
+        'segment','score','value','next_follow_up','last_contacted_at','assigned_to',
+        'requirement','brought_by_id','remarks']
+      const safeUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([k]) => LEAD_DB_COLUMNS.includes(k))
+      ) as Partial<Lead>
+
       let query = supabase
         .from('leads')
-        .update(updates)
+        .update(safeUpdates)
         .eq('id', id)
         .eq('organization_id', orgId)
 
