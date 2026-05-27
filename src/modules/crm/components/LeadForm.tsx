@@ -80,11 +80,15 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
     try {
+      const payload = {
+        ...values,
+        brought_by_id: values.brought_by_id === 'none' ? undefined : (values.brought_by_id || undefined),
+      }
       if (lead) {
-        await updateLead(lead.id, values)
+        await updateLead(lead.id, payload)
         toast.success("Lead updated successfully")
       } else {
-        await addLead(values)
+        await addLead(payload)
         toast.success("Lead created successfully")
       }
       onSuccess()
@@ -299,14 +303,17 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Brought By (BDE)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <Select 
+                        onValueChange={(val) => field.onChange(val === 'none' ? '' : val)} 
+                        defaultValue={field.value || 'none'}
+                      >
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder="Select BDE User" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">None / Unassigned</SelectItem>
+                          <SelectItem value="none">None / Unassigned</SelectItem>
                           {bdeUsers.map(user => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.first_name || user.full_name} {user.last_name || ''} ({user.role})
