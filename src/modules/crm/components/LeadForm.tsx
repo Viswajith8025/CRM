@@ -47,14 +47,14 @@ interface LeadFormProps {
 
 export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   const { addLead, updateLead } = useCRMStore()
-  const { teamMembers, fetchTeamMembers } = useTeamStore()
+  const { members, fetchMembers } = useTeamStore()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
-    fetchTeamMembers()
+    fetchMembers()
   }, [])
 
-  const bdeUsers = teamMembers.filter(m => {
+  const bdeUsers = (members || []).filter(m => {
     const role = (m.role || '').toLowerCase()
     const dRole = (m.dynamic_role || '').toLowerCase()
     return role.includes('sales') || dRole.includes('sales') || dRole.includes('bde') || role.includes('admin')
@@ -309,7 +309,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                           <SelectItem value="">None / Unassigned</SelectItem>
                           {bdeUsers.map(user => (
                             <SelectItem key={user.id} value={user.id}>
-                              {user.first_name} {user.last_name} ({user.role})
+                              {user.first_name || user.full_name} {user.last_name || ''} ({user.role})
                             </SelectItem>
                           ))}
                         </SelectContent>

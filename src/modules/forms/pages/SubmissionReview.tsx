@@ -22,7 +22,7 @@ export default function SubmissionReview() {
     approveAndConvertToClient
   } = useFormsStore()
   const { profile } = useAuthStore()
-  const { teamMembers, fetchTeamMembers } = useTeamStore()
+  const { members, fetchMembers } = useTeamStore()
   const [attachments, setAttachments] = useState<any[]>([])
 
   // Authorization Check
@@ -58,7 +58,7 @@ export default function SubmissionReview() {
       getSubmissionById(id)
       fetchAttachments(id).then(setAttachments)
     }
-    fetchTeamMembers()
+    fetchMembers()
   }, [id])
 
   useEffect(() => {
@@ -371,9 +371,9 @@ export default function SubmissionReview() {
                 className="w-full px-4 py-2.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
               >
                 <option value="">Select a sales rep...</option>
-                {teamMembers.map(member => (
+                {(members || []).map(member => (
                   <option key={member.id} value={member.id}>
-                    {member.first_name} {member.last_name} ({member.role})
+                    {member.first_name || member.full_name} {member.last_name || ''} ({member.role})
                   </option>
                 ))}
               </select>

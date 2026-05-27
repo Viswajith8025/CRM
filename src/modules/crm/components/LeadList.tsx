@@ -54,7 +54,7 @@ import { useSearchParams } from "react-router-dom"
 
 export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
   const { leads, isLoading, deleteLead, fetchLeads, pagination } = useCRMStore()
-  const { teamMembers, fetchTeamMembers } = useTeamStore()
+  const { members, fetchMembers } = useTeamStore()
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -62,7 +62,7 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
   useEffect(() => {
     // Initial fetch with current search
     fetchLeads({ page: 1, limit: 10, filters: search ? { name: search } : {} })
-    fetchTeamMembers()
+    fetchMembers()
   }, [])
 
   useEffect(() => {
@@ -163,8 +163,8 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
                   </TableCell>
                   <TableCell className="font-bold text-[10px] uppercase">
                     {(() => {
-                      const bde = teamMembers.find(m => m.id === lead.brought_by_id)
-                      return bde ? `${bde.first_name} ${bde.last_name}` : <span className="text-muted-foreground italic opacity-70">Unassigned</span>
+                      const bde = (members || []).find(m => m.id === lead.brought_by_id)
+                      return bde ? `${bde.first_name || bde.full_name} ${bde.last_name || ''}` : <span className="text-muted-foreground italic opacity-70">Unassigned</span>
                     })()}
                   </TableCell>
                   <TableCell className="font-black text-sm text-foreground">${Number(lead.value || 0).toLocaleString()}</TableCell>
