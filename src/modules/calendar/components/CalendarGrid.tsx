@@ -22,9 +22,10 @@ import type { CalendarEvent } from '../types'
 interface CalendarGridProps {
   events: CalendarEvent[]
   isLoading?: boolean
+  onEventClick?: (event: CalendarEvent) => void
 }
 
-export function CalendarGrid({ events, isLoading }: CalendarGridProps) {
+export function CalendarGrid({ events, isLoading, onEventClick }: CalendarGridProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1))
@@ -109,6 +110,7 @@ export function CalendarGrid({ events, isLoading }: CalendarGridProps) {
                 {dayEvents.map(event => (
                   <div 
                     key={event.id}
+                    onClick={() => onEventClick?.(event)}
                     className={cn(
                       "px-2 py-1 rounded-md text-[10px] font-bold truncate border flex items-center gap-1.5 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer",
                       event.type === 'project' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :

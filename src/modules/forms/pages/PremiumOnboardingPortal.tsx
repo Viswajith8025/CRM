@@ -742,6 +742,93 @@ export default function PremiumOnboardingPortal() {
                   }
 
                   // 7. Text & General Inputs
+                  const isContactNumber = field.label?.toLowerCase().includes('contact number') || field.code === 'contact_number'
+                  const isWhatsappNumber = field.label?.toLowerCase().includes('whatsapp number') || field.code === 'whatsapp_number'
+
+                  if (isContactNumber) {
+                    let currentVal = formData[field.code] || ''
+                    let countryCode = '+91'
+                    let phoneNum = currentVal
+                    if (currentVal.startsWith('+')) {
+                      const match = currentVal.match(/^(\+\d{1,4})\s*(.*)$/)
+                      if (match) {
+                        countryCode = match[1]
+                        phoneNum = match[2]
+                      } else {
+                        // fallback if no space
+                        countryCode = currentVal.substring(0, 3) // approximation
+                        phoneNum = currentVal.substring(3)
+                      }
+                    }
+
+                    return (
+                      <div key={field.id} className="space-y-2">
+                        <label className="text-xs font-bold text-slate-700">
+                          {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
+                        </label>
+                        <div className="flex gap-2">
+                          <select
+                            value={countryCode}
+                            onChange={(e) => handleInputChange(field.code, `${e.target.value} ${phoneNum}`.trim())}
+                            className="w-[110px] px-3 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium cursor-pointer"
+                          >
+                            <option value="+91">+91 (IN)</option>
+                            <option value="+1">+1 (US/CA)</option>
+                            <option value="+44">+44 (UK)</option>
+                            <option value="+971">+971 (UAE)</option>
+                            <option value="+61">+61 (AU)</option>
+                            <option value="+65">+65 (SG)</option>
+                          </select>
+                          <input
+                            type="tel"
+                            placeholder="Phone number"
+                            value={phoneNum}
+                            onChange={(e) => handleInputChange(field.code, `${countryCode} ${e.target.value}`.trim())}
+                            className="flex-1 px-4 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium"
+                          />
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  if (isWhatsappNumber) {
+                    const contactNumberField = currentSubmission.template?.sections?.flatMap(s => s.fields || []).find(f => f.label?.toLowerCase().includes('contact number'))
+                    const contactNumberVal = contactNumberField ? formData[contactNumberField.code] : ''
+
+                    return (
+                      <div key={field.id} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-700">
+                            {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
+                          </label>
+                          {contactNumberField && (
+                            <label className="flex items-center gap-1.5 cursor-pointer group">
+                              <input 
+                                type="checkbox" 
+                                className="rounded text-sky-500 focus:ring-sky-500 bg-slate-100 border-slate-300 w-3.5 h-3.5 cursor-pointer"
+                                onChange={(e) => {
+                                  if (e.target.checked && contactNumberVal) {
+                                    handleInputChange(field.code, contactNumberVal)
+                                  } else if (!e.target.checked) {
+                                    handleInputChange(field.code, '')
+                                  }
+                                }}
+                              />
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 transition-colors">Same as Contact Number</span>
+                            </label>
+                          )}
+                        </div>
+                        <input
+                          type="tel"
+                          placeholder={field.placeholder || 'Enter value...'}
+                          value={formData[field.code] || ''}
+                          onChange={(e) => handleInputChange(field.code, e.target.value)}
+                          className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium"
+                        />
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={field.id} className="space-y-2">
                       <label className="text-xs font-bold text-slate-700">

@@ -45,7 +45,12 @@ interface TimeDeskState {
   // System
   syncLiveTimers: () => void
   processOfflineQueue: () => Promise<void>
+  sendHeartbeat: () => Promise<void>
+  startHeartbeatSync: () => void
+  stopHeartbeatSync: () => void
 }
+
+let heartbeatInterval: any = null;
 
 export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
   activeSession: null,
@@ -88,8 +93,10 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         if (bError) throw bError
         set({ activeSession: session, activeBreak: breakSess })
         get().syncLiveTimers()
+        get().startHeartbeatSync()
       } else {
         set({ activeSession: null, activeBreak: null, workDuration: 0, breakDuration: 0 })
+        get().stopHeartbeatSync()
       }
     } catch (err) {
       console.error('TimeDesk sync error:', err)
@@ -145,6 +152,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         .single()
 
       set({ activeSession: session, activeBreak: null })
+      get().startHeartbeatSync()
       toast.success('Work session started. Good luck!')
     } catch (err: any) {
       toast.error(err.message || 'Failed to check in')
@@ -195,6 +203,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       if (error) throw error
       
       set({ activeSession: null, activeBreak: null, workDuration: 0, breakDuration: 0 })
+      get().stopHeartbeatSync()
       toast.success('Work session completed. Well done!')
     } catch (err: any) {
       if (err.message !== 'PENDING_TASKS') {
@@ -485,6 +494,36 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       console.error('Offline queue processing failed:', err)
     } finally {
       set({ isSyncing: false })
+    }
+  },
+
+  sendHeartbeat: async () => {
+    const { activeSession } = get()
+    if (!activeSession || !navigator.onLine) return
+    try {
+      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      if (!user) return
+      await supabase.rpc('handle_session_heartbeat', {
+        p_user_id: user.id
+      })
+    } catch (err) {
+      console.error('Failed to send heartbeat', err)
+    }
+  },
+
+  startHeartbeatSync: () => {
+    get().stopHeartbeatSync()
+    // Send one immediately, then every 5 minutes (300,000 ms)
+    get().sendHeartbeat()
+    heartbeatInterval = setInterval(() => {
+      get().sendHeartbeat()
+    }, 5 * 60 * 1000)
+  },
+
+  stopHeartbeatSync: () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval)
+      heartbeatInterval = null
     }
   }
 }))

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { useTasksStore } from "@/modules/tasks"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,6 +16,8 @@ import { toast } from "sonner"
 import type { Task } from "@/modules/tasks/types/types"
 import { useTimeStore } from "@/modules/time-tracking/timeStore"
 import { useTimeDeskStore } from "@/modules/time-tracking/timeDeskStore"
+import { useMyTasksQuery } from '@/modules/tasks/hooks/useTasksQuery'
+import { useTasksStore } from "@/modules/tasks"
 
 const PRIORITY_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
   urgent: { label: "Urgent", cls: "bg-rose-500/10 text-rose-500 border-rose-500/20", dot: "bg-rose-500" },
@@ -49,7 +50,8 @@ function getDueDateDisplay(dueDate: string | null | undefined) {
 }
 
 export function MyAssignedTasksWidget() {
-  const { myTasks, myTasksLoading, fetchMyTasks, updateTask } = useTasksStore()
+  const { data: myTasks = [], isLoading: myTasksLoading } = useMyTasksQuery()
+  const { updateTask } = useTasksStore()
   const { profile } = useAuthStore()
   const navigate = useNavigate()
   const [filter, setFilter] = useState<Filter>("all")
@@ -60,9 +62,7 @@ export function MyAssignedTasksWidget() {
   const { activeSession, checkIn } = useTimeDeskStore()
   const [timeTicker, setTimeTicker] = useState(0)
 
-  useEffect(() => {
-    if (profile?.id) fetchMyTasks()
-  }, [profile?.id])
+  // React Query handles fetching automatically, no useEffect needed
 
   // Periodic ticker to force render active timer durations
   useEffect(() => {

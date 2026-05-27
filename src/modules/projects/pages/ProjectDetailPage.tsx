@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useTasksStore } from "@/modules/tasks"
+import { useTasksQuery } from "@/modules/tasks/hooks/useTasksQuery"
 import { useProjectsStore } from "../projectsStore"
 import { Progress } from "@/components/ui/progress"
 import { format } from "date-fns"
@@ -82,7 +83,9 @@ function LoadingState() {
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { tasks, fetchTasks, subscribeToTasks, deleteTask, updateTask } = useTasksStore()
+  const { data } = useTasksQuery(id)
+  const tasks = data?.pages.flat() || []
+  const { deleteTask, updateTask } = useTasksStore()
   const { getProjectById, fetchMilestones, updateProject, deleteProject, archiveProject, updateMilestone, fetchSprints, sprints } = useProjectsStore()
   const { profile } = useAuthStore()
   const { hasPermission } = usePermissions()
@@ -100,7 +103,6 @@ export default function ProjectDetailPage() {
     const [projData, mileData] = await Promise.all([
       getProjectById(id),
       fetchMilestones(id),
-      fetchTasks({ projectId: id }),
       fetchSprints(id)
     ])
     setProject(projData)
@@ -155,8 +157,6 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     fetchDepartments()
     loadData()
-    const unsubscribe = subscribeToTasks(id) // project-scoped real-time
-    return () => unsubscribe()
   }, [id])
 
   const handleArchive = async () => {
@@ -394,7 +394,7 @@ export default function ProjectDetailPage() {
                     </DialogHeader>
                     <TaskForm 
                       task={{ project_id: project.id } as any} 
-                      onSuccess={() => fetchTasks({ projectId: id })} 
+                      onSuccess={() => window.location.reload()} 
                     />
                   </DialogContent>
                 </Dialog>

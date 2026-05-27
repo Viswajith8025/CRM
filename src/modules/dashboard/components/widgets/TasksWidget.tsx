@@ -1,17 +1,12 @@
 import { CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { CheckCircle2, Clock } from 'lucide-react'
-import { useTasksStore } from '@/modules/tasks'
-import { useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { useTasksQuery } from '@/modules/tasks/hooks/useTasksQuery'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export function TasksWidget() {
-  const { tasks, fetchTasks } = useTasksStore()
-
-  useEffect(() => {
-    fetchTasks({ limit: 5 })
-  }, [])
-
-  const myTasks = tasks
+  const { data, isLoading } = useTasksQuery()
+  const myTasks = data?.pages.flat() || []
 
   return (
     <div className="h-full flex flex-col">
@@ -23,10 +18,15 @@ export function TasksWidget() {
       </CardHeader>
       <CardContent className="flex-1 overflow-auto">
         <div className="space-y-3">
-          {myTasks.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : myTasks.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4 text-center">No tasks assigned.</p>
           ) : (
-            myTasks.map(task => (
+            myTasks.slice(0, 5).map(task => (
               <div key={task.id} className="flex items-center justify-between gap-3 border-b border-border/40 pb-2 last:border-0 last:pb-0">
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold truncate">{task.title}</p>

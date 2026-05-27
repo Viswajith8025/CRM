@@ -20,6 +20,7 @@ import TaskCard from './TaskCard'
 import { useTasksStore } from '../tasksStore'
 import TaskDetailsDialog from './TaskDetailsDialog'
 import TaskForm from './TaskForm'
+import { useOptimisticTaskUpdate } from '../hooks/useOptimisticTaskUpdate'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +53,8 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }: KanbanBoardProps) => {
-  const { tasks: allTasks, updateTask, deleteTask } = useTasksStore()
+  const { tasks: allTasks, deleteTask } = useTasksStore()
+  const { mutateAsync: updateTaskOptimistically } = useOptimisticTaskUpdate()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [syncingTaskId, setSyncingTaskId] = useState<string | null>(null)
   
@@ -99,7 +101,7 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
     if (overColumn && activeTask.status !== overColumn.id) {
       try {
         setSyncingTaskId(activeId as string)
-        await updateTask(activeId as string, { status: overColumn.id })
+        await updateTaskOptimistically({ id: activeId as string, status: overColumn.id, assigned_to: activeTask.assigned_to })
       } finally {
         setSyncingTaskId(null)
       }
@@ -111,7 +113,7 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
     if (overTask && activeTask.status !== overTask.status) {
       try {
         setSyncingTaskId(activeId as string)
-        await updateTask(activeId as string, { status: overTask.status })
+        await updateTaskOptimistically({ id: activeId as string, status: overTask.status, assigned_to: activeTask.assigned_to })
       } finally {
         setSyncingTaskId(null)
       }

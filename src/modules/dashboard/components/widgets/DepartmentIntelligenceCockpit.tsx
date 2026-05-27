@@ -355,7 +355,25 @@ export function DepartmentIntelligenceCockpit() {
 
   // 2. Dynamic KPI Engine mappings depending on active department
   const activeKPIs = useMemo(() => {
-    if (dbKPIs.length > 0) return dbKPIs
+    if (dbKPIs.length > 0) {
+      return dbKPIs.map(kpi => {
+        let dynamicCurrent = kpi.current
+
+        if (kpi.name === "Task Completion Rate") {
+          const total = totalCompletedTasks + totalPendingTasks
+          dynamicCurrent = total > 0 ? Math.round((totalCompletedTasks / total) * 100) : 0
+        } else if (kpi.name === "Resource Capacity Logged") {
+          dynamicCurrent = totalEstimatedHours
+        } else if (activeDept === 'bde' || activeDept === 'sales') {
+          const deptLogIds = departmentEmployees.map(e => e.id)
+          const deptLogs = dbLogs.filter(l => deptLogIds.includes(l.employee_id))
+          const loggedSum = deptLogs.filter(l => l.kpi?.name === kpi.name).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+          if (loggedSum > 0) dynamicCurrent = loggedSum
+        }
+
+        return { ...kpi, current: dynamicCurrent }
+      })
+    }
 
     // Filter logs to current department employees
     const deptLogIds = departmentEmployees.map(e => e.id)
@@ -375,11 +393,13 @@ export function DepartmentIntelligenceCockpit() {
     }
 
     // Default generic for others (until specific KPIs are logged)
+    const total = totalCompletedTasks + totalPendingTasks
+    const completionRate = total > 0 ? Math.round((totalCompletedTasks / total) * 100) : 0
     return [
-      { name: "Task Completion Rate", current: totalCompletedTasks, target: totalCompletedTasks + totalPendingTasks || 1, unit: "tasks", color: "#6366f1" },
-      { name: "Staff Utilization", current: capacityPercent, target: 90, unit: "%", color: "#10b981" }
+      { name: "Task Completion Rate", current: completionRate, target: 100, unit: "%", color: "#6366f1" },
+      { name: "Staff Utilization", current: capacityPercent, target: 100, unit: "%", color: "#10b981" }
     ]
-  }, [activeDept, totalCompletedTasks, totalPendingTasks, capacityPercent, dbLogs, departmentEmployees])
+  }, [activeDept, totalCompletedTasks, totalPendingTasks, totalEstimatedHours, capacityPercent, dbLogs, departmentEmployees, dbKPIs])
 
   // Custom Chart Data per Department
   const departmentChartData = useMemo(() => {
@@ -411,14 +431,29 @@ export function DepartmentIntelligenceCockpit() {
     }
 
     // Fallback dynamic chart for other depts based on tasks
-    return [
-      { name: 'Mon', load: 8 },
-      { name: 'Tue', load: 9 },
-      { name: 'Wed', load: 7 },
-      { name: 'Thu', load: 10 },
-      { name: 'Fri', load: 8 },
-    ]
-  }, [activeDept, dbLogs, departmentEmployees])
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const today = new Date()
+    const last7Days = Array.from({length: 7}, (_, i) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - (6 - i))
+      return d.toISOString().split('T')[0]
+    })
+
+    return last7Days.map(dateStr => {
+      const d = new Date(dateStr)
+      const name = days[d.getDay()]
+      
+      const tasksCreatedThisDay = departmentTasks.filter(t => t.created_at && t.created_at.startsWith(dateStr)).length
+      const tasksDueThisDay = departmentTasks.filter(t => t.due_date && t.due_date.startsWith(dateStr)).length
+
+      return {
+        name,
+        score: tasksDueThisDay + tasksCreatedThisDay,
+        created: tasksCreatedThisDay,
+        due: tasksDueThisDay
+      }
+    })
+  }, [activeDept, dbLogs, departmentEmployees, departmentTasks])
 
   // Handle Export Dynamics
   const handleExportCSV = () => {

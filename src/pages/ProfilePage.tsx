@@ -10,7 +10,10 @@ import { Mail, User, Shield, Calendar, Loader2, Building2, Camera } from "lucide
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { usePermissions } from "@/hooks/usePermissions"
+import Cropper from "react-easy-crop"
+import getCroppedImg from "@/lib/cropImage"
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useAuthStore()
@@ -19,6 +22,13 @@ export default function ProfilePage() {
   const [isUpdating, setIsUpdating] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [departmentName, setDepartmentName] = useState<string>("Not Assigned")
+
+  // Crop State
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
 
   useEffect(() => {
     if (profile) {
@@ -69,18 +79,43 @@ export default function ProfilePage() {
     }
   }
 
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
+    const reader = new FileReader()
+    reader.onload = () => {
+      setSelectedImage(reader.result as string)
+      setIsCropDialogOpen(true)
+    }
+    reader.readAsDataURL(file)
+    // reset input so the same file can be selected again if needed
+    event.target.value = ""
+  }
+
+  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }
+
+  const handleCropAndUpload = async () => {
+    if (!selectedImage || !croppedAreaPixels) return
+
     setIsUploading(true)
+    setIsCropDialogOpen(false)
     try {
-      const fileExt = file.name.split('.').pop()
+      const croppedFile = await getCroppedImg(selectedImage, croppedAreaPixels)
+      if (!croppedFile) throw new Error("Failed to crop image")
+
+      const fileExt = 'jpeg'
       const filePath = `${profile?.id}/${Date.now()}.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file)
+        .upload(filePath, croppedFile, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: croppedFile.type
+        })
 
       if (uploadError) throw uploadError
 
@@ -94,6 +129,7 @@ export default function ProfilePage() {
       toast.error(error.message || "Failed to upload photo")
     } finally {
       setIsUploading(false)
+      setSelectedImage(null)
     }
   }
 
@@ -129,7 +165,7 @@ export default function ProfilePage() {
                   id="avatarUpload" 
                   accept="image/*" 
                   className="hidden" 
-                  onChange={handleAvatarUpload}
+                  onChange={handleFileSelect}
                   disabled={isUploading}
                 />
               </div>
@@ -231,6 +267,54 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Crop Profile Picture</DialogTitle>
+          </DialogHeader>
+          <div className="relative h-[300px] w-full bg-muted/20 rounded-xl overflow-hidden my-4">
+            {selectedImage && (
+              <Cropper
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            )}
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-bold text-muted-foreground uppercase">Zoom</span>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                aria-labelledby="Zoom"
+                onChange={(e) => {
+                  setZoom(Number(e.target.value))
+                }}
+                className="w-full"
+              />
+            </div>
+            <DialogFooter className="sm:justify-end">
+              <Button type="button" variant="ghost" onClick={() => setIsCropDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleCropAndUpload} className="font-bold">
+                Crop & Save
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageWrapper>
   )
 }

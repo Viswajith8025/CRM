@@ -31,6 +31,7 @@ import { sanitizeObject } from "@/lib/security"
 const formSchema = z.object({
   title: z.string().min(2, "Task title is required").max(200),
   description: z.string().max(5000).optional(),
+  remarks: z.string().max(2000).optional(),
   status: z.enum(['todo', 'in_progress', 'review', 'done']),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   project_id: z.string().min(1, "Project is required").uuid("Invalid Project ID"),
@@ -60,6 +61,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
     defaultValues: {
       title: task?.title || "",
       description: task?.description || "",
+      remarks: task?.remarks || "",
       status: (task?.status as any) || "todo",
       priority: (task?.priority as any) || "medium",
       project_id: task?.project_id || "",
@@ -148,6 +150,24 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
                         {...field} 
                         className="flex min-h-[100px] w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="Add more context..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="remarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Remarks / Notes</FormLabel>
+                    <FormControl>
+                      <textarea 
+                        {...field} 
+                        className="flex min-h-[60px] w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        placeholder="Add any internal remarks..."
                       />
                     </FormControl>
                     <FormMessage />

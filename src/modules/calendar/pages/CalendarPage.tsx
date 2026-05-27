@@ -11,13 +11,25 @@ import {
   Milestone, 
   UserX, 
   Info,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Clock,
+  AlignLeft,
+  X
 } from 'lucide-react'
 
 import { format } from 'date-fns'
+import type { CalendarEvent } from '../types'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 
 export default function CalendarPage() {
   const { events, fetchEvents, isLoading } = useCalendarStore()
+  const [selectedEvent, setSelectedEvent] = React.useState<CalendarEvent | null>(null)
 
   useEffect(() => {
     fetchEvents()
@@ -126,9 +138,87 @@ export default function CalendarPage() {
 
         {/* Calendar Grid */}
         <div className="lg:col-span-3">
-          <CalendarGrid events={events} isLoading={isLoading} />
+          <CalendarGrid events={events} isLoading={isLoading} onEventClick={setSelectedEvent} />
         </div>
       </div>
+
+      <Dialog open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+        <DialogContent className="sm:max-w-[425px] border-border/50 bg-card/95 backdrop-blur-xl p-0 overflow-hidden shadow-2xl">
+          <div className={cn("h-2 w-full", 
+              selectedEvent?.type === 'project' ? "bg-blue-500" :
+              selectedEvent?.type === 'task' ? "bg-amber-500" :
+              selectedEvent?.type === 'milestone' ? "bg-purple-500" :
+              "bg-emerald-500"
+            )} 
+          />
+          <div className="p-6 pt-5">
+            <DialogHeader className="mb-6">
+              <div className="flex items-start justify-between gap-4">
+                <DialogTitle className="text-xl font-black tracking-tight leading-tight">
+                  {selectedEvent?.title}
+                </DialogTitle>
+                <Badge variant="outline" className={cn(
+                  "uppercase font-black text-[9px] shrink-0",
+                  selectedEvent?.type === 'project' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" :
+                  selectedEvent?.type === 'task' ? "bg-amber-500/10 text-amber-500 border-amber-500/20" :
+                  selectedEvent?.type === 'milestone' ? "bg-purple-500/10 text-purple-500 border-purple-500/20" :
+                  "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                )}>
+                  {selectedEvent?.type}
+                </Badge>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 text-sm">
+                <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center border border-border/50">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Date & Time</p>
+                  <p className="font-semibold text-foreground">
+                    {selectedEvent && format(new Date(selectedEvent.start), 'EEEE, MMMM d, yyyy')}
+                  </p>
+                </div>
+              </div>
+
+              {selectedEvent?.description && (
+                <div className="flex items-start gap-3 text-sm">
+                  <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center border border-border/50 shrink-0">
+                    <AlignLeft className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Details</p>
+                    <p className="font-medium text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                      {selectedEvent.description}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {selectedEvent?.status && (
+                <div className="flex items-center gap-3 text-sm">
+                  <div className="h-8 w-8 rounded-lg bg-muted/50 flex items-center justify-center border border-border/50">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Current Status</p>
+                    <Badge variant="secondary" className="mt-1 font-bold capitalize">
+                      {selectedEvent.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 pt-4 border-t border-border/50 flex justify-end">
+              <Button onClick={() => setSelectedEvent(null)} className="font-bold">
+                Close Details
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageWrapper>
   )
 }

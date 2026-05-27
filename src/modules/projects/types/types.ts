@@ -1,6 +1,7 @@
 export type ProjectStatus = 'planning' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
 
 export interface Project {
+  remarks?: string;
   id: string
   user_id: string
   name: string

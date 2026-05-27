@@ -33,6 +33,7 @@ const formSchema = z.object({
   name: z.string().min(2, "Project name is required").max(100),
   type: z.enum(['Software', 'Website', 'Marketing', 'Ecommerce', 'Other']),
   description: z.string().max(2000).optional(),
+  remarks: z.string().max(2000).optional(),
   status: z.enum(['planning', 'in_progress', 'on_hold', 'completed', 'cancelled']),
   start_date: z.string().optional().nullable(),
   end_date: z.string().optional().nullable(),
@@ -90,6 +91,7 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
       name: project?.name || "",
       type: project?.type || "Software",
       description: project?.description || "",
+      remarks: project?.remarks || "",
       status: (project?.status as any) || "planning",
       start_date: project?.start_date || new Date().toISOString().split('T')[0],
       end_date: project?.end_date || "",
@@ -269,6 +271,24 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                       <textarea
                         {...field}
                         className="flex min-h-[80px] w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="remarks"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Remarks / Internal Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <textarea
+                        {...field}
+                        placeholder="Add internal remarks..."
+                        className="flex min-h-[60px] w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </FormControl>
                     <FormMessage />

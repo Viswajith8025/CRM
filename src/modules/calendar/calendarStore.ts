@@ -33,14 +33,19 @@ export const useCalendarStore = create<CalendarState>((set) => ({
         safeFetch(
           supabase.from('projects')
             .select('*')
-            .in('status', ['in_progress', 'planning'])
+            // Use .not() to exclude terminal statuses — avoids double .or() conflict
+            .not('status', 'eq', 'completed')
+            .not('status', 'eq', 'cancelled')
+            .not('status', 'eq', 'archived')
             .is('deleted_at', null)
             .or('is_archived.eq.false,is_archived.is.null')
         ),
         safeFetch(
           supabase.from('tasks')
             .select('*')
-            .in('status', ['todo', 'in_progress', 'review'])
+            // Exclude done/overdue — keeps active tasks without double-or conflict
+            .not('status', 'eq', 'done')
+            .not('status', 'eq', 'overdue')
             .is('deleted_at', null)
             .or('is_archived.eq.false,is_archived.is.null')
         ),

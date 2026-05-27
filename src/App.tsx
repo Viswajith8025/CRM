@@ -14,7 +14,8 @@ import RegisterPage from '@/pages/RegisterPage'
 import ProfilePage from '@/pages/ProfilePage'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/ResetPasswordPage'
-
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { useRealtimeSync } from '@/hooks/useRealtimeSync'
 import CRMPage from '@/modules/crm/pages/CRMPage'
 import ClientsPage from '@/modules/crm/pages/ClientsPage'
 import ProposalDetail from '@/modules/crm/pages/ProposalDetail'
@@ -62,6 +63,7 @@ import LeaveApprovalsPage from '@/modules/hr/pages/LeaveApprovalsPage'
 import { FormManagerDashboard, FormBuilder, PremiumOnboardingPortal, SubmissionReview } from '@/modules/forms'
 
 function App() {
+  useRealtimeSync()
   const { setSession, subscribeToProfile } = useAuthStore()
 
   useEffect(() => {
@@ -267,6 +269,7 @@ function App() {
           </Routes>
           <Toaster />
           <CommandPalette />
+          <ReactQueryDevtools initialIsOpen={false} />
         </Router>
       </ThemeProvider>
     </GlobalErrorBoundary>

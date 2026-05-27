@@ -9,6 +9,7 @@ import { KanbanBoard } from "../components/KanbanBoard"
 import { TaskList } from "../components/TaskList"
 import { WorkloadBoard } from "../components/WorkloadBoard"
 import { useTasksStore } from "../tasksStore"
+import { useTasksQuery } from "../hooks/useTasksQuery"
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,6 @@ import { useAuthStore } from "@/store/useAuthStore"
 export default function TasksPage() {
   usePerfGuard('TasksPage')
   const { profile } = useAuthStore()
-  const { tasks, fetchTasks, subscribeToTasks } = useTasksStore()
   const [searchParams] = useSearchParams()
   const [view, setView] = useState<'kanban' | 'list' | 'workload'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
@@ -44,27 +44,10 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
-
   const [isImportOpen, setIsImportOpen] = useState(false)
 
-  // Subscribe to real-time task changes once on mount
-  useEffect(() => {
-    const unsubscribe = subscribeToTasks()
-    return () => unsubscribe()
-  }, [])
-
-  // Re-fetch tasks whenever filters change
-  useEffect(() => {
-    fetchTasks({
-      page: 1,
-      limit: view === 'list' ? 20 : 100,
-      filters: {
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
-        search: debouncedSearchQuery || undefined
-      }
-    })
-  }, [statusFilter, priorityFilter, debouncedSearchQuery, view])
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(undefined, false, statusFilter)
+  const tasks = data?.pages.flat() || []
 
   useEffect(() => {
     // Update local search if URL changes
@@ -106,7 +89,7 @@ export default function TasksPage() {
         module="tasks" 
         open={isImportOpen} 
         onOpenChange={setIsImportOpen} 
-        onComplete={() => fetchTasks()} 
+        onComplete={() => window.location.reload()} // TODO: Invalidate query
       />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -164,7 +147,11 @@ export default function TasksPage() {
         )}
       </div>
 
-      {view === 'workload' ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64 text-muted-foreground">
+          Loading tasks...
+        </div>
+      ) : view === 'workload' ? (
         <WorkloadBoard />
       ) : view === 'kanban' ? (
         <KanbanBoard 
@@ -175,6 +162,18 @@ export default function TasksPage() {
         <TaskList 
           tasks={tasks}
         />
+      )}
+
+      {hasNextPage && view !== 'kanban' && (
+        <div className="flex justify-center mt-6">
+          <Button 
+            variant="outline" 
+            onClick={() => fetchNextPage()} 
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? "Loading more..." : "Load More Tasks"}
+          </Button>
+        </div>
       )}
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>

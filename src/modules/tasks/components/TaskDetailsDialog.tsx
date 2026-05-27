@@ -80,7 +80,7 @@ export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDeta
     setNewComment("")
   }
 
-  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'done'
+  const isOverdue = task.status === 'overdue'
   const progress = taskSubtasks.length > 0 
     ? Math.round((taskSubtasks.filter(s => s.is_completed).length / taskSubtasks.length) * 100)
     : (task.status === 'done' ? 100 : 0)
