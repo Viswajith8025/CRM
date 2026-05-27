@@ -63,14 +63,19 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     const isBdeDept = dept === 'bde' || dept.includes('bde')
     return isSalesRole && isBdeDept
   })
-  // Fallback: if no strict matches, show anyone with a sales/bde role
+  // Fallback 1: anyone with a sales/bde role
+  const bdeRoleUsers = (members || []).filter(m => {
+    const role = (m.role || '').toLowerCase()
+    const dynRole = (m.dynamic_role_name || '').toLowerCase()
+    return role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
+  })
+
+  // Final Fallback: if no strict matches AND no role matches, show everyone
   const bdeUsers = strictBdeUsers.length > 0
     ? strictBdeUsers
-    : (members || []).filter(m => {
-        const role = (m.role || '').toLowerCase()
-        const dynRole = (m.dynamic_role_name || '').toLowerCase()
-        return role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
-      })
+    : bdeRoleUsers.length > 0
+      ? bdeRoleUsers
+      : (members || [])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
