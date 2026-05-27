@@ -75,15 +75,9 @@ export function LeadKanbanCard({ lead, isOverlay, isSyncing, onEdit, onViewDetai
               </span>
             </div>
           </div>
-          <Badge variant="secondary" className="text-[9px] font-black h-5">
-            {lead.score}/100
-          </Badge>
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline" className="text-[9px] h-4 uppercase tracking-tighter">
-            {lead.segment}
-          </Badge>
           {lead.value && (
             <Badge className="text-[9px] h-4 bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20">
               <span className="text-[10px] font-black mr-0.5">₹</span>

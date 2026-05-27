@@ -92,49 +92,26 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-muted/30 p-3 rounded-lg border">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Score</p>
-          <div className="flex items-center gap-2">
-            <span className={`text-xl font-black ${lead.score > 70 ? 'text-emerald-500' : lead.score > 30 ? 'text-amber-500' : 'text-rose-500'}`}>
-              {lead.score}/100
-            </span>
-          </div>
-        </div>
-        <div className="bg-muted/30 p-3 rounded-lg border">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Segment</p>
-          <p className="text-lg font-bold">{lead.segment}</p>
-        </div>
+      <div className="grid grid-cols-2 gap-4">
         <div className="bg-muted/30 p-3 rounded-lg border">
           <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Source</p>
           <p className="text-lg font-bold">{lead.source || "Unknown"}</p>
         </div>
+        {lead.requirement && (
+          <div className="bg-sky-500/10 p-3 rounded-lg border border-sky-500/20">
+            <p className="text-[10px] uppercase font-bold text-sky-600 mb-1">Service Requirement</p>
+            <p className="text-sm font-semibold text-sky-800 dark:text-sky-300">{lead.requirement}</p>
+          </div>
+        )}
       </div>
 
-      {lead.requirement && (
-        <div className="bg-sky-500/10 p-3 rounded-lg border border-sky-500/20">
-          <p className="text-[10px] uppercase font-bold text-sky-600 mb-1">Service Requirement</p>
-          <p className="text-sm font-semibold text-sky-800 dark:text-sky-300">{lead.requirement}</p>
-        </div>
-      )}
 
-      <Tabs defaultValue="lifecycle" className="w-full flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="lifecycle" className="gap-1.5"><Activity className="h-3.5 w-3.5" />Lifecycle</TabsTrigger>
+
+      <Tabs defaultValue="activity" className="w-full flex-1 flex flex-col">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="activity">Interactions</TabsTrigger>
           <TabsTrigger value="proposals">Proposals</TabsTrigger>
         </TabsList>
-
-        {/* --- LIFECYCLE TAB --- */}
-        <TabsContent value="lifecycle" className="flex-1 pt-4 min-h-0">
-          <ScrollArea className="h-[400px] pr-4">
-            <ActivityTimeline
-              entityId={lead.id}
-              showEntityBadge={true}
-              limit={30}
-            />
-          </ScrollArea>
-        </TabsContent>
         
         <TabsContent value="activity" className="flex-1 flex flex-col space-y-4 pt-4 min-h-0">
           {/* Interaction Input */}
