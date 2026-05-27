@@ -70,12 +70,10 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     return role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
   })
 
-  // Final Fallback: if no strict matches AND no role matches, show everyone
+  // Final Fallback: if no strict matches, use role matches (can be empty)
   const bdeUsers = strictBdeUsers.length > 0
     ? strictBdeUsers
-    : bdeRoleUsers.length > 0
-      ? bdeRoleUsers
-      : (members || [])
+    : bdeRoleUsers
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
