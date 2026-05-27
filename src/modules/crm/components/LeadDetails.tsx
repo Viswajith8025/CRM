@@ -50,20 +50,33 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
   }, [lead.id, fetchInteractions])
 
   const handleAddInteraction = async (type: Interaction['type']) => {
-    if (!newInteraction.trim()) {
-      toast.error("Please enter some details about the interaction")
-      return
+    // 1. Perform dynamic external action
+    if (type === 'call') {
+      if (!lead.phone) return toast.error("No phone number available for this lead.")
+      window.open(`tel:${lead.phone}`, '_self')
+    } else if (type === 'email') {
+      if (!lead.email) return toast.error("No email available for this lead.")
+      window.open(`mailto:${lead.email}`, '_self')
+    } else if (type === 'whatsapp') {
+      if (!lead.phone) return toast.error("No phone number available for this lead.")
+      const cleanPhone = lead.phone.replace(/[^0-9+]/g, '')
+      window.open(`https://wa.me/${cleanPhone}`, '_blank')
+    } else if (type === 'meeting') {
+      window.open(`https://meet.google.com/new`, '_blank')
     }
+
+    // 2. Log the interaction
+    const content = newInteraction.trim() || `Initiated a ${type}`
 
     setIsSubmitting(true)
     try {
       await addInteraction({
         lead_id: lead.id,
         type,
-        content: newInteraction.trim()
+        content
       })
       setNewInteraction("")
-      toast.success(`Logged ${type} successfully`)
+      toast.success(`Started ${type} and logged successfully`)
     } catch (error) {
       toast.error("Failed to log interaction")
     } finally {
