@@ -3,7 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Loader2, User, Building, Target, Mail, Phone } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useTeamStore } from "@/modules/admin/teamStore"
 import {
   Form,
   FormControl,
@@ -35,6 +36,8 @@ const formSchema = z.object({
   status: z.enum(['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'awaiting_payment', 'active_client', 'closed_lost']),
   source: z.string().optional(),
   requirement: z.string().optional(),
+  brought_by_id: z.string().optional(),
+  remarks: z.string().optional(),
 })
 
 interface LeadFormProps {
@@ -44,7 +47,18 @@ interface LeadFormProps {
 
 export function LeadForm({ lead, onSuccess }: LeadFormProps) {
   const { addLead, updateLead } = useCRMStore()
+  const { teamMembers, fetchTeamMembers } = useTeamStore()
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    fetchTeamMembers()
+  }, [])
+
+  const bdeUsers = teamMembers.filter(m => {
+    const role = (m.role || '').toLowerCase()
+    const dRole = (m.dynamic_role || '').toLowerCase()
+    return role.includes('sales') || dRole.includes('sales') || dRole.includes('bde') || role.includes('admin')
+  })
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,6 +72,8 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       source: lead?.source || "website",
       status: lead?.status || "new",
       requirement: lead?.requirement || "",
+      brought_by_id: lead?.brought_by_id || "",
+      remarks: lead?.remarks || "",
     },
   })
 
@@ -275,6 +291,48 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                   </FormItem>
                 )}
               />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="brought_by_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Brought By (BDE)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="Select BDE User" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">None / Unassigned</SelectItem>
+                          {bdeUsers.map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name} {user.last_name} ({user.role})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="remarks"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Internal Remarks</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Additional notes about this lead..." {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
           </div>
         </ScrollArea>

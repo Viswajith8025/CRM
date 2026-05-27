@@ -17,6 +17,8 @@ export interface Contact {
   next_follow_up: string | null
   last_contacted_at: string | null
   requirement: string | null
+  brought_by_id: string | null
+  remarks: string | null
   created_at: string
   updated_at: string
 }

@@ -10,8 +10,10 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye } from "lucide-react"
+import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye, Calendar, CalendarPlus } from "lucide-react"
 import { useCRMStore } from "../crmStore"
+import { useTeamStore } from "@/modules/admin/teamStore"
+import { format } from "date-fns"
 import type { Contact as Lead, LeadStatus } from "../types"
 import {
   AlertDialog,
@@ -52,6 +54,7 @@ import { useSearchParams } from "react-router-dom"
 
 export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
   const { leads, isLoading, deleteLead, fetchLeads, pagination } = useCRMStore()
+  const { teamMembers, fetchTeamMembers } = useTeamStore()
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -59,6 +62,7 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
   useEffect(() => {
     // Initial fetch with current search
     fetchLeads({ page: 1, limit: 10, filters: search ? { name: search } : {} })
+    fetchTeamMembers()
   }, [])
 
   useEffect(() => {
@@ -118,9 +122,11 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Company</TableHead>
+              <TableHead>Number</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>BDE</TableHead>
               <TableHead>Value</TableHead>
+              <TableHead>Meet</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -136,7 +142,7 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
               </TableRow>
             ) : leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">
+                <TableCell colSpan={7} className="text-center h-24">
                   <p className="text-sm font-bold text-muted-foreground italic">No leads found for this criteria.</p>
                 </TableCell>
               </TableRow>
@@ -145,15 +151,35 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
                 <TableRow key={lead.id} className="cursor-pointer hover:bg-primary/5 transition-colors group" onClick={() => onViewDetails(lead)}>
                   <TableCell className="font-medium">
                     <span className="font-black text-sm">{lead.first_name} {lead.last_name}</span>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{lead.email}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">{lead.company || "No Company"}</p>
                   </TableCell>
-                  <TableCell className="font-bold text-xs uppercase opacity-70">{lead.company || "-"}</TableCell>
+                  <TableCell className="font-bold text-xs">
+                    {lead.phone || <span className="text-muted-foreground italic opacity-70">N/A</span>}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="secondary" className={cn("uppercase font-black text-[9px] px-2 py-0.5", statusColors[lead.status])}>
                       {lead.status.replace('_', ' ')}
                     </Badge>
                   </TableCell>
+                  <TableCell className="font-bold text-[10px] uppercase">
+                    {(() => {
+                      const bde = teamMembers.find(m => m.id === lead.brought_by_id)
+                      return bde ? `${bde.first_name} ${bde.last_name}` : <span className="text-muted-foreground italic opacity-70">Unassigned</span>
+                    })()}
+                  </TableCell>
                   <TableCell className="font-black text-sm text-foreground">${Number(lead.value || 0).toLocaleString()}</TableCell>
+                  <TableCell>
+                    {lead.next_follow_up ? (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-full w-fit">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(lead.next_follow_up), 'MMM d, h:mm a')}
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-6 text-[10px] uppercase font-bold text-muted-foreground hover:text-primary gap-1" onClick={(e) => { e.stopPropagation(); onEdit(lead); }}>
+                        <CalendarPlus className="h-3 w-3" /> Schedule
+                      </Button>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
