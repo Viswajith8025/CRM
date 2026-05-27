@@ -107,7 +107,7 @@ export default function CRMPage() {
         {view === 'list' ? (
           <LeadList onEdit={handleEditLead} onViewDetails={handleViewDetails} />
         ) : (
-          <LeadKanban />
+          <LeadKanban onEdit={handleEditLead} onViewDetails={handleViewDetails} />
         )}
       </div>
 
@@ -135,6 +135,7 @@ export default function CRMPage() {
             <LeadDetails 
               lead={detailedLead} 
               onClose={() => setIsDetailsOpen(false)} 
+              onEdit={handleEditLead}
             />
           )}
         </SheetContent>

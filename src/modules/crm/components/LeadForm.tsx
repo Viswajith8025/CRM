@@ -34,6 +34,7 @@ const formSchema = z.object({
   job_title: z.string().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'awaiting_payment', 'active_client', 'closed_lost']),
   source: z.string().optional(),
+  requirement: z.string().optional(),
 })
 
 interface LeadFormProps {
@@ -56,6 +57,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       job_title: lead?.job_title || "",
       source: lead?.source || "website",
       status: lead?.status || "new",
+      requirement: lead?.requirement || "",
     },
   })
 
@@ -259,6 +261,20 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="requirement"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Requirement (Specified Service)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Needs a new ecommerce website" {...field} className="bg-muted/20" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
         </ScrollArea>

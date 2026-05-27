@@ -12,9 +12,11 @@ interface LeadKanbanCardProps {
   lead: Lead
   isOverlay?: boolean
   isSyncing?: boolean
+  onEdit?: (lead: Lead) => void
+  onViewDetails?: (lead: Lead) => void
 }
 
-export function LeadKanbanCard({ lead, isOverlay, isSyncing }: LeadKanbanCardProps) {
+export function LeadKanbanCard({ lead, isOverlay, isSyncing, onEdit, onViewDetails }: LeadKanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -38,12 +40,23 @@ export function LeadKanbanCard({ lead, isOverlay, isSyncing }: LeadKanbanCardPro
   const initials = `${lead.first_name[0]}${lead.last_name ? lead.last_name[0] : ''}`.toUpperCase()
 
   const cardContent = (
-    <Card className={cn(
-      "p-4 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all group",
-      isDragging && "opacity-50",
-      isOverlay && "cursor-grabbing border-primary shadow-xl scale-105 rotate-2",
-      isSyncing && "animate-pulse border-primary/30"
-    )}>
+    <Card 
+      className={cn(
+        "p-4 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all group relative",
+        isDragging && "opacity-50",
+        isOverlay && "cursor-grabbing border-primary shadow-xl scale-105 rotate-2",
+        isSyncing && "animate-pulse border-primary/30"
+      )}
+      onDoubleClick={() => onViewDetails?.(lead)}
+    >
+      {onEdit && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onEdit(lead); }}
+          className="absolute top-2 right-2 p-1.5 rounded-md opacity-0 group-hover:opacity-100 bg-background hover:bg-muted text-muted-foreground transition-all z-10 shadow-sm border border-border/50"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+        </button>
+      )}
       <div className="space-y-3">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-2">

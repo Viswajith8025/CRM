@@ -27,9 +27,10 @@ import { ProposalList } from "./ProposalList"
 interface LeadDetailsProps {
   lead: Lead
   onClose: () => void
+  onEdit?: (lead: Lead) => void
 }
 
-export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
+export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
   const { interactions, fetchInteractions, addInteraction } = useCRMStore()
   const [newInteraction, setNewInteraction] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -79,7 +80,14 @@ export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
           <p className="text-muted-foreground">{lead.company || "No Company Specified"}</p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-emerald-500">${lead.value?.toLocaleString() || "0"}</div>
+          <div className="flex items-center gap-2 justify-end mb-1">
+            {onEdit && (
+              <Button variant="outline" size="sm" onClick={() => onEdit(lead)} className="h-7 text-xs font-bold uppercase tracking-wider">
+                Edit Lead
+              </Button>
+            )}
+            <div className="text-2xl font-bold text-emerald-500">${lead.value?.toLocaleString() || "0"}</div>
+          </div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Estimated Value</p>
         </div>
       </div>
@@ -102,6 +110,13 @@ export function LeadDetails({ lead, onClose }: LeadDetailsProps) {
           <p className="text-lg font-bold">{lead.source || "Unknown"}</p>
         </div>
       </div>
+
+      {lead.requirement && (
+        <div className="bg-sky-500/10 p-3 rounded-lg border border-sky-500/20">
+          <p className="text-[10px] uppercase font-bold text-sky-600 mb-1">Service Requirement</p>
+          <p className="text-sm font-semibold text-sky-800 dark:text-sky-300">{lead.requirement}</p>
+        </div>
+      )}
 
       <Tabs defaultValue="lifecycle" className="w-full flex-1 flex flex-col">
         <TabsList className="grid w-full grid-cols-3">

@@ -33,9 +33,11 @@ const COLUMNS: { id: LeadStatus; title: string }[] = [
 interface LeadKanbanProps {
   searchQuery?: string
   segmentFilter?: string
+  onEdit?: (lead: Lead) => void
+  onViewDetails?: (lead: Lead) => void
 }
 
-export function LeadKanban({ searchQuery = "", segmentFilter = "all" }: LeadKanbanProps) {
+export function LeadKanban({ searchQuery = "", segmentFilter = "all", onEdit, onViewDetails }: LeadKanbanProps) {
   const { leads: storeLeads, updateLead } = useCRMStore()
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
   const [syncingLeadId, setSyncingLeadId] = useState<string | null>(null)
@@ -147,6 +149,8 @@ export function LeadKanban({ searchQuery = "", segmentFilter = "all" }: LeadKanb
             title={col.title}
             leads={filteredLeads.filter((l) => l.status === col.id)}
             syncingLeadId={syncingLeadId}
+            onEdit={onEdit}
+            onViewDetails={onViewDetails}
           />
         ))}
       </div>

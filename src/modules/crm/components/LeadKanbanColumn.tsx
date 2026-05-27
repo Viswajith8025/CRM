@@ -12,9 +12,11 @@ interface LeadKanbanColumnProps {
   title: string
   leads: Lead[]
   syncingLeadId?: string | null
+  onEdit?: (lead: Lead) => void
+  onViewDetails?: (lead: Lead) => void
 }
 
-export function LeadKanbanColumn({ id, title, leads, syncingLeadId }: LeadKanbanColumnProps) {
+export function LeadKanbanColumn({ id, title, leads, syncingLeadId, onEdit, onViewDetails }: LeadKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id,
   })
@@ -48,6 +50,8 @@ export function LeadKanbanColumn({ id, title, leads, syncingLeadId }: LeadKanban
               key={lead.id} 
               lead={lead} 
               isSyncing={syncingLeadId === lead.id}
+              onEdit={onEdit}
+              onViewDetails={onViewDetails}
             />
           ))}
         </SortableContext>

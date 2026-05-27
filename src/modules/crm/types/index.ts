@@ -16,6 +16,7 @@ export interface Contact {
   segment: string
   next_follow_up: string | null
   last_contacted_at: string | null
+  requirement: string | null
   created_at: string
   updated_at: string
 }
