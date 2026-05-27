@@ -121,7 +121,7 @@ export default function ClientStatementsPage() {
         entry_type: "invoice",
         entry_date: inv.created_at || inv.issued_at || new Date().toISOString(),
         reference_number: inv.invoice_number,
-        debit: Number(inv.amount),
+        debit: Number(inv.grand_total || 0),
         credit: 0,
         running_balance: 0,
         description: `Invoice generated: ${inv.invoice_number}`
@@ -156,13 +156,13 @@ export default function ClientStatementsPage() {
       setStatement(statementEntries);
 
       // 6. Calculate Balance Summary
-      const total_billed = (invData || []).reduce((sum, inv) => sum + Number(inv.amount), 0);
+      const total_billed = (invData || []).reduce((sum, inv) => sum + Number(inv.grand_total || 0), 0);
       const total_received = (payData || []).reduce((sum, pay) => sum + Number(pay.amount), 0);
       
       const todayStr = new Date().toISOString().split('T')[0];
       const overdue_amount = (invData || [])
         .filter(inv => inv.status === 'overdue' || (inv.status !== 'paid' && inv.due_date < todayStr))
-        .reduce((sum, inv) => sum + Number(inv.amount), 0);
+        .reduce((sum, inv) => sum + Number(inv.grand_total || 0), 0);
 
       const outstanding_balance = total_billed - total_received;
       const advance_balance = total_received > total_billed ? total_received - total_billed : 0;
@@ -461,7 +461,7 @@ export default function ClientStatementsPage() {
                 <SelectValue placeholder="Choose a client..." />
               </SelectTrigger>
               <SelectContent>
-                {clients.map(c => (
+                {clients.filter(c => !c.isVirtual).map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name} ({c.email || "No Email"})
                   </SelectItem>
@@ -701,7 +701,7 @@ export default function ClientStatementsPage() {
                   <SelectItem value="none">No Specific Invoice (Advance Deposit)</SelectItem>
                   {clientInvoices.map(inv => (
                     <SelectItem key={inv.id} value={inv.id}>
-                      {inv.invoice_number} (₹{inv.amount.toLocaleString()} — {inv.status.toUpperCase()})
+                      {inv.invoice_number} (₹{Number(inv.grand_total || 0).toLocaleString()} — {inv.status.toUpperCase()})
                     </SelectItem>
                   ))}
                 </SelectContent>

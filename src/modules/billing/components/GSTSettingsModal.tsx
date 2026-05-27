@@ -256,10 +256,10 @@ export function GSTSettingsModal({ open, onOpenChange }: Props) {
                   <Building2 className="h-4 w-4 text-blue-400 shrink-0" />
                   <div className="text-xs">
                     <p className="font-black text-foreground">{selectedState.name}</p>
-                    <p className="text-muted-foreground mt-0.5">
+                    <div className="text-muted-foreground mt-0.5">
                       Invoices to clients in <strong>{selectedState.name}</strong> → <Badge variant="outline" className="text-[9px] text-emerald-500 border-emerald-500/30 mx-0.5">CGST + SGST</Badge>
                       | Other states → <Badge variant="outline" className="text-[9px] text-amber-500 border-amber-500/30 mx-0.5">IGST</Badge>
-                    </p>
+                    </div>
                   </div>
                 </div>
               )}

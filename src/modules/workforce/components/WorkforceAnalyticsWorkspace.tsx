@@ -8,7 +8,7 @@ import { DynamicWidgetRenderer } from '@/modules/dashboard/components/engine/Eng
 
 export function WorkforceAnalyticsWorkspace() {
   const { profile } = useAuthStore()
-  const department = profile?.department || 'development' 
+  const department = profile?.dynamic_role || 'development' 
   
   const { 
     currentTemplate, 

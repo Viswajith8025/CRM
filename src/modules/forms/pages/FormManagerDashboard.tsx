@@ -93,8 +93,10 @@ export default function FormManagerDashboard() {
     )
 
   const filteredSubmissions = submissions.filter(s => 
-    s.template?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.status.toLowerCase().includes(searchTerm.toLowerCase())
+    s.status !== 'draft' && (
+      s.template?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.status.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   )
 
   // Calculations for Enterprise-grade Analytics
@@ -567,7 +569,7 @@ export default function FormManagerDashboard() {
                         className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-white"
                       >
                         <option value="">Choose a client...</option>
-                        {clients.map(c => (
+                        {clients.filter(c => !c.isVirtual).map(c => (
                           <option key={c.id} value={c.id}>
                             {c.name} ({c.company || 'Individual'})
                           </option>

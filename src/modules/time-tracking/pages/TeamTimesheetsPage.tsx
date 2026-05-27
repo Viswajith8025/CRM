@@ -69,6 +69,8 @@ export default function TeamTimesheetsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedDept, setSelectedDept] = useState("all")
+  const [dateFilter, setDateFilter] = useState("today")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [selectedSession, setSelectedSession] = useState<TeamSession | null>(null)
   const { departments, fetchDepartments } = useDepartmentStore()
 
@@ -243,7 +245,36 @@ export default function TeamTimesheetsPage() {
   const filteredSessions = sessions.filter(s => {
     const matchesSearch = s.profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesDept = selectedDept === "all" || (s as any).department_id === selectedDept
-    return matchesSearch && matchesDept
+    
+    // Status Filter
+    let matchesStatus = true
+    if (statusFilter === 'active') matchesStatus = s.status === 'active'
+    if (statusFilter === 'completed') matchesStatus = s.status === 'completed'
+    if (statusFilter === 'flagged') matchesStatus = !!s.is_flagged
+
+    // Date Filter
+    let matchesDate = true
+    const sessionDate = new Date(s.start_time)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    const isSameDay = (d1: Date, d2: Date) => 
+      d1.getDate() === d2.getDate() && 
+      d1.getMonth() === d2.getMonth() && 
+      d1.getFullYear() === d2.getFullYear()
+
+    if (dateFilter === 'today') {
+      matchesDate = isSameDay(sessionDate, today)
+    } else if (dateFilter === 'yesterday') {
+      matchesDate = isSameDay(sessionDate, yesterday)
+    } else if (dateFilter === 'week') {
+      const weekAgo = new Date(today)
+      weekAgo.setDate(weekAgo.getDate() - 7)
+      matchesDate = sessionDate >= weekAgo
+    }
+
+    return matchesSearch && matchesDept && matchesStatus && matchesDate
   })
 
   return (
@@ -264,7 +295,7 @@ export default function TeamTimesheetsPage() {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <Select value={selectedDept} onValueChange={setSelectedDept}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                   <SelectValue placeholder="Department" />
@@ -278,12 +309,35 @@ export default function TeamTimesheetsPage() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="gap-2 w-full sm:w-auto">
-              <CalendarIcon className="h-4 w-4" /> Date Range
-            </Button>
-            <Button variant="outline" className="gap-2 w-full sm:w-auto">
-              <Filter className="h-4 w-4" /> Status
-            </Button>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="w-full sm:w-[160px]">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Date Range" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="week">Last 7 Days</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <SelectValue placeholder="Status" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="flagged">Flagged</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

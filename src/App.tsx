@@ -35,13 +35,11 @@ import ReportsPage from '@/modules/reports/pages/ReportsPage'
 import InvoiceReport from '@/modules/reports/pages/InvoiceReport'
 import AttendanceReport from '@/modules/reports/pages/AttendanceReport'
 import TaskReport from '@/modules/reports/pages/TaskReport'
-import AuditReport from '@/modules/reports/pages/AuditReport'
 import ClientReport from '@/modules/reports/pages/ClientReport'
 import ProjectReport from '@/modules/reports/pages/ProjectReport'
 import SuperAdminDashboard from '@/modules/admin/pages/SuperAdminDashboard'
 import SettingsPage from '@/modules/admin/pages/SettingsPage'
 import TeamPage from '@/modules/admin/pages/TeamPage'
-import AuditTrailPage from '@/modules/admin/pages/AuditTrailPage'
 import NotificationsPage from '@/modules/notifications/pages/NotificationsPage'
 import HRDashboard from '@/modules/hr/pages/HRDashboard'
 import { CommandPalette } from '@/components/shared/CommandPalette'
@@ -54,7 +52,6 @@ import LeaveReport from '@/modules/reports/pages/LeaveReport'
 import ExpenseReport from '@/modules/reports/pages/ExpenseReport'
 import PaymentReport from '@/modules/reports/pages/PaymentReport'
 import LeadReport from '@/modules/reports/pages/LeadReport'
-import InvoiceAuditReport from '@/modules/reports/pages/InvoiceAuditReport'
 import RenewalsPage from '@/modules/renewals/pages/RenewalsPage'
 import RenewalsReport from '@/modules/reports/pages/RenewalsReport'
 import TimeDeskMonitor from '@/modules/time-tracking/pages/TimeDeskMonitor'
@@ -214,11 +211,9 @@ function App() {
                 <Route path="/reports/leaves" element={<ErrorBoundary module="Leave Report"><LeaveReport /></ErrorBoundary>} />
                 <Route path="/reports/attendance" element={<ErrorBoundary module="Attendance Report"><AttendanceReport /></ErrorBoundary>} />
                 <Route path="/reports/invoices" element={<ErrorBoundary module="Invoice Report"><InvoiceReport /></ErrorBoundary>} />
-                <Route path="/reports/invoice-audit" element={<ErrorBoundary module="Invoice Audit Report"><InvoiceAuditReport /></ErrorBoundary>} />
                 <Route path="/reports/expense" element={<ErrorBoundary module="Expense Report"><ExpenseReport /></ErrorBoundary>} />
                 <Route path="/reports/payments" element={<ErrorBoundary module="Payment Report"><PaymentReport /></ErrorBoundary>} />
                 <Route path="/reports/tasks" element={<ErrorBoundary module="Task Report"><TaskReport /></ErrorBoundary>} />
-                <Route path="/reports/audit" element={<ErrorBoundary module="Audit Report"><AuditReport /></ErrorBoundary>} />
                 <Route path="/reports/clients" element={<ErrorBoundary module="Client Report"><ClientReport /></ErrorBoundary>} />
                 <Route path="/reports/projects" element={<ErrorBoundary module="Project Report"><ProjectReport /></ErrorBoundary>} />
                 <Route path="/reports/renewals-audit" element={<ErrorBoundary module="Renewals Report"><RenewalsReport /></ErrorBoundary>} />
@@ -230,7 +225,6 @@ function App() {
             <Route element={<ProtectedRoute permission="module.admin" />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 <Route path="/settings" element={<ErrorBoundary module="Settings"><SettingsPage /></ErrorBoundary>} />
-                <Route path="/audit-trail" element={<ErrorBoundary module="Audit Trail"><AuditTrailPage /></ErrorBoundary>} />
                 <Route path="/time-monitor" element={<ErrorBoundary module="Time Monitor"><TimeDeskMonitor /></ErrorBoundary>} />
                 <Route path="/reports/profitability" element={<ErrorBoundary module="Profitability"><ProfitabilityReport /></ErrorBoundary>} />
               </Route>

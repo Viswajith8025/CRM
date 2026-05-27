@@ -314,7 +314,7 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
                     <FormControl><SelectTrigger className="bg-muted/20"><SelectValue placeholder="None" /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
-                      {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                      {projects.filter(p => !(p as any).is_archived && p.status !== 'completed' && p.status !== 'cancelled').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </FormItem>

@@ -21,7 +21,6 @@ import type { Task, Subtask } from "../types/types"
 import { cn } from "@/lib/utils"
 import { FileUploadZone } from "@/modules/documents/components/FileUploadZone"
 import { AttachmentList } from "@/modules/documents/components/AttachmentList"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 interface TaskDetailsDialogProps {
@@ -36,7 +35,7 @@ export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDeta
   
   const [newSubtask, setNewSubtask] = useState("")
   const [newComment, setNewComment] = useState("")
-  const [activeTab, setActiveTab] = useState("content")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const taskSubtasks = task ? subtasks[task.id] || [] : []
   const taskComments = task ? comments[task.id] || [] : []
@@ -53,8 +52,16 @@ export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDeta
   const handleAddSubtask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newSubtask.trim()) return
-    await addSubtask({ task_id: task.id, title: newSubtask })
-    setNewSubtask("")
+    
+    setIsSubmitting(true)
+    try {
+      await addSubtask({ task_id: task.id, title: newSubtask.trim() })
+      setNewSubtask("")
+    } catch (err: any) {
+      toast.error(err.message || "Failed to add subtask")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleToggleSubtask = async (subtask: Subtask) => {
@@ -114,81 +121,56 @@ export default function TaskDetailsDialog({ task, open, onOpenChange }: TaskDeta
         <div className="flex-1 flex overflow-hidden">
           {/* Main Area (Checklists & Details) */}
           <ScrollArea className="flex-1 p-6 border-r bg-muted/10">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="content" className="font-bold uppercase tracking-widest text-[10px]">Details & Checklist</TabsTrigger>
-                <TabsTrigger value="attachments" className="font-bold uppercase tracking-widest text-[10px] gap-2">
-                  <Paperclip className="h-3 w-3" /> Attachments
-                </TabsTrigger>
-              </TabsList>
+            <div className="space-y-8">
+              {/* Progress */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  <span>Task Progress</span>
+                  <span>{progress}%</span>
+                </div>
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+                </div>
+              </div>
 
-              <TabsContent value="content" className="space-y-8 mt-0">
-                {/* Progress */}
+              {/* Subtasks */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" /> Checklist
+                </h4>
+                
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    <span>Task Progress</span>
-                    <span>{progress}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-                  </div>
-                </div>
-
-                {/* Subtasks */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" /> Checklist
-                  </h4>
+                  {taskSubtasks.map(subtask => (
+                    <div 
+                      key={subtask.id} 
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-lg border bg-card transition-all cursor-pointer hover:border-primary/50",
+                        subtask.is_completed && "opacity-60 bg-muted/50"
+                      )}
+                      onClick={() => handleToggleSubtask(subtask)}
+                    >
+                      <Checkbox checked={subtask.is_completed} className={cn(subtask.is_completed && "data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500")} />
+                      <span className={cn("text-sm font-medium", subtask.is_completed && "line-through text-muted-foreground")}>
+                        {subtask.title}
+                      </span>
+                    </div>
+                  ))}
                   
-                  <div className="space-y-2">
-                    {taskSubtasks.map(subtask => (
-                      <div 
-                        key={subtask.id} 
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border bg-card transition-all cursor-pointer hover:border-primary/50",
-                          subtask.is_completed && "opacity-60 bg-muted/50"
-                        )}
-                        onClick={() => handleToggleSubtask(subtask)}
-                      >
-                        <Checkbox checked={subtask.is_completed} className={cn(subtask.is_completed && "data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500")} />
-                        <span className={cn("text-sm font-medium", subtask.is_completed && "line-through text-muted-foreground")}>
-                          {subtask.title}
-                        </span>
-                      </div>
-                    ))}
-                    
-                    <form onSubmit={handleAddSubtask} className="flex gap-2 mt-4">
-                      <Input 
-                        placeholder="Add a new subtask..." 
-                        value={newSubtask}
-                        onChange={e => setNewSubtask(e.target.value)}
-                        className="bg-card"
-                      />
-                      <Button type="submit" variant="secondary">Add</Button>
-                    </form>
-                  </div>
+                  <form onSubmit={handleAddSubtask} className="flex gap-2 mt-4">
+                    <Input 
+                      placeholder="Add a new subtask..." 
+                      value={newSubtask}
+                      onChange={e => setNewSubtask(e.target.value)}
+                      className="bg-card"
+                      disabled={isSubmitting}
+                    />
+                    <Button type="submit" variant="secondary" disabled={isSubmitting || !newSubtask.trim()}>
+                      Add
+                    </Button>
+                  </form>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="attachments" className="space-y-6 mt-0">
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Upload Files</h4>
-                  <FileUploadZone 
-                    relatedId={task.id}
-                    relatedType="task"
-                    bucket="task-attachments"
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Files</h4>
-                  <AttachmentList 
-                    relatedId={task.id}
-                    relatedType="task"
-                  />
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
           </ScrollArea>
 
           {/* Sidebar (Comments & Metadata) */}

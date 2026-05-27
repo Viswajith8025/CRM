@@ -95,6 +95,77 @@ export const useDashboardEngine = create<DashboardEngineState>((set, get) => ({
         selectedTemplate = templates?.find(t => t.is_default)
       }
 
+      // FALLBACK: If absolutely no template exists in the DB, provide a default layout
+      if (!selectedTemplate) {
+        const isSalesRole = role?.toLowerCase() === 'salesperson' || 
+                            departmentSlug?.toLowerCase() === 'sales' || 
+                            profile?.dynamic_role?.toLowerCase() === 'sales' || 
+                            profile?.dynamic_role?.toLowerCase() === 'salesperson'
+        
+        selectedTemplate = {
+          id: 'default-fallback',
+          name: isSalesRole ? 'Sales Performance Analytics' : 'General Overview',
+          target_role: role,
+          layouts: isSalesRole ? [
+            {
+              id: 'layout-sales-1',
+              template_id: 'default-fallback',
+              widget_type: 'metric_card',
+              widget_code: 'calls_connected',
+              title: 'Total Calls',
+              grid_position: { x: 0, y: 0, w: 1, h: 1 },
+              config: { icon: 'Phone', color: 'blue', format: 'number' }
+            },
+            {
+              id: 'layout-sales-2',
+              template_id: 'default-fallback',
+              widget_type: 'metric_card',
+              widget_code: 'meetings_arranged',
+              title: 'Meetings Set',
+              grid_position: { x: 1, y: 0, w: 1, h: 1 },
+              config: { icon: 'Calendar', color: 'purple', format: 'number' }
+            },
+            {
+              id: 'layout-sales-3',
+              template_id: 'default-fallback',
+              widget_type: 'graph',
+              widget_code: 'sales_outreach_trend',
+              title: 'Outreach Activity Trend',
+              grid_position: { x: 0, y: 1, w: 2, h: 2 },
+              config: { type: 'bar', dataKey: 'value', kpiFilter: ['calls_connected', 'meetings_arranged', 'emails_sent'] }
+            }
+          ] : [
+            {
+              id: 'layout-1',
+              template_id: 'default-fallback',
+              widget_type: 'metric_card',
+              widget_code: 'tasks_completed',
+              title: 'Tasks Completed',
+              grid_position: { x: 0, y: 0, w: 1, h: 1 },
+              config: { icon: 'CheckCircle2', color: 'emerald', format: 'number' }
+            },
+            {
+              id: 'layout-2',
+              template_id: 'default-fallback',
+              widget_type: 'metric_card',
+              widget_code: 'hours_logged',
+              title: 'Hours Logged',
+              grid_position: { x: 1, y: 0, w: 1, h: 1 },
+              config: { icon: 'Clock', color: 'blue', format: 'time' }
+            },
+            {
+              id: 'layout-3',
+              template_id: 'default-fallback',
+              widget_type: 'graph',
+              widget_code: 'productivity_trend',
+              title: 'Productivity Trend',
+              grid_position: { x: 0, y: 1, w: 2, h: 2 },
+              config: { type: 'line', dataKey: 'value' }
+            }
+          ]
+        } as any
+      }
+
       set({ currentTemplate: selectedTemplate || null })
     } catch (err: any) {
       console.error('Failed to initialize dashboard engine:', err)

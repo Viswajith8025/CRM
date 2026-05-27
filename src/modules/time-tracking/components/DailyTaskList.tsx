@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react"
-import { Plus, CheckCircle2, Circle, Trash2, ClipboardList, AlertCircle } from "lucide-react"
+import { Plus, CheckCircle2, Circle, Trash2, ClipboardList, AlertCircle, FileText, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDailyTasksStore } from "../dailyTasksStore"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
@@ -10,8 +13,10 @@ import { useTheme } from "@/hooks/useTheme"
 
 export function DailyTaskList() {
   const { theme } = useTheme()
-  const { tasks, isLoading, fetchTasks, addTask, toggleTask, deleteTask } = useDailyTasksStore()
+  const { tasks, isLoading, fetchTasks, addTask, toggleTask, deleteTask, selectedDate, setSelectedDate } = useDailyTasksStore()
   const [newTitle, setNewTitle] = useState("")
+  const [newNotes, setNewNotes] = useState("")
+  const [targetDate, setTargetDate] = useState<'today' | 'tomorrow'>('today')
 
   useEffect(() => {
     fetchTasks()
@@ -32,8 +37,9 @@ export function DailyTaskList() {
   const handleAdd = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!newTitle.trim()) return
-    await addTask(newTitle.trim())
+    await addTask(newTitle.trim(), newNotes.trim(), targetDate)
     setNewTitle("")
+    setNewNotes("")
   }
 
   const pendingCount = tasks.filter(t => !t.is_completed).length
@@ -41,39 +47,74 @@ export function DailyTaskList() {
   return (
     <Card className="bg-card border-border/40 shadow-sm overflow-hidden flex flex-col h-full">
       <CardHeader className="pb-4 border-b border-border/10 bg-primary/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
-              <ClipboardList className="h-5 w-5" />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
+                <ClipboardList className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-800">
+                  Daily Work Focus
+                </CardTitle>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
+                  Self-Assigned Tasks & Notes
+                </p>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-800">
-                Daily Work Focus
-              </CardTitle>
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                Mandatory for shift checkout
-              </p>
-            </div>
+            {pendingCount > 0 && selectedDate === 'today' && (
+              <div className="flex items-center gap-2 text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 animate-pulse">
+                <AlertCircle className="h-3 w-3" />
+                {pendingCount} PENDING
+              </div>
+            )}
           </div>
-          {pendingCount > 0 && (
-            <div className="flex items-center gap-2 text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-1 rounded-full border border-rose-100 animate-pulse">
-              <AlertCircle className="h-3 w-3" />
-              {pendingCount} PENDING
-            </div>
-          )}
+          
+          <Tabs 
+            value={selectedDate} 
+            onValueChange={(v) => setSelectedDate(v as 'today' | 'tomorrow')}
+            className="w-full"
+          >
+            <TabsList className="grid w-full grid-cols-2 bg-slate-200/50">
+              <TabsTrigger value="today" className="text-xs font-bold uppercase tracking-wider">Today's Focus</TabsTrigger>
+              <TabsTrigger value="tomorrow" className="text-xs font-bold uppercase tracking-wider">Tomorrow's Plan</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
       </CardHeader>
+      
       <CardContent className="p-0 flex-1 flex flex-col">
-        <form onSubmit={handleAdd} className="p-4 flex gap-2 border-b border-border/10">
-          <Input 
-            placeholder="What are you tackling today?" 
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="flex-1 border-border/40 focus-visible:ring-primary rounded-xl text-sm"
-          />
-          <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 rounded-xl shrink-0">
-            <Plus className="h-4 w-4" />
-          </Button>
+        <form onSubmit={handleAdd} className="p-4 flex flex-col gap-3 border-b border-border/10 bg-slate-50/50">
+          <div className="flex items-start gap-2">
+            <div className="flex-1 space-y-2">
+              <Input 
+                placeholder="What are you tackling?" 
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="border-border/40 focus-visible:ring-primary rounded-xl text-sm h-10"
+              />
+              <Textarea
+                placeholder="Optional remarks or notes..."
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className="border-border/40 focus-visible:ring-primary rounded-xl text-xs min-h-[60px] resize-none"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Select value={targetDate} onValueChange={(v) => setTargetDate(v as 'today' | 'tomorrow')}>
+              <SelectTrigger className="w-[140px] h-8 text-xs font-bold bg-white border-border/40 rounded-lg">
+                <SelectValue placeholder="Target Date" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today" className="text-xs font-bold">For Today</SelectItem>
+                <SelectItem value="tomorrow" className="text-xs font-bold">For Tomorrow</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit" size="sm" className="bg-primary hover:bg-primary/90 rounded-lg shrink-0 gap-1.5 h-8">
+              <Plus className="h-3.5 w-3.5" /> Add Task
+            </Button>
+          </div>
         </form>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[400px]">
@@ -105,12 +146,23 @@ export function DailyTaskList() {
                       <Circle className="h-5 w-5" />
                     )}
                   </button>
-                  <span className={cn(
-                    "text-sm font-bold tracking-tight",
-                    task.is_completed ? "line-through text-slate-400" : "text-slate-700"
-                  )}>
-                    {task.title}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className={cn(
+                      "text-sm font-bold tracking-tight",
+                      task.is_completed ? "line-through text-slate-400" : "text-slate-700"
+                    )}>
+                      {task.title}
+                    </span>
+                    {task.notes && (
+                      <span className={cn(
+                        "text-[11px] font-medium mt-0.5 whitespace-pre-wrap flex items-start gap-1.5",
+                        task.is_completed ? "text-slate-400" : "text-slate-500"
+                      )}>
+                        <FileText className="h-3 w-3 shrink-0 mt-[2px] opacity-70" />
+                        {task.notes}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <Button 
                   variant="ghost" 
@@ -127,7 +179,9 @@ export function DailyTaskList() {
           {tasks.length === 0 && !isLoading && (
             <div className="py-10 text-center flex flex-col items-center">
               <ClipboardList className="h-10 w-10 text-slate-100 mb-2" />
-              <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No tasks set for today</p>
+              <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
+                No tasks set for {selectedDate}
+              </p>
             </div>
           )}
         </div>

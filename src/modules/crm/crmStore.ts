@@ -75,18 +75,38 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const baseQuery = supabase
+      let baseQuery = supabase
         .from('leads')
         .select('*', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
+
+      // Extract and apply complex filters
+      const cleanFilters = { ...filters }
+      
+      if (cleanFilters.name) {
+        baseQuery = baseQuery.or(`first_name.ilike.%${cleanFilters.name}%,last_name.ilike.%${cleanFilters.name}%,email.ilike.%${cleanFilters.name}%,company.ilike.%${cleanFilters.name}%`)
+        delete cleanFilters.name
+      }
+      if (cleanFilters.date_start) {
+        baseQuery = baseQuery.gte('created_at', cleanFilters.date_start)
+        delete cleanFilters.date_start
+      }
+      if (cleanFilters.date_end) {
+        baseQuery = baseQuery.lte('created_at', cleanFilters.date_end)
+        delete cleanFilters.date_end
+      }
+      if (cleanFilters.brought_by_id) {
+        baseQuery = baseQuery.eq('brought_by_id', cleanFilters.brought_by_id)
+        delete cleanFilters.brought_by_id
+      }
 
       const result = await fetchPaginatedData<Lead>(baseQuery, {
         page,
         limit,
         sortBy,
         sortOrder,
-        filters
+        filters: cleanFilters
       })
 
       set({ 
@@ -121,13 +141,18 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const { job_title, ...cleanLead } = lead as any;
       const LEAD_DB_COLUMNS = ['first_name','last_name','email','phone','company','status','source',
         'segment','score','value','next_follow_up','last_contacted_at','assigned_to',
-        'requirement','brought_by_id','remarks','organization_id']
+        'requirement','brought_by_id','remarks','organization_id','created_at']
       const safeLead = Object.fromEntries(
         Object.entries(cleanLead).filter(([k]) => LEAD_DB_COLUMNS.includes(k))
       )
       if (safeLead.email === "") safeLead.email = null;
       if (safeLead.phone === "") safeLead.phone = null;
       if (!safeLead.brought_by_id) delete safeLead.brought_by_id;
+      
+      // Handle created_at override explicitly to ensure it includes time if we only provide date
+      if (safeLead.created_at) {
+        safeLead.created_at = new Date(safeLead.created_at).toISOString()
+      }
       
       const leadWithOrg = { ...safeLead, organization_id: orgId }
 
@@ -166,10 +191,14 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       
       const LEAD_DB_COLUMNS = ['first_name','last_name','email','phone','company','status','source',
         'segment','score','value','next_follow_up','last_contacted_at','assigned_to',
-        'requirement','brought_by_id','remarks']
+        'requirement','brought_by_id','remarks', 'created_at']
       const safeUpdates = Object.fromEntries(
         Object.entries(updates).filter(([k]) => LEAD_DB_COLUMNS.includes(k))
       ) as Partial<Lead>
+      
+      if (safeUpdates.created_at) {
+        safeUpdates.created_at = new Date(safeUpdates.created_at).toISOString()
+      }
 
       let query = supabase
         .from('leads')
@@ -242,7 +271,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
       const baseQuery = supabase
         .from('clients')
-        .select('*, leads!lead_id(status)', { count: 'exact' })
+        .select('*, leads!lead_id(status), projects(name), renewals(id, expiry_date, status)', { count: 'exact' })
         .eq('organization_id', orgId)
         .is('deleted_at', null)
 

@@ -49,6 +49,7 @@ import { TimeDeskDashboardClock } from "@/modules/time-tracking/components/TimeD
 import { MyAssignedTasksWidget } from "@/modules/dashboard/components/widgets/MyAssignedTasksWidget"
 import { MyAssignedModulesWidget } from "@/modules/dashboard/components/widgets/MyAssignedModulesWidget"
 import { DepartmentIntelligenceCockpit } from "@/modules/dashboard/components/widgets/DepartmentIntelligenceCockpit"
+import { SalesActivityWidget } from "@/modules/dashboard/components/widgets/SalesActivityWidget"
 import { useTheme } from "@/hooks/useTheme"
 import Grainient from "@/components/ui/Grainient"
 import { WorkforceAnalyticsWorkspace } from "@/modules/workforce"
@@ -62,6 +63,10 @@ export default function Dashboard() {
   const isTeamLead = !hasPermission('module.admin') && hasPermission('projects.manage')
   const [dashboardTab, setDashboardTab] = useState<'overview' | 'departments'>('overview')
   const [workspaceMode, setWorkspaceMode] = useState<'time_desk' | 'analytics'>('time_desk')
+  
+  const isSales = profile?.dynamic_role?.toLowerCase() === 'sales' || 
+                  profile?.dynamic_role?.toLowerCase() === 'salesperson' || 
+                  profile?.role?.toLowerCase() === 'salesperson'
 
   // Default to overview (My Workspace) for Team Leads so they see their own data first
   useEffect(() => {
@@ -374,12 +379,16 @@ export default function Dashboard() {
               {workspaceMode === 'time_desk' ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <TimeDeskDashboardClock />
-                  {/* Two-column layout: assigned tasks + daily goals */}
+                  {/* Role-based dashboard split */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <MyAssignedTasksWidget />
+                    {isSales ? (
+                      <SalesActivityWidget />
+                    ) : (
+                      <MyAssignedTasksWidget />
+                    )}
                     <DailyTaskList />
                   </div>
-                  <MyAssignedModulesWidget />
+                  {!isSales && <MyAssignedModulesWidget />}
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

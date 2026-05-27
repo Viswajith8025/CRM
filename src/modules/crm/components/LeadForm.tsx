@@ -38,6 +38,8 @@ const formSchema = z.object({
   requirement: z.string().optional(),
   brought_by_id: z.string().optional(),
   remarks: z.string().optional(),
+  created_at: z.string().optional(),
+  value: z.coerce.number().optional(),
 })
 
 interface LeadFormProps {
@@ -56,24 +58,25 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   // Strict filter: sales role/dynamic_role AND department is BDE
   const strictBdeUsers = (members || []).filter(m => {
-    const role = (m.role || '').toLowerCase()
-    const dynRole = (m.dynamic_role_name || '').toLowerCase()
-    const dept = (m.department || '').toLowerCase()
-    const isSalesRole = role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
-    const isBdeDept = dept === 'bde' || dept.includes('bde')
-    return isSalesRole && isBdeDept
+    const role = (m.role || '').toLowerCase().trim()
+    const dynRole = (m.dynamic_role_name || '').toLowerCase().trim()
+    const dept = (m.department || '').toLowerCase().trim()
+    
+    const isSalesRole = role === 'sales' || role.includes('bde') || dynRole.includes('sales') || dynRole.includes('bde')
+    const isBdeDept = dept.includes('bde') || dept.includes('sales')
+    return isSalesRole && isBdeDept && !!m.id
   })
-  // Fallback 1: anyone with a sales/bde role
+  // Fallback: anyone with a sales/bde dynamic_role or standard role
   const bdeRoleUsers = (members || []).filter(m => {
-    const role = (m.role || '').toLowerCase()
-    const dynRole = (m.dynamic_role_name || '').toLowerCase()
-    return role === 'sales' || dynRole === 'sales' || dynRole.includes('bde')
+    const role = (m.role || '').toLowerCase().trim()
+    const dynRole = (m.dynamic_role_name || '').toLowerCase().trim()
+    return (role === 'sales' || role.includes('bde') || dynRole.includes('sales') || dynRole.includes('bde')) && !!m.id
   })
 
-  // Final Fallback: if no strict matches, use role matches (can be empty)
+  // Final Fallback: if no strict matches, use role matches. If still empty, use all members.
   const bdeUsers = strictBdeUsers.length > 0
     ? strictBdeUsers
-    : bdeRoleUsers
+    : (bdeRoleUsers.length > 0 ? bdeRoleUsers : (members || []))
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -89,6 +92,8 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       requirement: lead?.requirement || "",
       brought_by_id: lead?.brought_by_id || "",
       remarks: lead?.remarks || "",
+      created_at: lead?.created_at ? new Date(lead.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      value: lead?.value || undefined,
     },
   })
 
@@ -297,45 +302,73 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="requirement"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Requirement (Specified Service)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Needs a new ecommerce website" {...field} className="bg-muted/20" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="requirement"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Requirement (Specified Service)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Needs a new ecommerce website" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="value"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Estimated Value ($)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="0" {...field} value={field.value || ''} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="created_at"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Date Added</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="brought_by_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Brought By (BDE)</FormLabel>
-                      <Select 
-                        onValueChange={(val) => field.onChange(val === 'none' ? '' : val)} 
-                        defaultValue={field.value || 'none'}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="bg-muted/20">
-                            <SelectValue placeholder="Select BDE User" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">None / Unassigned</SelectItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">
+                        Brought By (BDE)
+                      </FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          value={field.value || ''}
+                          onChange={e => field.onChange(e.target.value || undefined)}
+                        >
+                          <option value="">None / Unassigned</option>
                           {bdeUsers.map(user => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.first_name || user.full_name} {user.last_name || ''} ({user.role})
-                            </SelectItem>
+                            <option key={user.id} value={user.id}>
+                              {user.full_name || user.email || user.id} ({user.dynamic_role_name || 'Sales'})
+                            </option>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </select>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

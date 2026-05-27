@@ -62,6 +62,10 @@ export function useModuleRegistry() {
         if (m.key === 'leave_requests' && isManagementRole) {
           return false
         }
+        // Completely remove Audit Trail from sidebar
+        if (m.route === '/audit-trail') {
+          return false
+        }
         return isSuperAdmin || hasPermission(m.permission)
       })
 

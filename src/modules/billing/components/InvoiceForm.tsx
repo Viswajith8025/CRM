@@ -294,7 +294,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {projects.map(project => (
+                          {projects.filter(p => !(p as any).is_archived && p.status !== 'completed' && p.status !== 'cancelled').map(project => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
                             </SelectItem>

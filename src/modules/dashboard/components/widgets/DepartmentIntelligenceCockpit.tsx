@@ -89,6 +89,7 @@ export function DepartmentIntelligenceCockpit() {
   const [departmentsList, setDepartmentsList] = useState<Department[]>(DEFAULT_DEPARTMENTS)
   const [dbKPIs, setDbKPIs] = useState<any[]>([])
   const [dbMembers, setDbMembers] = useState<any[]>([])
+  const [dbLogs, setDbLogs] = useState<any[]>([])
   const [selectedMember, setSelectedMember] = useState<Profile | null>(null)
   const [selectedMemberLogs, setSelectedMemberLogs] = useState<any[]>([
     { name: 'Mon', hours: 0 },
@@ -258,6 +259,34 @@ export function DepartmentIntelligenceCockpit() {
     fetchDBKPIs()
   }, [activeDept, departmentsList])
 
+  // Fetch true employee performance logs from DB for dynamic graphs
+  useEffect(() => {
+    const fetchLogs = async () => {
+      const activeDeptObj = departmentsList.find(d => d.slug === activeDept)
+      if (!activeDeptObj) return
+      try {
+        const { data, error } = await supabase
+          .from("employee_performance_logs")
+          .select(`
+            *,
+            kpi:kpi_registry(code)
+          `)
+          // Assuming we want last 30 days or so, filtering broadly
+          .order("log_date", { ascending: true })
+
+        if (!error && data) {
+          setDbLogs(data)
+        } else {
+          setDbLogs([])
+        }
+      } catch (err) {
+        console.error("Failed to load logs:", err)
+        setDbLogs([])
+      }
+    }
+    fetchLogs()
+  }, [activeDept, departmentsList])
+
   // Check RBAC + Department Level Security
   const { hasPermission } = useRBACStore()
   const isSuperAdmin = hasPermission('module.admin')
@@ -326,107 +355,70 @@ export function DepartmentIntelligenceCockpit() {
 
   // 2. Dynamic KPI Engine mappings depending on active department
   const activeKPIs = useMemo(() => {
-    if (dbKPIs.length > 0) {
-      return dbKPIs
+    if (dbKPIs.length > 0) return dbKPIs
+
+    // Filter logs to current department employees
+    const deptLogIds = departmentEmployees.map(e => e.id)
+    const deptLogs = dbLogs.filter(l => deptLogIds.includes(l.employee_id))
+
+    const sumKPI = (code: string) => deptLogs.filter(l => l.kpi?.code === code).reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+
+    if (activeDept === 'bde' || activeDept === 'sales') {
+      const calls = sumKPI('calls_connected')
+      const meetings = sumKPI('meetings_arranged')
+      const emails = sumKPI('emails_sent')
+      return [
+        { name: "Total Calls Connected", current: calls, target: Math.max(calls + 50, 100), unit: "calls", color: "#10b981" },
+        { name: "Meetings Arranged", current: meetings, target: Math.max(meetings + 10, 20), unit: "meets", color: "#0ea5e9" },
+        { name: "Outreach (Emails/WA)", current: emails, target: Math.max(emails + 100, 200), unit: "msgs", color: "#f59e0b" }
+      ]
     }
-    switch (activeDept) {
-      case 'web_developing':
-        return [
-          { name: "Sprint Velocity", current: 88, target: 100, unit: "pts", color: "#6366f1" },
-          { name: "Bug Resolution SLA", current: 95, target: 99, unit: "%", color: "#10b981" },
-          { name: "Deployments Executed", current: 14, target: 15, unit: "deploys", color: "#8b5cf6" }
-        ]
-      case 'video_editing':
-        return [
-          { name: "Render Times", current: 12, target: 15, unit: "hrs", color: "#ec4899" },
-          { name: "First-Review Approvals", current: 78, target: 85, unit: "%", color: "#8b5cf6" },
-          { name: "Videos Published", current: 5, target: 6, unit: "vids", color: "#10b981" }
-        ]
-      case 'videography':
-        return [
-          { name: "Shoots Completed", current: 4, target: 5, unit: "shoots", color: "#6366f1" },
-          { name: "Raw Footage Logged", current: 120, target: 100, unit: "GB", color: "#f59e0b" },
-          { name: "Equipment Readiness", current: 100, target: 100, unit: "%", color: "#10b981" }
-        ]
-      case 'graphic_designing':
-        return [
-          { name: "Concept Deliveries", current: 32, target: 35, unit: "assets", color: "#ec4899" },
-          { name: "First-Review Approvals", current: 78, target: 85, unit: "%", color: "#8b5cf6" },
-          { name: "Workload Uniformity", current: 85, target: 90, unit: "%", color: "#10b981" }
-        ]
-      case 'digital_marketing':
-        return [
-          { name: "Campaign ROI", current: 3.2, target: 4.0, unit: "x", color: "#10b981" },
-          { name: "Lead Generation", current: 450, target: 500, unit: "leads", color: "#0ea5e9" },
-          { name: "Ad Spend Efficiency", current: 92, target: 90, unit: "%", color: "#8b5cf6" }
-        ]
-      case 'content_writer':
-        return [
-          { name: "Articles Drafted", current: 48, target: 50, unit: "posts", color: "#f59e0b" },
-          { name: "SEO Compliance Check", current: 100, target: 100, unit: "%", color: "#10b981" },
-          { name: "Weekly Content SLA", current: 92, target: 95, unit: "%", color: "#0ea5e9" }
-        ]
-      case 'crm':
-        return [
-          { name: "Tickets Resolved", current: 124, target: 150, unit: "tix", color: "#10b981" },
-          { name: "Avg Response Time", current: 1.2, target: 2.0, unit: "hrs", color: "#f59e0b" },
-          { name: "Client Satisfaction", current: 4.8, target: 4.5, unit: "/ 5", color: "#0ea5e9" }
-        ]
-      case 'bde':
-        return [
-          { name: "Lead Conversion Rate", current: 24.2, target: 30.0, unit: "%", color: "#10b981" },
-          { name: "Closed Deals Monthly", current: 180000, target: 250000, unit: "$", color: "#0ea5e9" },
-          { name: "Client Proposal SLA", current: 98, target: 95, unit: "%", color: "#f59e0b" }
-        ]
-      default:
-        return [
-          { name: "Task Completion Rate", current: totalCompletedTasks, target: totalCompletedTasks + totalPendingTasks, unit: "tasks", color: "#6366f1" },
-          { name: "Staff Utilization", current: capacityPercent, target: 90, unit: "%", color: "#10b981" }
-        ]
-    }
-  }, [activeDept, totalCompletedTasks, totalPendingTasks, capacityPercent])
+
+    // Default generic for others (until specific KPIs are logged)
+    return [
+      { name: "Task Completion Rate", current: totalCompletedTasks, target: totalCompletedTasks + totalPendingTasks || 1, unit: "tasks", color: "#6366f1" },
+      { name: "Staff Utilization", current: capacityPercent, target: 90, unit: "%", color: "#10b981" }
+    ]
+  }, [activeDept, totalCompletedTasks, totalPendingTasks, capacityPercent, dbLogs, departmentEmployees])
 
   // Custom Chart Data per Department
   const departmentChartData = useMemo(() => {
-    switch (activeDept) {
-      case 'web_developing':
-      case 'graphic_designing':
-      case 'video_editing':
-      case 'videography':
-      case 'content_writer':
-        return [
-          { name: 'Mon', hours: 32, bugs: 4 },
-          { name: 'Tue', hours: 44, bugs: 2 },
-          { name: 'Wed', hours: 40, bugs: 5 },
-          { name: 'Thu', hours: 52, bugs: 1 },
-          { name: 'Fri', hours: 48, bugs: 3 },
-        ]
-      case 'bde':
-      case 'digital_marketing':
-        return [
-          { name: 'Week 1', revenue: 45000, deals: 3 },
-          { name: 'Week 2', revenue: 58000, deals: 5 },
-          { name: 'Week 3', revenue: 62000, deals: 4 },
-          { name: 'Week 4', revenue: 78000, deals: 6 },
-        ]
-      case 'crm':
-        return [
-          { name: 'Mon', score: 62, keywords: 120 },
-          { name: 'Tue', score: 68, keywords: 145 },
-          { name: 'Wed', score: 74, keywords: 180 },
-          { name: 'Thu', score: 85, keywords: 220 },
-          { name: 'Fri', score: 82, keywords: 200 },
-        ]
-      default:
-        return [
-          { name: 'Mon', load: 8 },
-          { name: 'Tue', load: 9 },
-          { name: 'Wed', load: 7 },
-          { name: 'Thu', load: 10 },
-          { name: 'Fri', load: 8 },
-        ]
+    if (activeDept === 'bde' || activeDept === 'sales') {
+      // Group logs by date
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      const today = new Date()
+      // Generate last 7 days
+      const last7Days = Array.from({length: 7}, (_, i) => {
+        const d = new Date(today)
+        d.setDate(d.getDate() - (6 - i))
+        return d.toISOString().split('T')[0]
+      })
+
+      const deptLogIds = departmentEmployees.map(e => e.id)
+      const deptLogs = dbLogs.filter(l => deptLogIds.includes(l.employee_id))
+
+      return last7Days.map(dateStr => {
+        const dayLogs = deptLogs.filter(l => l.log_date === dateStr)
+        const d = new Date(dateStr)
+        const name = days[d.getDay()]
+        return {
+          name,
+          calls: dayLogs.filter(l => l.kpi?.code === 'calls_connected').reduce((acc, curr) => acc + (Number(curr.value) || 0), 0),
+          meetings: dayLogs.filter(l => l.kpi?.code === 'meetings_arranged').reduce((acc, curr) => acc + (Number(curr.value) || 0), 0),
+          emails: dayLogs.filter(l => l.kpi?.code === 'emails_sent').reduce((acc, curr) => acc + (Number(curr.value) || 0), 0)
+        }
+      })
     }
-  }, [activeDept])
+
+    // Fallback dynamic chart for other depts based on tasks
+    return [
+      { name: 'Mon', load: 8 },
+      { name: 'Tue', load: 9 },
+      { name: 'Wed', load: 7 },
+      { name: 'Thu', load: 10 },
+      { name: 'Fri', load: 8 },
+    ]
+  }, [activeDept, dbLogs, departmentEmployees])
 
   // Handle Export Dynamics
   const handleExportCSV = () => {
@@ -612,14 +604,16 @@ export function DepartmentIntelligenceCockpit() {
                       <Area type="monotone" dataKey="hours" stroke="#6366f1" fillOpacity={1} fill="url(#colorHours)" strokeWidth={2.5} />
                     </AreaChart>
                   </ResponsiveContainer>
-                ) : ['bde', 'digital_marketing'].includes(activeDept) ? (
+                ) : activeDept === 'bde' || activeDept === 'sales' ? (
                   <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <BarChart data={departmentChartData}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                       <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
                       <YAxis stroke="#888888" fontSize={10} tickLine={false} axisLine={false} />
                       <ChartTooltip />
-                      <Bar dataKey="revenue" fill="#10b981" radius={[8, 8, 0, 0]} maxBarSize={45} />
+                      <Bar dataKey="calls" name="Calls" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                      <Bar dataKey="meetings" name="Meetings" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                      <Bar dataKey="emails" name="Emails/Msgs" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={45} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

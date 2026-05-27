@@ -114,7 +114,7 @@ export function RenewalForm({ onSuccess, initialData }: RenewalFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Independent Service</SelectItem>
-              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {projects.filter(p => !(p as any).is_archived && p.status !== 'completed' && p.status !== 'cancelled').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

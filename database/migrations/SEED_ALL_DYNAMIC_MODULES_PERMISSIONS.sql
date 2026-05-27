@@ -105,7 +105,7 @@ VALUES
   ('team_timesheets', 'Team Timesheets', 'ClipboardList',   '/team-timesheets',     'top',    13, 'module.team_timesheets'),
   ('roles',           'Roles & Access',  'ShieldCheck',     '/roles',               'bottom', 0,  'roles.manage'),
   ('superadmin',      'Super Admin',     'ShieldAlert',     '/super-admin',         'bottom', 1,  'super_admin.only'),
-  ('audit',           'Audit Trail',     'History',         '/audit-trail',         'bottom', 2,  'module.admin'),
+
   ('monitor',         'Time Monitor',    'Monitor',         '/time-monitor',        'bottom', 3,  'module.admin'),
   ('timedesk',        'Time Desk',       'Settings2',       '/time-desk/settings',  'bottom', 4,  'module.admin'),
   ('settings',        'Settings',        'Settings',        '/settings',            'bottom', 5,  'module.admin'),

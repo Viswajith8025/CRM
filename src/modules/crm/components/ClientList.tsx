@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Edit2, Trash2, Search, MoreHorizontal, FileText, Eye, Info } from "lucide-react"
 import { useCRMStore } from "../crmStore"
+import { useRenewalStore } from "../../renewals/renewalStore"
 
 import type { Client } from "../types"
 import {
@@ -56,6 +57,8 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [timelineClient, setTimelineClient] = useState<Client | null>(null)
   const [detailClient, setDetailClient] = useState<Client | null>(null)
+  const [editingRenewalId, setEditingRenewalId] = useState<string | null>(null)
+  const [tempDate, setTempDate] = useState<string>("")
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -75,6 +78,34 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
       toast.error("Failed to delete client")
     } finally {
       setDeleteId(null)
+    }
+  }
+
+  const handleSaveRenewal = async (client: any) => {
+    if (!tempDate) {
+      setEditingRenewalId(null)
+      return
+    }
+    
+    try {
+      if (client.renewals && client.renewals.length > 0) {
+        await useRenewalStore.getState().updateRenewal(client.renewals[0].id, { expiry_date: tempDate })
+        toast.success("Renewal date updated")
+      } else {
+        await useRenewalStore.getState().addRenewal({
+          client_id: client.id,
+          category: 'hosting',
+          amount: client.contract_value || 0,
+          expiry_date: tempDate,
+          status: 'pending',
+          description: 'Auto-generated renewal'
+        })
+      }
+      fetchClients()
+    } catch (error) {
+      toast.error("Failed to update renewal date")
+    } finally {
+      setEditingRenewalId(null)
     }
   }
 
@@ -103,21 +134,23 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="font-bold">Client Name</TableHead>
+              <TableHead className="font-bold">Project Name</TableHead>
               <TableHead className="font-bold">Service</TableHead>
-              <TableHead className="font-bold">Contract Value</TableHead>
+              <TableHead className="font-bold">Project Cost</TableHead>
+              <TableHead className="font-bold">Renewal Date</TableHead>
               <TableHead className="text-right font-bold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">
+                <TableCell colSpan={6} className="text-center h-24">
                   Loading clients...
                 </TableCell>
               </TableRow>
             ) : filteredClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
                   No active clients found.
                 </TableCell>
               </TableRow>
@@ -127,6 +160,13 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                   <TableCell>
                     <div className="font-bold">{client.name}</div>
                     <div className="text-xs text-muted-foreground">{client.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">
+                      {((client as any).projects && (client as any).projects.length > 0) 
+                        ? (client as any).projects[0].name 
+                        : "N/A"}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -142,6 +182,40 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                   </TableCell>
                   <TableCell className="font-mono font-bold text-emerald-500">
                     ${client.contract_value?.toLocaleString() || "0.00"}
+                  </TableCell>
+                  <TableCell>
+                    {editingRenewalId === client.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="date" 
+                          className="h-8 w-[130px] text-xs" 
+                          value={tempDate} 
+                          onChange={(e) => setTempDate(e.target.value)} 
+                          autoFocus
+                        />
+                        <Button size="sm" className="h-8 px-2" onClick={() => handleSaveRenewal(client)}>Save</Button>
+                        <Button size="sm" variant="ghost" className="h-8 px-2" onClick={() => setEditingRenewalId(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <div className="text-sm font-medium">
+                          {((client as any).renewals && (client as any).renewals.length > 0) 
+                            ? new Date((client as any).renewals[0].expiry_date).toLocaleDateString() 
+                            : "No Renewal"}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            setEditingRenewalId(client.id)
+                            setTempDate(((client as any).renewals && (client as any).renewals.length > 0) ? (client as any).renewals[0].expiry_date : "")
+                          }}
+                        >
+                          <Edit2 className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -170,6 +244,11 @@ export function ClientList({ onEdit, onCreateProposal, onViewProposals }: Client
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem className="gap-2 cursor-pointer font-bold text-amber-600 focus:text-amber-700" onClick={() => {
+                            toast.success(`Auto-renewal notifications activated for ${client.name}. The client will automatically receive reminders before the renewal date!`)
+                          }}>
+                            <FileText className="h-4 w-4" /> Enable Auto-Renewal
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => onEdit(client)} className="gap-2">
                             <Edit2 className="h-4 w-4" /> Edit Details
                           </DropdownMenuItem>

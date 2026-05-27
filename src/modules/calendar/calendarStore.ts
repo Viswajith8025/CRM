@@ -28,12 +28,24 @@ export const useCalendarStore = create<CalendarState>((set) => ({
         }
       }
 
-      // Fetch in parallel but handle individual failures
+      // Fetch in parallel but handle individual failures. Only fetch ACTIVE items.
       const [projectsRes, tasksRes, milestonesRes, leavesRes] = await Promise.all([
-        safeFetch(supabase.from('projects').select('*')),
-        safeFetch(supabase.from('tasks').select('*')),
-        safeFetch(supabase.from('project_milestones').select('*')),
-        safeFetch(supabase.from('hr_leaves').select('*, profiles:user_id(full_name)'))
+        safeFetch(
+          supabase.from('projects')
+            .select('*')
+            .in('status', ['in_progress', 'planning'])
+            .is('deleted_at', null)
+            .or('is_archived.eq.false,is_archived.is.null')
+        ),
+        safeFetch(
+          supabase.from('tasks')
+            .select('*')
+            .in('status', ['todo', 'in_progress', 'review'])
+            .is('deleted_at', null)
+            .or('is_archived.eq.false,is_archived.is.null')
+        ),
+        safeFetch(supabase.from('project_milestones').select('*').eq('is_completed', false)),
+        safeFetch(supabase.from('hr_leaves').select('*, profiles:user_id(full_name)').eq('status', 'approved'))
       ])
 
       const allEvents: CalendarEvent[] = []
@@ -77,7 +89,7 @@ export const useCalendarStore = create<CalendarState>((set) => ({
             start: new Date(m.due_date),
             end: new Date(m.due_date),
             type: 'milestone',
-            status: m.status,
+            status: m.is_completed ? 'completed' : 'pending',
             color: 'bg-purple-500'
           })
         }

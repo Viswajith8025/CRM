@@ -33,6 +33,7 @@ interface LeadDetailsProps {
 export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
   const { interactions, fetchInteractions, addInteraction } = useCRMStore()
   const [newInteraction, setNewInteraction] = useState("")
+  const [selectedType, setSelectedType] = useState<Interaction['type']>('call')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const leadInteractions = interactions[lead.id] || []
   
@@ -49,7 +50,7 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
     fetchInteractions(lead.id)
   }, [lead.id, fetchInteractions])
 
-  const handleAddInteraction = async (type: Interaction['type']) => {
+  const handleQuickAction = async (type: Interaction['type']) => {
     // 1. Perform dynamic external action
     if (type === 'call') {
       if (!lead.phone) return toast.error("No phone number available for this lead.")
@@ -65,17 +66,14 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
       window.open(`https://meet.google.com/new`, '_blank')
     }
 
-    // 2. Log the interaction
-    const content = newInteraction.trim() || `Initiated a ${type}`
-
+    // 2. Log the interaction automatically
     setIsSubmitting(true)
     try {
       await addInteraction({
         lead_id: lead.id,
         type,
-        content
+        content: `Initiated a ${type}`
       })
-      setNewInteraction("")
       toast.success(`Started ${type} and logged successfully`)
     } catch (error) {
       toast.error("Failed to log interaction")
@@ -84,8 +82,30 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
     }
   }
 
+  const handleLogSubmit = async () => {
+    if (!newInteraction.trim()) {
+      return toast.error("Please enter some notes to log.")
+    }
+
+    setIsSubmitting(true)
+    try {
+      await addInteraction({
+        lead_id: lead.id,
+        type: selectedType,
+        content: newInteraction.trim()
+      })
+      setNewInteraction("")
+      toast.success(`Log saved successfully`)
+    } catch (error) {
+      toast.error("Failed to log interaction")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <ScrollArea className="h-[calc(100vh-100px)] pr-4 -mr-4">
+      <div className="flex flex-col space-y-6 pb-10">
       {/* Header Info */}
       <div className="flex justify-between items-start">
         <div>
@@ -106,77 +126,112 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-muted/30 p-3 rounded-lg border">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Source</p>
-          <p className="text-lg font-bold">{lead.source || "Unknown"}</p>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><Mail className="h-3 w-3" /> Email</p>
+          <p className="text-sm font-semibold truncate">{lead.email || "No email provided"}</p>
         </div>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><Phone className="h-3 w-3" /> Phone</p>
+          <p className="text-sm font-semibold">{lead.phone || "No phone provided"}</p>
+        </div>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><Calendar className="h-3 w-3" /> Date Added</p>
+          <p className="text-sm font-semibold">{lead.created_at ? format(new Date(lead.created_at), 'MMM dd, yyyy') : "Unknown"}</p>
+        </div>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><Clock className="h-3 w-3" /> Next Follow-Up</p>
+          <p className="text-sm font-semibold text-orange-600 dark:text-orange-400">{lead.next_follow_up ? format(new Date(lead.next_follow_up), 'MMM dd, yyyy') : "Not Scheduled"}</p>
+        </div>
+        <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20 flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-emerald-600 mb-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Last Contacted</p>
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+            {lead.last_contacted_at ? format(new Date(lead.last_contacted_at), 'MMM dd, yyyy h:mm a') : "Not Contacted Yet"}
+          </p>
+        </div>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><Activity className="h-3 w-3" /> Status</p>
+          <div className="flex items-center">
+            <Badge variant="outline" className="uppercase font-bold text-[10px]">{lead.status?.replace('_', ' ') || "NEW"}</Badge>
+          </div>
+        </div>
+        <div className="bg-muted/30 p-3 rounded-lg border flex flex-col justify-center">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1 flex items-center gap-1"><FileCheck className="h-3 w-3" /> Source</p>
+          <p className="text-sm font-semibold capitalize">{lead.source || "Unknown"}</p>
+        </div>
+        
         {lead.requirement && (
-          <div className="bg-sky-500/10 p-3 rounded-lg border border-sky-500/20">
+          <div className="col-span-2 bg-sky-500/10 p-3 rounded-lg border border-sky-500/20">
             <p className="text-[10px] uppercase font-bold text-sky-600 mb-1">Service Requirement</p>
             <p className="text-sm font-semibold text-sky-800 dark:text-sky-300">{lead.requirement}</p>
+          </div>
+        )}
+        {lead.remarks && (
+          <div className="col-span-2 bg-muted/30 p-3 rounded-lg border">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Remarks</p>
+            <p className="text-sm italic text-muted-foreground">{lead.remarks}</p>
           </div>
         )}
       </div>
 
 
 
-      <Tabs defaultValue="activity" className="w-full flex-1 flex flex-col">
+      <Tabs defaultValue="activity" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="activity">Interactions</TabsTrigger>
           <TabsTrigger value="proposals">Proposals</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="activity" className="flex-1 flex flex-col space-y-4 pt-4 min-h-0">
+        <TabsContent value="activity" className="space-y-4 pt-4">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-4 gap-2 mb-2">
+            <Button size="sm" variant="outline" className="gap-2 hover:bg-blue-500/10 hover:text-blue-500 border-blue-500/20" onClick={() => handleQuickAction('call')} disabled={isSubmitting}>
+              <Phone className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Call</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-2 hover:bg-emerald-500/10 hover:text-emerald-500 border-emerald-500/20" onClick={() => handleQuickAction('whatsapp')} disabled={isSubmitting}>
+              <MessageSquare className="h-3.5 w-3.5" /> <span className="hidden sm:inline">WhatsApp</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-2 hover:bg-purple-500/10 hover:text-purple-500 border-purple-500/20" onClick={() => handleQuickAction('email')} disabled={isSubmitting}>
+              <Mail className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Email</span>
+            </Button>
+            <Button size="sm" variant="outline" className="gap-2 hover:bg-indigo-500/10 hover:text-indigo-500 border-indigo-500/20" onClick={() => handleQuickAction('meeting')} disabled={isSubmitting}>
+              <Calendar className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Meet</span>
+            </Button>
+          </div>
+
           {/* Interaction Input */}
           <div className="space-y-3 bg-muted/20 p-4 rounded-xl border border-primary/10">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Manual Log</span>
+              <div className="flex gap-1 bg-background/50 p-1 rounded-md border border-border/50">
+                {(['call', 'whatsapp', 'email', 'meeting'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setSelectedType(t)}
+                    className={`p-1.5 rounded-md transition-colors ${selectedType === t ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'}`}
+                  >
+                    {t === 'call' && <Phone className="h-3 w-3" />}
+                    {t === 'whatsapp' && <MessageSquare className="h-3 w-3" />}
+                    {t === 'email' && <Mail className="h-3 w-3" />}
+                    {t === 'meeting' && <Calendar className="h-3 w-3" />}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Textarea 
-              placeholder="Log a call, email summary, or meeting notes..."
+              placeholder="Write your meeting notes, email summary, or call details here..."
               className="min-h-[100px] bg-background/50 border-primary/10 focus-visible:ring-primary"
               value={newInteraction}
               onChange={(e) => setNewInteraction(e.target.value)}
             />
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="flex-1 gap-2 hover:bg-blue-500/10 hover:text-blue-500 border-blue-500/20"
-                onClick={() => handleAddInteraction('call')}
-                disabled={isSubmitting}
-              >
-                <Phone className="h-3.5 w-3.5" /> Call
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="flex-1 gap-2 hover:bg-emerald-500/10 hover:text-emerald-500 border-emerald-500/20"
-                onClick={() => handleAddInteraction('whatsapp')}
-                disabled={isSubmitting}
-              >
-                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="flex-1 gap-2 hover:bg-purple-500/10 hover:text-purple-500 border-purple-500/20"
-                onClick={() => handleAddInteraction('email')}
-                disabled={isSubmitting}
-              >
-                <Mail className="h-3.5 w-3.5" /> Email
-              </Button>
-              <Button 
-                size="sm" 
-                variant="outline" 
-                className="flex-1 gap-2 hover:bg-indigo-500/10 hover:text-indigo-500 border-indigo-500/20"
-                onClick={() => handleAddInteraction('meeting')}
-                disabled={isSubmitting}
-              >
-                <Calendar className="h-3.5 w-3.5" /> Meeting
+            <div className="flex justify-end">
+              <Button size="sm" className="font-bold uppercase tracking-wider text-xs" onClick={handleLogSubmit} disabled={isSubmitting || !newInteraction.trim()}>
+                Save Log Entry
               </Button>
             </div>
           </div>
 
           {/* Timeline */}
-          <ScrollArea className="flex-1 pr-4">
+          <div className="mt-4">
             <div className="space-y-6 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
               {leadInteractions.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground italic">
@@ -207,10 +262,10 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
                 ))
               )}
             </div>
-          </ScrollArea>
+          </div>
         </TabsContent>
 
-        <TabsContent value="proposals" className="flex-1 flex flex-col space-y-4 pt-4 min-h-0">
+        <TabsContent value="proposals" className="space-y-4 pt-4">
           <div className="flex justify-between items-center mb-2">
             <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Lead Proposals</h3>
           </div>
@@ -243,6 +298,7 @@ export function LeadDetails({ lead, onClose, onEdit }: LeadDetailsProps) {
           {lead.status.replace('_', ' ').toUpperCase()}
         </Badge>
       </div>
-    </div>
+      </div>
+    </ScrollArea>
   )
 }

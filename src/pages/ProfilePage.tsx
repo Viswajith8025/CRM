@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthStore } from "@/store/useAuthStore"
-import { Mail, User, Shield, Calendar, Loader2, Building2 } from "lucide-react"
+import { Mail, User, Shield, Calendar, Loader2, Building2, Camera } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const { hasPermission } = usePermissions()
   const [fullName, setFullName] = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const [departmentName, setDepartmentName] = useState<string>("Not Assigned")
 
   useEffect(() => {
@@ -68,6 +69,34 @@ export default function ProfilePage() {
     }
   }
 
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${profile?.id}/${Date.now()}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      await updateProfile({ avatar_url: publicUrl })
+      toast.success("Profile photo updated successfully!")
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload photo")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const roleDisplay = profile?.dynamic_role || profile?.role || "User"
   const canAccessSettings = hasPermission('module.admin')
 
@@ -80,16 +109,31 @@ export default function ProfilePage() {
         {/* Profile Identity Card */}
         <Card className="lg:col-span-1 border-border/50 bg-card/50">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                <Avatar className="h-28 w-28 ring-4 ring-primary/10 shadow-2xl">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <div className="flex flex-col items-center justify-center mb-4 gap-2">
+              <div 
+                className={cn("relative group cursor-pointer rounded-full", isUploading ? "opacity-50" : "")} 
+                onClick={() => document.getElementById('avatarUpload')?.click()}
+              >
+                <Avatar className="h-28 w-28 ring-4 ring-primary/10 shadow-2xl transition-all group-hover:brightness-50">
+                  <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} className="object-cover" />
                   <AvatarFallback className="text-3xl font-black bg-primary text-primary-foreground">
-                    {user?.email?.charAt(0).toUpperCase()}
+                    {profile?.full_name?.charAt(0) || user?.email?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>
-                <div className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-emerald-500 border-4 border-card shadow-sm" title="Active" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full z-10">
+                  <Camera className="h-8 w-8 text-white drop-shadow-md" />
+                </div>
+                <div className="absolute bottom-0 right-0 h-6 w-6 rounded-full bg-emerald-500 border-4 border-card shadow-sm z-20" title="Active" />
+                <input 
+                  type="file" 
+                  id="avatarUpload" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleAvatarUpload}
+                  disabled={isUploading}
+                />
               </div>
+              {isUploading && <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Uploading...</span>}
             </div>
             <CardTitle className="text-2xl font-black tracking-tight">{fullName || "User"}</CardTitle>
             <CardDescription className="font-medium">{user?.email}</CardDescription>

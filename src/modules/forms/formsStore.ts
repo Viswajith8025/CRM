@@ -682,6 +682,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
 
       // 2. Loop through sections and fields to extract known fields
       let extractedClientName = ''
+      let extractedCompanyName = ''
       let extractedEmail = ''
       let extractedPhone = ''
       let extractedAddress = ''
@@ -689,6 +690,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       let extractedProjectName = ''
       let extractedProjectType = ''
       let extractedBudget = ''
+      let extractedRenewalDate = ''
       const extractedServices: string[] = []
 
       const sections = submission.template?.sections || []
@@ -700,23 +702,29 @@ export const useFormsStore = create<FormsState>((set, get) => ({
 
           if (!val) return
 
-          // Match client/company name
+          // Match contact person name
           if (
-            code === 'client_name' ||
-            code === 'company_name' ||
-            code === 'company' ||
-            code === 'clientname' ||
-            code === 'companyname' ||
+            code === 'contact_name' ||
+            code === 'contact_person' ||
             code === 'full_name' ||
             code === 'fullname' ||
-            label === 'client name' ||
-            label === 'company name' ||
+            label.includes('contact person') ||
             label === 'your name' ||
             label === 'full name' ||
-            (label.includes('company') && (label.includes('name') || label.includes('title'))) ||
-            (label.includes('client') && label.includes('name') && !label.includes('project'))
+            (label.includes('client') && label.includes('name') && !label.includes('project') && !label.includes('company'))
           ) {
             if (!extractedClientName) extractedClientName = val
+          }
+          // Match company name
+          else if (
+            code === 'company_name' ||
+            code === 'company' ||
+            code === 'companyname' ||
+            label.includes('company name') ||
+            label.includes('business name') ||
+            label.includes('organization')
+          ) {
+            if (!extractedCompanyName) extractedCompanyName = val
           }
           // Match client email
           else if (
@@ -805,6 +813,16 @@ export const useFormsStore = create<FormsState>((set, get) => ({
           ) {
             extractedServices.push(val)
           }
+          // Match renewal date
+          else if (
+            code === 'renewal_date' ||
+            code === 'expiry_date' ||
+            label.includes('renewal date') ||
+            label.includes('expiry date') ||
+            label.includes('contract end')
+          ) {
+            extractedRenewalDate = val
+          }
         })
       })
 
@@ -815,18 +833,23 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       if (submission.lead) {
         // Person's full name from lead record
         const personName = `${submission.lead.first_name} ${submission.lead.last_name || ''}`.trim()
-        if (personName) clientName = personName
-        companyName = submission.lead.company || ''
+        if (personName && !extractedClientName) clientName = personName
+        if (!companyName) companyName = submission.lead.company || ''
       }
 
-      // Fallback: use extracted name from form if lead name unavailable
+      // Fallback: use extracted name from form
       if (!clientName && extractedClientName) {
         clientName = extractedClientName
+      }
+      
+      // Override companyName if extracted
+      if (extractedCompanyName) {
+        companyName = extractedCompanyName
       }
 
       // Final fallback
       if (!clientName) {
-        clientName = submission.template?.name || 'New Client'
+        clientName = companyName || submission.template?.name || 'New Client'
       }
 
       const email = extractedEmail || submission.lead?.email || null
@@ -930,7 +953,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       // 3. Create the project automatically in the projects section
       // Project name: form field → company name → person name + template
       const projectName = extractedProjectName
-        || (companyName ? `${companyName} - ${submission.template?.name || 'Project'}` : '')
+        || (companyName ? companyName : '')
         || `${clientName} - ${submission.template?.name || 'Onboarding Project'}`
       const { data: newProject, error: projectCreateError } = await supabase
         .from('projects')
@@ -960,6 +983,30 @@ export const useFormsStore = create<FormsState>((set, get) => ({
           description: `Auto-initialized project for client ${clientName} on approval`,
           organization_id: orgId
         })
+      }
+
+      // 4. Create Renewal record if date provided
+      let parsedRenewalDate = extractedRenewalDate ? new Date(extractedRenewalDate) : null;
+      if (!parsedRenewalDate || isNaN(parsedRenewalDate.getTime())) {
+         // Default renewal to 1 year from now if not explicitly provided but a contract exists
+         parsedRenewalDate = new Date();
+         parsedRenewalDate.setFullYear(parsedRenewalDate.getFullYear() + 1);
+      }
+      
+      const { data: newRenewal, error: renewalError } = await supabase
+        .from('renewals')
+        .insert({
+          organization_id: orgId,
+          client_id: newClient.id,
+          project_id: newProject?.id || null,
+          category: service || 'General',
+          amount: projectCostVal || 0,
+          expiry_date: parsedRenewalDate.toISOString().split('T')[0],
+          status: 'upcoming'
+        })
+
+      if (renewalError) {
+        console.error("Auto renewal creation failed:", renewalError)
       }
 
       // If there's a lead, mark it as active_client

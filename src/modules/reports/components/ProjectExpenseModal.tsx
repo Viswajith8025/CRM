@@ -180,7 +180,7 @@ export function ProjectExpenseModal({ open, onOpenChange, defaultProjectId, onSu
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {projects.map(p => (
+                        {projects.filter(p => !(p as any).is_archived && p.status !== 'completed' && p.status !== 'cancelled').map(p => (
                           <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                         ))}
                       </SelectContent>

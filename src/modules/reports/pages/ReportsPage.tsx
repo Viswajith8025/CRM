@@ -34,7 +34,6 @@ const reportCategories = [
     reports: [
       { name: "Income Report", path: "/reports/invoices", icon: TrendingUp },
       { name: "Expense Report", path: "/reports/expense", icon: TrendingDown },
-      { name: "Invoice Audit", path: "/reports/invoice-audit", icon: FileText },
       { name: "Payment Records", path: "/reports/payments", icon: CreditCard },
     ]
   },
@@ -45,15 +44,8 @@ const reportCategories = [
       { name: "Client Insights", path: "/reports/clients", icon: Users },
       { name: "Project Lifecycle", path: "/reports/projects", icon: Briefcase },
       { name: "Task Performance", path: "/reports/tasks", icon: CheckSquare },
-      { name: "Asset Renewals Matrix", path: "/reports/renewals-audit", icon: RefreshCw },
+      { name: "Asset Renewals", path: "/reports/renewals-audit", icon: RefreshCw },
       { name: "Sales Pipeline (Leads)", path: "/reports/leads", icon: Target },
-    ]
-  },
-  {
-    title: "Security & Audit",
-    description: "System integrity and chronological audit logs.",
-    reports: [
-      { name: "System Activity Feed", path: "/reports/audit", icon: ShieldAlert },
     ]
   }
 ]
@@ -99,19 +91,6 @@ export default function ReportsPage() {
         ))}
       </div>
 
-      {/* Audit Footnote */}
-      <div className="mt-12 p-6 rounded-2xl bg-muted/20 border border-border/50 flex items-center gap-4">
-        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-          <ShieldAlert className="h-6 w-6 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs font-black uppercase tracking-widest text-primary">Compliance & Audit Integrity</p>
-          <p className="text-sm text-muted-foreground font-medium mt-1">
-            All reports are generated in real-time and comply with organization-level access control policies. 
-            Exported documents contain encrypted audit signatures for institutional record verification.
-          </p>
-        </div>
-      </div>
     </PageWrapper>
   )
 }
