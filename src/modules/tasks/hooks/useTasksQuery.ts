@@ -13,9 +13,10 @@ export const taskKeys = {
   detail: (id: string) => [...taskKeys.details(), id] as const,
 }
 
-export function useTasksQuery(projectId?: string, includeArchived = false, status?: string) {
+export function useTasksQuery(projectId?: string, includeArchived = false, status?: string, search?: string) {
   return useInfiniteQuery({
-    queryKey: taskKeys.list(`project:${projectId}-archived:${includeArchived}-status:${status}`),
+    // BUG-001 FIX: search is now included in the query key — triggers a new fetch on each keystroke
+    queryKey: taskKeys.list(`project:${projectId}-archived:${includeArchived}-status:${status}-search:${search}`),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const { profile } = useAuthStore.getState()
@@ -45,6 +46,11 @@ export function useTasksQuery(projectId?: string, includeArchived = false, statu
       
       if (status && status !== 'all') {
         baseQuery = baseQuery.eq('status', status)
+      }
+
+      // BUG-001 FIX: Backend search via PostgreSQL ilike — not client-side filter
+      if (search && search.trim().length > 0) {
+        baseQuery = baseQuery.ilike('title', `%${search.trim()}%`)
       }
 
       const { data, error } = await baseQuery

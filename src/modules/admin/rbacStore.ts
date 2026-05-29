@@ -323,6 +323,23 @@ export const useRBACStore = zustand.create<RBACState>((set, get) => ({
   // ----------------------------------------------------------
   deleteRole: async (roleId) => {
     try {
+      // BUG-006 FIX: Check if any users are still assigned to this role before deleting.
+      // Deleting an active role silently orphans all assigned users (zero permissions).
+      const { count, error: countErr } = await supabase
+        .from('user_roles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role_id', roleId)
+
+      if (countErr) throw countErr
+
+      if (count && count > 0) {
+        toast.error(
+          `Cannot delete role: ${count} user${count > 1 ? 's are' : ' is'} still assigned to it. Reassign them first.`,
+          { duration: 6000 }
+        )
+        return
+      }
+
       const { error } = await supabase.from('roles').delete().eq('id', roleId)
       if (error) throw error
       toast.success('Role deleted.')

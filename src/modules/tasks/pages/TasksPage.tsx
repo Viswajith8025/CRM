@@ -9,7 +9,7 @@ import { KanbanBoard } from "../components/KanbanBoard"
 import { TaskList } from "../components/TaskList"
 import { WorkloadBoard } from "../components/WorkloadBoard"
 import { useTasksStore } from "../tasksStore"
-import { useTasksQuery } from "../hooks/useTasksQuery"
+import { useTasksQuery, taskKeys } from "../hooks/useTasksQuery"
 import {
   Dialog,
   DialogContent,
@@ -31,12 +31,14 @@ import {
 } from "@/components/ui/select"
 
 import { useSearchParams } from "react-router-dom"
-
 import { useAuthStore } from "@/store/useAuthStore"
+import { useQueryClient } from "@tanstack/react-query"
 
 export default function TasksPage() {
   usePerfGuard('TasksPage')
   const { profile } = useAuthStore()
+  // BUG-004 FIX: Need queryClient to invalidate cache after import instead of full page reload
+  const queryClient = useQueryClient()
   const [searchParams] = useSearchParams()
   const [view, setView] = useState<'kanban' | 'list' | 'workload'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
@@ -46,7 +48,8 @@ export default function TasksPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(undefined, false, statusFilter)
+  // BUG-001 FIX: Pass debouncedSearchQuery as the 4th argument so backend search is triggered
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(undefined, false, statusFilter, debouncedSearchQuery)
   const tasks = data?.pages.flat() || []
 
   useEffect(() => {
@@ -62,6 +65,13 @@ export default function TasksPage() {
   const clearFilters = () => {
     setStatusFilter("all")
     setPriorityFilter("all")
+  }
+
+  // BUG-004 FIX: Invalidate query cache after import completes instead of blowing away the entire app state
+  const handleImportComplete = () => {
+    setIsImportOpen(false)
+    queryClient.invalidateQueries({ queryKey: taskKeys.all })
+    toast.success("Import complete. Tasks refreshed.")
   }
 
   return (
@@ -85,11 +95,12 @@ export default function TasksPage() {
         </div>
       }
     >
+      {/* BUG-004 FIX: onComplete now invalidates cache properly instead of window.location.reload() */}
       <ImportWizard 
         module="tasks" 
         open={isImportOpen} 
         onOpenChange={setIsImportOpen} 
-        onComplete={() => window.location.reload()} // TODO: Invalidate query
+        onComplete={handleImportComplete}
       />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4 w-full sm:w-auto">

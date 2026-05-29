@@ -307,9 +307,10 @@ export const useTasksStore = create<TasksState>((set, get) => ({
                 await useNotificationsStore.getState().addNotification({
                   user_id: userId,
                   title: "Assigned as Task Collaborator",
-                  message: `You were added to the task: "${data.title}"`,
+                  // BUG-002 FIX: was `data.title` and `data.project_id` which are undefined in updateTask
+                  message: `You were added to the task: "${currentTask?.title || 'a task'}"`,
                   type: 'assignment',
-                  link: `/projects/${data.project_id}?tab=tasks`
+                  link: `/projects/${currentTask?.project_id}?tab=tasks`
                 })
               }
             }
@@ -409,6 +410,8 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .from('tasks')
         .update({ is_archived: true })
         .eq('id', id)
+        // BUG-005 FIX: Added organization_id scope for defense-in-depth security
+        .eq('organization_id', orgId)
 
       if (error) throw error
       set({

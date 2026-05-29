@@ -76,7 +76,8 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
 
   function handleDragStart(event: DragStartEvent) {
     const { active } = event
-    const task = allTasks.find((t) => t.id === active.id)
+    // BUG-007 FIX: Use filteredTasks (TanStack Query, always fresh) not allTasks (Zustand, may be stale)
+    const task = filteredTasks.find((t) => t.id === active.id) || allTasks.find((t) => t.id === active.id)
     if (task) setActiveTask(task)
   }
 
@@ -150,11 +151,26 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
   }
 
   const groupedTasks = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    // BUG-003 FIX: When filterStatus is 'overdue', filter tasks at task level (not just column level).
+    // Overdue = explicitly status 'overdue' OR any incomplete task with a past due_date.
+    const tasksToGroup = filterStatus === 'overdue'
+      ? filteredTasks.filter(t => {
+          if (t.status === 'overdue') return true
+          if (t.status === 'done' || t.status === 'completed') return false
+          if (t.due_date) return new Date(t.due_date) < today
+          return false
+        })
+      : filteredTasks
+
     return COLUMNS.reduce((acc, col) => {
-      acc[col.id] = filteredTasks.filter(t => t.status === col.id)
+      acc[col.id] = tasksToGroup.filter(t => t.status === col.id)
       return acc
     }, {} as Record<TaskStatus, Task[]>)
-  }, [filteredTasks])
+  }, [filteredTasks, filterStatus])
+
 
   return (
     <DndContext
