@@ -462,41 +462,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         throw new Error("Cannot delete project with paid invoices. Please archive it instead.")
       }
 
-      // Hard delete — full cascade in correct FK dependency order
-      // Step 1: get all task IDs for this project so we can delete time_logs
-      const { data: taskRows } = await supabase
-        .from('tasks')
-        .select('id')
-        .eq('project_id', id)
-
-      const taskIds = (taskRows || []).map((t: any) => t.id)
-
-      // Step 2: delete time_logs by task_id (time_logs has no project_id column)
-      if (taskIds.length > 0) {
-        await supabase.from('time_logs').delete().in('task_id', taskIds).then(r => {
-          if (r.error) console.warn('time_logs cleanup (non-fatal):', r.error.message)
-        })
-      }
-
-      // Step 3: delete tasks
-      await supabase.from('tasks').delete().eq('project_id', id).then(r => {
-        if (r.error) console.warn('tasks cleanup (non-fatal):', r.error.message)
-      })
-      // Step 4: delete project_modules
-      await supabase.from('project_modules').delete().eq('project_id', id).then(r => {
-        if (r.error) console.warn('project_modules cleanup (non-fatal):', r.error.message)
-      })
-      // Step 5: delete project_members
-      await supabase.from('project_members').delete().eq('project_id', id).then(r => {
-        if (r.error) console.warn('project_members cleanup (non-fatal):', r.error.message)
-      })
-      // Step 6: delete milestones
-      await supabase.from('project_milestones').delete().eq('project_id', id).then(r => {
-        if (r.error) console.warn('project_milestones cleanup (non-fatal):', r.error.message)
-      })
-
       // Soft delete — DB trigger explicitly prohibits hard DELETE on projects
       // to preserve financial and audit history. Just stamp deleted_at + deleted_by.
+      // We do NOT hard delete child records (tasks, members, milestones) so they can be restored later.
       console.log('[Delete Project] Executing soft delete UPDATE for project:', id)
       const { error } = await supabase
         .from('projects')

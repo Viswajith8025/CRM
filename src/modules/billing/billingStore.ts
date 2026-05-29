@@ -231,23 +231,9 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         throw error
       }
 
+      // Prevent manual manual transaction splitting
       if (status === 'paid') {
-        const { data: existingPayments } = await supabase
-          .from('payment_receipts')
-          .select('id')
-          .eq('invoice_id', id)
-          .limit(1)
-
-        if (!existingPayments || existingPayments.length === 0) {
-          await supabase.rpc('process_invoice_payment', {
-            p_invoice_id: id,
-            p_org_id: orgId,
-            p_user_id: profile?.id,
-            p_amount: data.grand_total,
-            p_method: 'manual'
-          })
-          get().fetchPayments({ force: true })
-        }
+        throw new Error("Security Policy: Cannot manually change status to paid. Please use the 'Record Payment' function.")
       }
 
       logActivity({
@@ -401,7 +387,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (data && !data.success) throw new Error(data.error)
 
       get().fetchPayments({ force: true })
-      get().fetchInvoices(true)
+      get().fetchInvoices({ force: true })
     } catch (err) {
       throw toFriendlyError(err, "Failed to record payment.")
     }
@@ -426,7 +412,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (error) throw error
 
       get().fetchPayments({ force: true })
-      get().fetchInvoices(true)
+      get().fetchInvoices({ force: true })
     } catch (err) {
       throw toFriendlyError(err, "Failed to verify payment.")
     }

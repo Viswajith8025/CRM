@@ -131,19 +131,19 @@ EXECUTE FUNCTION public.enforce_task_dependencies();
 -- ==============================================================================
 -- PERFORMANCE FIX: Partial indexes on deleted_at for high-frequency queries
 -- ==============================================================================
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tasks_active_org
+CREATE INDEX IF NOT EXISTS idx_tasks_active_org
   ON public.tasks(organization_id, created_at DESC)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_tasks_search_title
+CREATE INDEX IF NOT EXISTS idx_tasks_search_title
   ON public.tasks USING gin(to_tsvector('english', title))
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_projects_active_org
+CREATE INDEX IF NOT EXISTS idx_projects_active_org
   ON public.projects(organization_id)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_active_org
+CREATE INDEX IF NOT EXISTS idx_leads_active_org
   ON public.leads(organization_id)
   WHERE deleted_at IS NULL;
 
