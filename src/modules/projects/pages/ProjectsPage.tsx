@@ -5,6 +5,7 @@ import { Plus, LayoutGrid, List, Search, Columns, FileSpreadsheet, Archive } fro
 import { ImportWizard } from "@/components/shared/ImportWizard"
 import ProjectCard from "../components/ProjectCard"
 import { KanbanBoard } from "../components/KanbanBoard"
+import { ProjectListTable } from "../components/ProjectListTable"
 import { useProjectsStore } from "../projectsStore"
 import type { Project } from "../types"
 import { Input } from "@/components/ui/input"
@@ -168,12 +169,10 @@ export default function ProjectsPage() {
             <div className="h-[calc(100vh-280px)] min-h-[600px]">
               <KanbanBoard filterStatus={statusFilter} searchQuery={search} />
             </div>
+          ) : view === 'list' ? (
+            <ProjectListTable projects={filteredProjects} />
           ) : (
-            <div className={cn(
-              view === 'grid' 
-                ? "grid gap-6 sm:grid-cols-2 lg:grid-cols-3" 
-                : "flex flex-col gap-4"
-            )}>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredProjects.map((project) => (
                 <ProjectCard key={project.id} project={project} />
               ))}
