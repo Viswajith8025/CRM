@@ -328,13 +328,13 @@ export function TeamList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="min-w-[180px]">
-                          {departments.length === 0 ? (
+                          {departments.filter(d => d.status === 'active').length === 0 ? (
                             <DropdownMenuItem disabled className="text-xs text-muted-foreground">
-                              No departments configured
+                              No active departments — create one in Settings
                             </DropdownMenuItem>
                           ) : (
                             <>
-                              {departments.map(dept => (
+                              {departments.filter(d => d.status === 'active').map(dept => (
                                 <DropdownMenuItem
                                   key={dept.id}
                                   onClick={() => handleDepartmentChange(member.id, dept.id)}

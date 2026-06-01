@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useHRStore } from "../hrStore"
+import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 import type { HREmployee } from "../types"
 
 const employeeSchema = z.object({
@@ -38,8 +39,16 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
-  const { updateEmployee, employees } = useHRStore()
+  const { updateEmployee } = useHRStore()
+  const { departments, fetchDepartments } = useDepartmentStore()
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    fetchDepartments()
+  }, [])
+
+  // Only show active departments in the dropdown
+  const activeDepartments = departments.filter(d => d.status === 'active')
 
   const form = useForm<z.infer<typeof employeeSchema>>({
     resolver: zodResolver(employeeSchema),
@@ -57,7 +66,6 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
     setLoading(true)
     try {
       if (employee) {
-        // Use user_id as the primary key for updates/upserts
         await updateEmployee(employee.user_id, values)
         toast.success("Employee updated successfully")
       }
@@ -74,19 +82,53 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
         <div className="grid grid-cols-2 gap-4">
+          {/* Department — dynamic dropdown from the database */}
           <FormField
             control={form.control}
             name="department"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Department</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Engineering" {...field} />
-                </FormControl>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        activeDepartments.length > 0
+                          ? "Select department"
+                          : "No departments found"
+                      } />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {activeDepartments.length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No active departments — create one in Settings
+                      </SelectItem>
+                    ) : (
+                      activeDepartments.map(dept => (
+                        <SelectItem key={dept.id} value={dept.name}>
+                          {dept.name}
+                        </SelectItem>
+                      ))
+                    )}
+                    {/* If editing and the current department is inactive, still show it */}
+                    {employee?.department &&
+                      !activeDepartments.some(d => d.name === employee.department) && (
+                        <SelectItem value={employee.department}>
+                          {employee.department}{" "}
+                          <span className="text-xs text-muted-foreground">(inactive)</span>
+                        </SelectItem>
+                      )}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="designation"

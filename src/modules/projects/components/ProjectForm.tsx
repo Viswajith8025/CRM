@@ -70,6 +70,20 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
     return members.filter(m => m.status === 'active')
   }, [members])
 
+  // Only show active departments in the dropdown
+  const activeDepartments = useMemo(() => {
+    const active = departments.filter(d => d.status === 'active')
+    // If editing a project with an inactive dept, include it so existing data isn't lost
+    if (project?.department_id) {
+      const currentDept = departments.find(d => d.id === project.department_id)
+      if (currentDept && currentDept.status !== 'active') {
+        return [...active, currentDept]
+      }
+    }
+    return active
+  }, [departments, project])
+
+
   const eligibleLeads = useMemo(() => {
     return activeMembers.filter(m => {
       const roleLower = m.role?.toLowerCase() || ''
@@ -248,9 +262,12 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">None / All Departments</SelectItem>
-                          {departments.map(dept => (
+                          {activeDepartments.map(dept => (
                             <SelectItem key={dept.id} value={dept.id}>
                               {dept.name}
+                              {dept.status === 'inactive' && (
+                                <span className="ml-1 text-[10px] text-muted-foreground">(inactive)</span>
+                              )}
                             </SelectItem>
                           ))}
                         </SelectContent>

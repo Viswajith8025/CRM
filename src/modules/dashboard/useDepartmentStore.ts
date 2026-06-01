@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from 'sonner'
+import { logActivity } from '@/lib/auditLogger'
 
 export interface Department {
   id: string
@@ -11,7 +12,11 @@ export interface Department {
   description?: string
   status: 'active' | 'inactive'
   leader_id?: string
+  created_by?: string
+  updated_by?: string
   created_at: string
+  updated_at?: string
+  deleted_at?: string | null
 }
 
 export interface DepartmentSetting {
@@ -51,7 +56,10 @@ interface DepartmentState {
   fetchDepartments: () => Promise<void>
   createDepartment: (dept: Partial<Department>) => Promise<void>
   updateDepartment: (id: string, dept: Partial<Department>) => Promise<void>
-  deleteDepartment: (id: string) => Promise<void>
+  /** Soft-disables a department (sets status = 'inactive'). Does NOT hard delete. */
+  disableDepartment: (id: string) => Promise<void>
+  /** Reactivates a previously disabled department. */
+  activateDepartment: (id: string) => Promise<void>
 
   // Settings & Configuration
   fetchDepartmentSettings: (deptId: string) => Promise<void>
@@ -70,35 +78,38 @@ interface DepartmentState {
   reassignMember: (profileId: string, newDeptId: string, isPrimary?: boolean) => Promise<void>
 }
 
-// Fallback departments in case database migration hasn't run yet
-const LOCAL_FALLBACK_DEPTS: Department[] = [
-  { id: "d1", organization_id: "00000000-0000-0000-0000-000000000000", name: "Web Developing", slug: "web_developing", description: "Core engineering, frontend, and backend architecture.", status: "active", created_at: new Date().toISOString() },
-  { id: "d2", organization_id: "00000000-0000-0000-0000-000000000000", name: "Video Editing", slug: "video_editing", description: "Post-production, rendering, and visual effects.", status: "active", created_at: new Date().toISOString() },
-  { id: "d3", organization_id: "00000000-0000-0000-0000-000000000000", name: "Videography", slug: "videography", description: "Camera operations, live shooting, and lighting.", status: "active", created_at: new Date().toISOString() },
-  { id: "d4", organization_id: "00000000-0000-0000-0000-000000000000", name: "Graphic Designing", slug: "graphic_designing", description: "UI/UX prototypes, branding, and graphic elements.", status: "active", created_at: new Date().toISOString() },
-  { id: "d5", organization_id: "00000000-0000-0000-0000-000000000000", name: "Digital Marketing", slug: "digital_marketing", description: "Campaigns, SEO, and paid ad management.", status: "active", created_at: new Date().toISOString() },
-  { id: "d6", organization_id: "00000000-0000-0000-0000-000000000000", name: "Content Writer", slug: "content_writer", description: "Editorial pipelines, publishing queues, and reviews.", status: "active", created_at: new Date().toISOString() },
-  { id: "d7", organization_id: "00000000-0000-0000-0000-000000000000", name: "CRM", slug: "crm", description: "Client relations, onboarding, and support tickets.", status: "active", created_at: new Date().toISOString() },
-  { id: "d8", organization_id: "00000000-0000-0000-0000-000000000000", name: "BDE", slug: "bde", description: "Business development, sales pipelines, and outreach.", status: "active", created_at: new Date().toISOString() },
-]
+/** Converts a department name to a URL-safe slug */
+function toSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+}
 
 export const useDepartmentStore = create<DepartmentState>((set, get) => ({
-  departments: LOCAL_FALLBACK_DEPTS,
+  departments: [],
   activeSettings: null,
   activeKPIs: [],
   activeDashboard: null,
   isLoading: false,
   error: null,
 
+  // ---------------------------------------------------------------------------
+  // fetchDepartments — fetches non-deleted departments for this org
+  // ---------------------------------------------------------------------------
   fetchDepartments: async () => {
     set({ isLoading: true, error: null })
     try {
       const { profile } = useAuthStore.getState()
       const orgId = profile?.organization_id
 
-      let query = supabase.from('departments').select('*').order('name', { ascending: true })
-      
-      // Filter by org if one exists, otherwise fetch all (super_admin case)
+      let query = supabase
+        .from('departments')
+        .select('*')
+        .is('deleted_at', null)        // Exclude soft-deleted
+        .order('name', { ascending: true })
+
       if (orgId) {
         query = query.eq('organization_id', orgId)
       }
@@ -106,103 +117,256 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
       const { data, error } = await query
 
       if (error) {
-        // Fallback silently if table doesn't exist
-        if (error.code === 'PGRST116' || error.message.includes('relation "departments" does not exist')) {
-          console.warn("Departments schema not present. Using mock bootstrap items.")
-          set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
+        // Table doesn't exist yet — silently fail until migration is run
+        if (error.code === 'PGRST116' || error.message?.includes('relation "departments" does not exist')) {
+          console.warn('[DepartmentStore] departments table not found. Run DEPARTMENT_MANAGEMENT_HARDENING.sql.')
+          set({ departments: [], isLoading: false })
           return
         }
         throw error
       }
 
-      // If DB returns empty (migration not run), use the fallback
-      if (!data || data.length === 0) {
-        console.warn("No departments found in DB. Please run REPLACE_DEPARTMENTS.sql. Using fallback list.")
-        set({ departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
-        return
-      }
-
-      set({ departments: data, isLoading: false })
+      set({ departments: data || [], isLoading: false })
     } catch (err: any) {
-      console.error("Error fetching departments:", err)
-      set({ error: err.message, departments: LOCAL_FALLBACK_DEPTS, isLoading: false })
+      console.error('[DepartmentStore] fetchDepartments error:', err)
+      set({ error: err.message, departments: [], isLoading: false })
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // createDepartment
+  // ---------------------------------------------------------------------------
   createDepartment: async (dept) => {
     set({ isLoading: true })
     try {
       const { profile } = useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
+      if (!orgId) throw new Error('No organization context found.')
+      if (!dept.name?.trim()) throw new Error('Department name is required.')
+
+      const slug = toSlug(dept.name)
+
+      // Client-side duplicate check (DB unique constraint is the safety net)
+      const exists = get().departments.some(
+        d => d.name.toLowerCase() === dept.name!.toLowerCase() && d.status !== 'inactive'
+      )
+      if (exists) throw new Error(`A department named "${dept.name}" already exists.`)
 
       const { data, error } = await supabase
         .from('departments')
         .insert({
-          ...dept,
+          name: dept.name.trim(),
+          slug,
+          description: dept.description?.trim() || null,
+          status: dept.status || 'active',
           organization_id: orgId,
-          slug: dept.name?.toLowerCase().replace(/\s+/g, '-') || 'custom-dept'
+          created_by: profile?.id,
+          updated_by: profile?.id,
         })
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        // Translate the unique constraint violation into a friendly message
+        if (error.code === '23505') {
+          throw new Error(`A department with slug "${slug}" already exists in this organization.`)
+        }
+        throw error
+      }
 
-      set({ 
-        departments: [...get().departments, data],
-        isLoading: false 
+      set({ departments: [...get().departments, data], isLoading: false })
+
+      logActivity({
+        action: 'CREATE',
+        targetType: 'organization',
+        targetId: data.id,
+        targetName: data.name,
+        description: `Department "${data.name}" created`,
+        organization_id: orgId,
       })
-      toast.success(`Department "${data.name}" registered successfully!`)
+
+      toast.success(`Department "${data.name}" created successfully!`)
     } catch (err: any) {
       set({ isLoading: false })
-      toast.error(err.message || "Failed to register department.")
+      toast.error(err.message || 'Failed to create department.')
+      throw err
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // updateDepartment
+  // ---------------------------------------------------------------------------
   updateDepartment: async (id, dept) => {
     set({ isLoading: true })
     try {
+      const { profile } = useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error('No organization context found.')
+
+      // Duplicate name check — exclude the current record being edited
+      if (dept.name) {
+        const exists = get().departments.some(
+          d => d.id !== id && d.name.toLowerCase() === dept.name!.toLowerCase()
+        )
+        if (exists) throw new Error(`A department named "${dept.name}" already exists.`)
+      }
+
+      const payload: Partial<Department> = {
+        ...dept,
+        updated_by: profile?.id,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Recompute slug if name changed
+      if (dept.name) {
+        payload.slug = toSlug(dept.name)
+        payload.name = dept.name.trim()
+      }
+
       const { data, error } = await supabase
         .from('departments')
-        .update(dept)
+        .update(payload)
         .eq('id', id)
+        .eq('organization_id', orgId)
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('A department with that name already exists in this organization.')
+        }
+        throw error
+      }
 
       set({
         departments: get().departments.map(d => d.id === id ? data : d),
-        isLoading: false
+        isLoading: false,
       })
-      toast.success("Department updated successfully!")
+
+      logActivity({
+        action: 'UPDATE',
+        targetType: 'organization',
+        targetId: id,
+        targetName: data.name,
+        description: `Department "${data.name}" updated`,
+        organization_id: orgId,
+      })
+
+      toast.success('Department updated successfully!')
     } catch (err: any) {
       set({ isLoading: false })
-      toast.error(err.message || "Failed to update department.")
+      toast.error(err.message || 'Failed to update department.')
+      throw err
     }
   },
 
-  deleteDepartment: async (id) => {
+  // ---------------------------------------------------------------------------
+  // disableDepartment — SAFE soft-disable (status = 'inactive'), NOT a hard delete
+  // Linked employees, projects, and tasks are NOT affected.
+  // ---------------------------------------------------------------------------
+  disableDepartment: async (id) => {
     set({ isLoading: true })
     try {
+      const { profile } = useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error('No organization context found.')
+
+      const dept = get().departments.find(d => d.id === id)
+      if (!dept) throw new Error('Department not found.')
+
       const { error } = await supabase
         .from('departments')
-        .delete()
+        .update({
+          status: 'inactive',
+          updated_by: profile?.id,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', id)
+        .eq('organization_id', orgId)
 
       if (error) throw error
 
       set({
-        departments: get().departments.filter(d => d.id !== id),
-        isLoading: false
+        departments: get().departments.map(d =>
+          d.id === id ? { ...d, status: 'inactive' } : d
+        ),
+        isLoading: false,
       })
-      toast.success("Department deleted successfully.")
+
+      logActivity({
+        action: 'STATUS_CHANGE',
+        targetType: 'organization',
+        targetId: id,
+        targetName: dept.name,
+        description: `Department "${dept.name}" disabled`,
+        previousValue: 'active',
+        newValue: 'inactive',
+        severity: 'warning',
+        organization_id: orgId,
+      })
+
+      toast.success(`Department "${dept.name}" has been disabled.`)
     } catch (err: any) {
       set({ isLoading: false })
-      toast.error(err.message || "Failed to delete department.")
+      toast.error(err.message || 'Failed to disable department.')
+      throw err
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // activateDepartment — re-enable a disabled department
+  // ---------------------------------------------------------------------------
+  activateDepartment: async (id) => {
+    set({ isLoading: true })
+    try {
+      const { profile } = useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error('No organization context found.')
+
+      const dept = get().departments.find(d => d.id === id)
+      if (!dept) throw new Error('Department not found.')
+
+      const { error } = await supabase
+        .from('departments')
+        .update({
+          status: 'active',
+          updated_by: profile?.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('organization_id', orgId)
+
+      if (error) throw error
+
+      set({
+        departments: get().departments.map(d =>
+          d.id === id ? { ...d, status: 'active' } : d
+        ),
+        isLoading: false,
+      })
+
+      logActivity({
+        action: 'STATUS_CHANGE',
+        targetType: 'organization',
+        targetId: id,
+        targetName: dept.name,
+        description: `Department "${dept.name}" reactivated`,
+        previousValue: 'inactive',
+        newValue: 'active',
+        organization_id: orgId,
+      })
+
+      toast.success(`Department "${dept.name}" has been reactivated.`)
+    } catch (err: any) {
+      set({ isLoading: false })
+      toast.error(err.message || 'Failed to reactivate department.')
+      throw err
+    }
+  },
+
+  // ---------------------------------------------------------------------------
+  // Settings & Configuration
+  // ---------------------------------------------------------------------------
   fetchDepartmentSettings: async (deptId) => {
     try {
       const { data, error } = await supabase
@@ -214,7 +378,7 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
       if (error && error.code !== 'PGRST116') throw error
       set({ activeSettings: data || null })
     } catch (err: any) {
-      console.warn("Failed fetching settings:", err.message)
+      console.warn('[DepartmentStore] fetchDepartmentSettings:', err.message)
     }
   },
 
@@ -229,12 +393,15 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
 
       if (error) throw error
       set({ activeSettings: data })
-      toast.success("Operational capacity settings saved.")
+      toast.success('Operational capacity settings saved.')
     } catch (err: any) {
-      toast.error("Failed to update settings: " + err.message)
+      toast.error('Failed to update settings: ' + err.message)
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // KPI Management
+  // ---------------------------------------------------------------------------
   fetchDepartmentKPIs: async (deptId) => {
     try {
       const { data, error } = await supabase
@@ -245,7 +412,7 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
       if (error) throw error
       set({ activeKPIs: data || [] })
     } catch (err: any) {
-      console.warn("Failed fetching KPIs:", err.message)
+      console.warn('[DepartmentStore] fetchDepartmentKPIs:', err.message)
     }
   },
 
@@ -258,10 +425,12 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
 
       if (error) throw error
       set({
-        activeKPIs: get().activeKPIs.map(k => k.id === kpiId ? { ...k, current_value: value } : k)
+        activeKPIs: get().activeKPIs.map(k =>
+          k.id === kpiId ? { ...k, current_value: value } : k
+        ),
       })
     } catch (err: any) {
-      console.error("Failed to sync KPI:", err.message)
+      console.error('[DepartmentStore] syncKPIValue:', err.message)
     }
   },
 
@@ -269,21 +438,21 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('department_kpis')
-        .insert({
-          ...kpi,
-          department_id: deptId
-        })
+        .insert({ ...kpi, department_id: deptId })
         .select()
         .single()
 
       if (error) throw error
       set({ activeKPIs: [...get().activeKPIs, data] })
-      toast.success("KPI registered in operational catalog.")
+      toast.success('KPI registered in operational catalog.')
     } catch (err: any) {
-      toast.error("Failed to register KPI: " + err.message)
+      toast.error('Failed to register KPI: ' + err.message)
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // Dashboard Configuration
+  // ---------------------------------------------------------------------------
   fetchDepartmentDashboard: async (deptId) => {
     try {
       const { data, error } = await supabase
@@ -295,7 +464,7 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
       if (error && error.code !== 'PGRST116') throw error
       set({ activeDashboard: data || null })
     } catch (err: any) {
-      console.warn("Failed fetching dashboard layout config:", err.message)
+      console.warn('[DepartmentStore] fetchDepartmentDashboard:', err.message)
     }
   },
 
@@ -303,73 +472,66 @@ export const useDepartmentStore = create<DepartmentState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('department_dashboards')
-        .update({
-          layout_config: layout,
-          enabled_widgets: widgets
-        })
+        .update({ layout_config: layout, enabled_widgets: widgets })
         .eq('department_id', deptId)
         .select()
         .single()
 
       if (error) throw error
       set({ activeDashboard: data })
-      toast.success("Dashboard layout workspace bound.")
+      toast.success('Dashboard layout workspace bound.')
     } catch (err: any) {
-      toast.error("Failed to update layout: " + err.message)
+      toast.error('Failed to update layout: ' + err.message)
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // Team Member Reassignment
+  // ---------------------------------------------------------------------------
   reassignMember: async (profileId, newDeptId, isPrimary = true) => {
     try {
       const { departments } = get()
-      
-      // Check if the dept ID is a real UUID or a fake fallback ID (like "d1")
+
+      // Check if the dept ID is a real UUID
       const isRealUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(newDeptId)
-      
+
       if (!isRealUUID) {
-        // Fallback mode: just update the profile's department text field directly
+        // Legacy text-based fallback
         const dept = departments.find(d => d.id === newDeptId)
         if (!dept) throw new Error('Department not found')
-        
+
         const { error: profileErr } = await supabase
           .from('profiles')
           .update({ department: dept.name })
           .eq('id', profileId)
-        
+
         if (profileErr) throw profileErr
         toast.success(`Department updated to "${dept.name}"`)
         return
       }
 
-      // Normal path: department has a real UUID, use department_members table
-      // 1. Delete existing primary mappings
+      // Normal path: use department_members table
       if (isPrimary) {
-        const { error: delErr } = await supabase
+        await supabase
           .from('department_members')
           .delete()
           .eq('profile_id', profileId)
           .eq('is_primary', true)
-
-        if (delErr) throw delErr
       }
 
-      // 2. Upsert new member relation
       const { error: upsertErr } = await supabase
         .from('department_members')
-        .upsert({
-          department_id: newDeptId,
-          profile_id: profileId,
-          is_primary: isPrimary
-        }, {
-          onConflict: 'department_id,profile_id'
-        })
+        .upsert(
+          { department_id: newDeptId, profile_id: profileId, is_primary: isPrimary },
+          { onConflict: 'department_id,profile_id' }
+        )
 
       if (upsertErr) throw upsertErr
 
-      toast.success("Team member department reassignment completed.")
+      toast.success('Team member department reassignment completed.')
     } catch (err: any) {
-      console.error("Failed to reassign team member:", err)
-      toast.error("Failed to reassign team member: " + err.message)
+      console.error('[DepartmentStore] reassignMember:', err)
+      toast.error('Failed to reassign team member: ' + err.message)
     }
-  }
+  },
 }))

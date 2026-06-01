@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useTeamStore } from "../teamStore"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "../settingsStore"
+import { DepartmentsTab } from "../components/DepartmentsTab"
 import { 
   Loader2, 
   Building2, 
@@ -214,6 +215,7 @@ export default function SettingsPage() {
         <TabsList className="bg-muted/50 p-1">
           <TabsTrigger value="company" className="gap-2"><Building2 className="h-4 w-4" /> Company</TabsTrigger>
           <TabsTrigger value="team" className="gap-2"><UserPlus className="h-4 w-4" /> Team</TabsTrigger>
+          <TabsTrigger value="departments" className="gap-2"><Building className="h-4 w-4" /> Departments</TabsTrigger>
           <TabsTrigger value="approvals" className="relative gap-2">
             <Shield className="h-4 w-4" /> Approvals
             {members.filter(m => m.status === 'pending').length > 0 && (
@@ -380,6 +382,11 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Departments Management */}
+        <TabsContent value="departments" className="space-y-6">
+          <DepartmentsTab />
         </TabsContent>
 
         {/* User Approvals */}
