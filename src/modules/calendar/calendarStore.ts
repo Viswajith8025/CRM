@@ -36,7 +36,6 @@ export const useCalendarStore = create<CalendarState>((set) => ({
             // Use .not() to exclude terminal statuses — avoids double .or() conflict
             .not('status', 'eq', 'completed')
             .not('status', 'eq', 'cancelled')
-            .not('status', 'eq', 'archived')
             .is('deleted_at', null)
             .or('is_archived.eq.false,is_archived.is.null')
         ),
@@ -45,7 +44,6 @@ export const useCalendarStore = create<CalendarState>((set) => ({
             .select('*')
             // Exclude done/overdue — keeps active tasks without double-or conflict
             .not('status', 'eq', 'done')
-            .not('status', 'eq', 'overdue')
             .is('deleted_at', null)
             .or('is_archived.eq.false,is_archived.is.null')
         ),

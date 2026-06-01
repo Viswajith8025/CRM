@@ -296,20 +296,16 @@ export const useRBACStore = zustand.create<RBACState>((set, get) => ({
         if (roleErr) throw roleErr
       }
 
-      // 1. Clear existing permissions for this role
-      await supabase.from('role_permissions').delete().eq('role_id', roleId)
+      // Use the backend RPC to execute the delete/insert in a single ACID transaction
+      // This prevents the "zero-window" vulnerability where a network failure
+      // between the delete and insert leaves the role with no permissions.
+      const uniqueIds = [...new Set(permissionIds)]
+      const { error: rpcErr } = await supabase.rpc('update_role_permissions', {
+        p_role_id: roleId,
+        p_permission_ids: uniqueIds
+      })
 
-      // 2. Batch insert new permissions (deduplicated)
-      if (permissionIds.length > 0) {
-        const uniqueIds = [...new Set(permissionIds)]
-        const { error: insErr } = await supabase
-          .from('role_permissions')
-          .insert(
-            uniqueIds.map(pid => ({ role_id: roleId, permission_id: pid }))
-          )
-        
-        if (insErr) throw insErr
-      }
+      if (rpcErr) throw rpcErr
 
       toast.success('Permissions saved.')
       get().fetchRoles()

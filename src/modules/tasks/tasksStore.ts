@@ -73,7 +73,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       const { useRBACStore } = await import('@/modules/admin/rbacStore')
       const canManageTasks = useRBACStore.getState().hasPermission('projects.manage')
       
-      if (!canManageTasks) {
+      if (!canManageTasks && !projectId) {
         baseQuery = baseQuery.eq('assigned_to', profile.id)
       }
       

@@ -22,24 +22,35 @@ export function useOptimisticTaskUpdate() {
     // 1. SNAPSHOT & APPLY OPTIMISM
     onMutate: async (updatedTask) => {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
-      await queryClient.cancelQueries({ queryKey: taskKeys.all })
+      await queryClient.cancelQueries({ queryKey: taskKeys.lists() })
 
-      // Snapshot the previous state (for fallback)
-      const previousTasks = queryClient.getQueryData(taskKeys.all)
+      // Snapshot the previous states for all task lists
+      const previousQueries = queryClient.getQueriesData({ queryKey: taskKeys.lists() })
 
-      // We do not apply manual optimistic update here for infinite queries 
-      // because it's complex, but we *could* do it. 
-      // For now, the snapshot acts as our failsafe, and we can force an invalidate
-      // if it fails.
+      // Apply optimistic update directly to all Infinite Query cache structures
+      queryClient.setQueriesData({ queryKey: taskKeys.lists() }, (old: any) => {
+        if (!old || !old.pages) return old
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((task: any) => 
+              task.id === updatedTask.id ? { ...task, ...updatedTask } : task
+            )
+          }))
+        }
+      })
 
-      return { previousTasks }
+      return { previousQueries }
     },
 
     // 2. ROLLBACK ON FAILURE
     onError: (err: any, updatedTask, context) => {
-      // Revert the cache back to the exact state it was before the mutation
-      if (context?.previousTasks) {
-        queryClient.setQueryData(taskKeys.all, context.previousTasks)
+      // Revert the caches back to the exact states they were before the mutation
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, oldData]) => {
+          queryClient.setQueryData(queryKey, oldData)
+        })
       }
       
       // Notify the user of the exact reason (e.g. RLS failure)

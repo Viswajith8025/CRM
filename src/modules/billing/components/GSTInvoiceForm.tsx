@@ -143,7 +143,11 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
     [watchedItems, gstProfile, watchedSupply]
   )
 
-  const realClients = useMemo(() => clients.filter(c => !(c as any).isVirtual), [clients])
+  const realClients = useMemo(() => clients.filter(c => {
+    if ((c as any).isVirtual) return false;
+    const leadStatus = (c as any).leads?.status;
+    return !leadStatus || leadStatus === 'active_client';
+  }), [clients])
 
   const onSubmit = async (values: FormValues) => {
     if (!profile?.organization_id || !profile?.id) return

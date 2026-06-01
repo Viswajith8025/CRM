@@ -250,18 +250,20 @@ export const useHRStore = create<HRState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
-      const payload = { ...request, organization_id: orgId, user_id: profile?.id }
-      const { data, error } = await supabase
-        .from('leave_requests')
-        .insert(payload)
-        .select()
-        .single()
+      // Use the backend RPC to enforce date overlap constraints (RISK-005 Fix)
+      const { data, error } = await supabase.rpc('submit_leave_request', {
+        p_leave_type_id: request.leave_type_id,
+        p_start_date: request.start_date,
+        p_end_date: request.end_date,
+        p_reason: request.reason,
+        p_is_emergency: request.is_emergency || false
+      })
 
       if (error) throw error
       
-      // Update local state and re-fetch to ensure relations are loaded
-      set({ leaves: [data, ...get().leaves] })
+      // Update local state by re-fetching to ensure relations are loaded
       get().fetchLeaves()
+      get().fetchLeaveRequests()
     } catch (err) {
       throw toFriendlyError(err, "Failed to submit leave request.")
     }

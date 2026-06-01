@@ -175,7 +175,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         const totalTasks = project.tasks?.length || 0
         const completedTasks = project.tasks?.filter((t: any) => t.status === 'done').length || 0
         
-        const revenue = project.invoices?.filter((inv: any) => inv.status === 'paid').reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0) || 0
+        const revenue = project.invoices?.filter((inv: any) => inv.status === 'paid').reduce((sum: number, inv: any) => sum + (inv.grand_total || 0), 0) || 0
         
         let laborCost = 0
         project.tasks?.forEach((task: any) => {
@@ -199,7 +199,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           m.due_date && new Date(m.due_date) < now && !m.is_completed
         ).length || 0
 
-        const totalInvoiced = project.invoices?.reduce((sum: number, inv: any) => sum + (inv.amount || 0), 0) || 0
+        const totalInvoiced = project.invoices?.reduce((sum: number, inv: any) => sum + (inv.grand_total || 0), 0) || 0
         const budgetBurn = project.budget ? (totalInvoiced / project.budget) * 100 : 0
         
         // Health Calculation Logic

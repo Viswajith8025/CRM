@@ -162,6 +162,10 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
       
+      if (invoice.status === 'paid') {
+        throw new Error("Security Policy: Cannot create an invoice directly as 'paid'. Create as 'draft' or 'sent' and use Record Payment.")
+      }
+      
       const invoiceWithOrg = { ...invoice, organization_id: orgId, user_id: profile?.id }
 
       const { data, error } = await supabase
@@ -171,17 +175,6 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .single()
 
       if (error) throw error
-      
-      if (data.status === 'paid') {
-        await supabase.rpc('process_invoice_payment', {
-          p_invoice_id: data.id,
-          p_org_id: orgId,
-          p_user_id: profile?.id,
-          p_amount: data.grand_total,
-          p_method: 'manual'
-        })
-        get().fetchPayments({ force: true })
-      }
 
       logActivity({
         action: 'CREATE',
@@ -210,6 +203,11 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       const currentInvoice = get().invoices.find(inv => inv.id === id)
       
+      // Prevent manual transaction splitting BEFORE hitting the database
+      if (status === 'paid') {
+        throw new Error("Security Policy: Cannot manually change status to paid. Please use the 'Record Payment' function.")
+      }
+
       let query = supabase
         .from('invoices')
         .update({ status })
@@ -229,11 +227,6 @@ export const useBillingStore = create<BillingState>((set, get) => ({
           throw new Error("Conflict: This invoice was modified by another user.")
         }
         throw error
-      }
-
-      // Prevent manual manual transaction splitting
-      if (status === 'paid') {
-        throw new Error("Security Policy: Cannot manually change status to paid. Please use the 'Record Payment' function.")
       }
 
       logActivity({
@@ -262,6 +255,10 @@ export const useBillingStore = create<BillingState>((set, get) => ({
       if (!orgId) throw new Error("No organization context found.")
 
       const currentInvoice = get().invoices.find(inv => inv.id === id)
+
+      if (currentInvoice?.status === 'paid' && updates.grand_total !== undefined && updates.grand_total !== currentInvoice.grand_total) {
+        throw new Error("Security Policy: Cannot alter the grand total of a fully paid invoice. Please issue a refund or create a new invoice.")
+      }
 
       let query = supabase
         .from('invoices')

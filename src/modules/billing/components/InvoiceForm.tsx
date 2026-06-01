@@ -67,8 +67,12 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
   }, [])
 
   const realClients = useMemo(() => {
-    // Only show real clients, filtering out virtual lead records
-    return clients.filter(c => !c.isVirtual)
+    // Only show real clients (manually added or explicitly marked as active_client)
+    return clients.filter(c => {
+      if (c.isVirtual) return false;
+      const leadStatus = (c as any).leads?.status;
+      return !leadStatus || leadStatus === 'active_client';
+    })
   }, [clients])
 
   const form = useForm<z.infer<typeof formSchema>>({
