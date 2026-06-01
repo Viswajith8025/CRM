@@ -9,11 +9,10 @@
  *  - Disable department (AlertDialog — NOT hard delete)
  *  - Re-activate disabled department
  *
- * Access-controlled: only users with 'departments.manage' permission can mutate.
+ * Access-controlled: ONLY super_admin can create / edit / disable departments.
  */
 import { useEffect, useState, useMemo } from 'react'
 import { useDepartmentStore, type Department } from '@/modules/dashboard/useDepartmentStore'
-import { usePermissions } from '@/hooks/usePermissions'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -104,10 +103,10 @@ export function DepartmentsTab() {
     activateDepartment,
   } = useDepartmentStore()
 
-  const { hasPermission } = usePermissions()
   const { profile } = useAuthStore()
   const isSuperAdmin = profile?.role === 'super_admin'
-  const canManage = hasPermission('departments.manage') || isSuperAdmin
+  // Only super_admin can create / edit / disable departments
+  const canManage = isSuperAdmin
 
   // ── UI State ──
   const [search, setSearch] = useState('')
