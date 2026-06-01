@@ -77,6 +77,7 @@ export function Navbar() {
           <GlobalSearch />
         </div>
         <div className="flex items-center gap-x-4 lg:gap-x-6">
+          {/* Dark mode button temporarily hidden 
           <Button
             variant="ghost"
             size="icon"
@@ -88,6 +89,7 @@ export function Navbar() {
               <Moon className="h-5 w-5" />
             )}
           </Button>
+          */}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -140,7 +140,7 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
       >
         <Card 
           className={cn(
-            "group cursor-pointer hover:shadow-lg transition-all duration-200 border-slate-200/80 dark:border-slate-800/40 bg-white dark:bg-slate-900/40 shadow-sm hover:shadow-md backdrop-blur-sm",
+            "group cursor-pointer hover:shadow-lg transition-all duration-200 border-slate-200/80 bg-white shadow-sm hover:shadow-md backdrop-blur-sm",
             isOverlay && "shadow-2xl border-primary/50 ring-2 ring-primary/20",
             isSyncing && "cursor-wait"
           )}
@@ -203,27 +203,27 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
                 </DropdownMenu>
               )}
             </div>
-            <CardTitle className="mt-2 text-xl font-bold group-hover:text-primary transition-colors text-slate-800 dark:text-slate-100">
+            <CardTitle className="mt-2 text-xl font-bold group-hover:text-primary transition-colors text-slate-800">
               {project.name}
             </CardTitle>
-            <CardDescription className="line-clamp-2 text-slate-500 dark:text-slate-400">
+            <CardDescription className="line-clamp-2 text-slate-500">
               {project.client?.name || "No Client Assigned"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+            <div className="flex items-center justify-between text-sm text-slate-500">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                <Calendar className="h-4 w-4 text-slate-400" />
                 <span>{project.end_date ? format(new Date(project.end_date), 'MMM d, yyyy') : 'No deadline'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Layout className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                <Layout className="h-4 w-4 text-slate-400" />
                 <span>{project.task_stats?.completed || 0}/{project.task_stats?.total || 0} Tasks</span>
               </div>
             </div>
             
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-700">
                 <span>Progress</span>
                 <span>{(() => {
                   const total = project.task_stats?.total || 0
@@ -234,34 +234,34 @@ export default function ProjectCard({ project, isDraggable, isOverlay, isSyncing
               </div>
               <Progress 
                 value={project.task_stats?.total ? (project.task_stats.completed / project.task_stats.total) * 100 : 0} 
-                className="h-1.5 bg-slate-100 dark:bg-slate-800/80" 
+                className="h-1.5 bg-slate-100" 
               />
             </div>
   
-            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800/50">
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-100">
               <div className="flex items-center -space-x-2">
                 {project.members && project.members.length > 0 ? (
                   project.members.filter(m => m.role === 'member').slice(0, 3).map((member) => (
-                    <Avatar key={member.user_id} className="h-7 w-7 border-2 border-white dark:border-slate-900 ring-1 ring-slate-200/50 dark:ring-slate-800/50 shadow-sm">
-                      <AvatarFallback className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-600 dark:text-slate-300">
+                    <Avatar key={member.user_id} className="h-7 w-7 border-2 border-white ring-1 ring-slate-200/50 shadow-sm">
+                      <AvatarFallback className="bg-slate-100 text-[10px] font-black text-slate-600">
                         {member.profiles?.full_name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                   ))
                 ) : (
-                  <div className="h-7 w-7 rounded-full bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">?</span>
+                  <div className="h-7 w-7 rounded-full bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center">
+                    <span className="text-[10px] text-slate-400">?</span>
                   </div>
                 )}
                 {project.members && project.members.filter(m => m.role === 'member').length > 3 && (
-                  <div className="h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 flex items-center justify-center text-[8px] font-black text-slate-600 dark:text-slate-300">
+                  <div className="h-7 w-7 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-600">
                     +{project.members.filter(m => m.role === 'member').length - 3}
                   </div>
                 )}
               </div>
-              <div className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-right">
-                <span className="opacity-50 font-normal block text-[8px] text-slate-400 dark:text-slate-500">Team Lead</span>
-                <span className="text-sky-600 dark:text-sky-400">{project.lead?.full_name || "Unassigned"}</span>
+              <div className="text-[10px] font-black text-slate-700 uppercase tracking-widest text-right">
+                <span className="opacity-50 font-normal block text-[8px] text-slate-400">Team Lead</span>
+                <span className="text-sky-600">{project.lead?.full_name || "Unassigned"}</span>
               </div>
             </div>
           </CardContent>

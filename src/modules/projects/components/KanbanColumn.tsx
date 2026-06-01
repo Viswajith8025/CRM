@@ -23,8 +23,8 @@ export function KanbanColumn({ id, title, projects, syncingProjectId }: KanbanCo
     <div className="flex flex-col w-[350px] shrink-0">
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 dark:text-white/40">{title}</h3>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5 text-[10px] font-black text-slate-500 dark:text-white/40 border border-slate-200 dark:border-white/5">
+          <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">{title}</h3>
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-500 border border-slate-200">
             {projects.length}
           </span>
         </div>
@@ -34,7 +34,7 @@ export function KanbanColumn({ id, title, projects, syncingProjectId }: KanbanCo
         ref={setNodeRef}
         className={cn(
           "flex flex-1 flex-col gap-4 p-2 rounded-2xl transition-colors duration-200 min-h-[500px]",
-          isOver ? "bg-slate-100/50 dark:bg-white/[0.03] ring-2 ring-slate-200/50 dark:ring-white/5 ring-inset" : "bg-transparent"
+          isOver ? "bg-slate-100/50 ring-2 ring-slate-200/50 ring-inset" : "bg-transparent"
         )}
       >
         <SortableContext
