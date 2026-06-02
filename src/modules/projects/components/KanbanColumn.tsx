@@ -20,7 +20,7 @@ export function KanbanColumn({ id, title, projects, syncingProjectId }: KanbanCo
   })
 
   return (
-    <div className="flex flex-col w-[350px] shrink-0">
+    <div className="flex flex-col w-[85vw] sm:w-[350px] shrink-0 snap-center">
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500">{title}</h3>

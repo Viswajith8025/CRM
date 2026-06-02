@@ -39,6 +39,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 
 interface LeaveType {
   id: string
@@ -178,8 +180,7 @@ export default function LeaveRequestsPage() {
 
         toast.success("Leave request updated and resubmitted successfully")
       } else {
-        // Bypass the missing RPC by directly inserting into the table
-        const { data: insertData, error } = await supabase.from('leave_requests').insert({
+        const { error } = await supabase.from('leave_requests').insert({
           organization_id: profile?.organization_id,
           user_id: profile?.id,
           leave_type_id: formData.leave_type_id,
@@ -188,8 +189,8 @@ export default function LeaveRequestsPage() {
           reason: formData.reason,
           is_emergency: formData.is_emergency,
           status: 'pending'
-        }).select();
-
+        })
+        
         if (error) throw error
         toast.success("Leave request submitted successfully")
       }
@@ -328,23 +329,68 @@ export default function LeaveRequestsPage() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex flex-col">
                     <Label className="uppercase text-[10px] font-black tracking-widest">Start Date</Label>
-                    <Input 
-                      type="date" 
-                      value={formData.start_date}
-                      min={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal h-10",
+                            !formData.start_date && "text-muted-foreground"
+                          )}
+                        >
+                          {formData.start_date ? (
+                            format(new Date(formData.start_date), "dd/MM/yyyy")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.start_date ? new Date(formData.start_date) : undefined}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 flex flex-col">
                     <Label className="uppercase text-[10px] font-black tracking-widest">End Date</Label>
-                    <Input 
-                      type="date" 
-                      value={formData.end_date}
-                      min={formData.start_date || new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={"outline"}
+                          className={cn(
+                            "w-full pl-3 text-left font-normal h-10",
+                            !formData.end_date && "text-muted-foreground"
+                          )}
+                        >
+                          {formData.end_date ? (
+                            format(new Date(formData.end_date), "dd/MM/yyyy")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData.end_date ? new Date(formData.end_date) : undefined}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          disabled={(date) => {
+                            const minDate = formData.start_date ? new Date(formData.start_date) : new Date(new Date().setHours(0,0,0,0));
+                            return date < minDate;
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 

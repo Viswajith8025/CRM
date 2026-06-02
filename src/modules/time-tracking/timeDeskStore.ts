@@ -63,18 +63,13 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
   fetchActiveSession: async () => {
     set({ isLoading: true })
     try {
-      // Process any stored offline queue once back online!
-      if (navigator.onLine) {
-        await get().processOfflineQueue()
-      }
-
       const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user) return
 
-      // Fetch active work session
+      // Fetch active work session with all breaks
       const { data: session, error: sError } = await supabase
         .from('work_sessions')
-        .select('*')
+        .select('*, break_sessions(*)')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .maybeSingle()
@@ -82,15 +77,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       if (sError) throw sError
 
       if (session) {
-        // Fetch active break if any
-        const { data: breakSess, error: bError } = await supabase
-          .from('break_sessions')
-          .select('*')
-          .eq('work_session_id', session.id)
-          .is('end_time', null)
-          .maybeSingle()
-
-        if (bError) throw bError
+        const breakSess = session.break_sessions?.find((b: any) => !b.end_time) || null
         set({ activeSession: session, activeBreak: breakSess })
         get().syncLiveTimers()
         get().startHeartbeatSync()
@@ -112,28 +99,9 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!user || !profile?.organization_id) return
 
-      // Offline Intercept
+      // Online Enforcer
       if (!navigator.onLine) {
-        const queue = JSON.parse(localStorage.getItem('vibe_timedesk_offline_queue') || '[]')
-        queue.push({
-          action: 'check_in',
-          timestamp: new Date().toISOString(),
-          payload: { orgId: profile.organization_id }
-        })
-        localStorage.setItem('vibe_timedesk_offline_queue', JSON.stringify(queue))
-
-        set({
-          activeSession: {
-            id: 'offline-' + Date.now(),
-            organization_id: profile.organization_id,
-            user_id: user.id,
-            start_time: new Date().toISOString(),
-            end_time: null,
-            status: 'active'
-          },
-          activeBreak: null
-        })
-        toast.info('Offline Mode: Shift started locally. Will synchronize once connection is restored.')
+        toast.error('Cannot check in while offline. Accurate server time is required to prevent time fraud.')
         return
       }
 
@@ -182,17 +150,9 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         throw new Error('PENDING_TASKS')
       }
 
-      // Offline Intercept
+      // Online Enforcer
       if (!navigator.onLine) {
-        const queue = JSON.parse(localStorage.getItem('vibe_timedesk_offline_queue') || '[]')
-        queue.push({
-          action: 'check_out',
-          timestamp: new Date().toISOString()
-        })
-        localStorage.setItem('vibe_timedesk_offline_queue', JSON.stringify(queue))
-
-        set({ activeSession: null, activeBreak: null, workDuration: 0, breakDuration: 0 })
-        toast.info('Offline Mode: Shift ended locally. Synchronization pending.')
+        toast.error('Cannot check out while offline. Server connection is required.')
         return
       }
 
@@ -220,31 +180,9 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
 
     set({ isSyncing: true })
     try {
-      // Offline Intercept
+      // Online Enforcer
       if (!navigator.onLine) {
-        const queue = JSON.parse(localStorage.getItem('vibe_timedesk_offline_queue') || '[]')
-        queue.push({
-          action: 'start_break',
-          timestamp: new Date().toISOString(),
-          payload: {
-            sessionId: activeSession.id,
-            orgId: activeSession.organization_id,
-            userId: activeSession.user_id,
-            type
-          }
-        })
-        localStorage.setItem('vibe_timedesk_offline_queue', JSON.stringify(queue))
-
-        set({
-          activeBreak: {
-            id: 'offline-break-' + Date.now(),
-            work_session_id: activeSession.id,
-            start_time: new Date().toISOString(),
-            end_time: null,
-            type
-          }
-        })
-        toast.info(`Offline Mode: Break started locally (${type.replace('_', ' ')}).`)
+        toast.error('Cannot start break while offline.')
         return
       }
 
@@ -320,25 +258,13 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
 
     set({ isSyncing: true })
     try {
-      // Offline Intercept
+      // Online Enforcer
       if (!navigator.onLine) {
-        const queue = JSON.parse(localStorage.getItem('vibe_timedesk_offline_queue') || '[]')
-        queue.push({
-          action: 'end_break',
-          timestamp: new Date().toISOString(),
-          payload: { breakId: activeBreak.id }
-        })
-        localStorage.setItem('vibe_timedesk_offline_queue', JSON.stringify(queue))
-
-        set({ activeBreak: null })
-        toast.info('Offline Mode: Break ended locally. Resuming work.')
+        toast.error('Cannot end break while offline.')
         return
       }
 
-      const { error } = await supabase
-        .from('break_sessions')
-        .update({ end_time: new Date().toISOString() })
-        .eq('id', activeBreak.id)
+      const { error } = await supabase.rpc('handle_end_break', { p_break_id: activeBreak.id })
 
       if (error) throw error
       set({ activeBreak: null })
@@ -422,79 +348,26 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
     // Calculate total elapsed since check-in
     const elapsed = differenceInSeconds(now, workStart)
     
-    // TODO: This should eventually subtract accumulated break time
-    // For live state, we just show the clock running
-    set({ workDuration: elapsed })
+    // Calculate accumulated break time
+    const breaks = (activeSession as any).break_sessions || []
+    const totalBreakSec = breaks.reduce((acc: number, b: any) => {
+      // Meetings don't count against work time
+      if (b.type === 'meeting') return acc
+      const bStart = new Date(b.start_time)
+      const bEnd = b.end_time ? new Date(b.end_time) : now
+      return acc + Math.max(0, Math.floor((bEnd.getTime() - bStart.getTime()) / 1000))
+    }, 0)
+
+    set({ 
+      workDuration: Math.max(0, elapsed - totalBreakSec),
+      breakDuration: totalBreakSec 
+    })
   },
 
   processOfflineQueue: async () => {
-    if (!navigator.onLine) return
-    const queueStr = localStorage.getItem('vibe_timedesk_offline_queue')
-    if (!queueStr) return
-
-    set({ isSyncing: true })
-    try {
-      const queue = JSON.parse(queueStr) as { action: string; timestamp: string; payload?: any }[]
-      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      if (!user) return
-
-      for (const item of queue) {
-        if (item.action === 'check_in') {
-          await supabase.rpc('handle_check_in', {
-            p_org_id: item.payload.orgId,
-            p_user_id: user.id
-          })
-        } else if (item.action === 'check_out') {
-          await supabase.rpc('handle_check_out', {
-            p_user_id: user.id
-          })
-        } else if (item.action === 'start_break') {
-          const isOfflineSession = item.payload.sessionId.startsWith('offline-')
-          let targetSessionId = item.payload.sessionId
-          
-          if (isOfflineSession) {
-            const { data: realSession } = await supabase
-              .from('work_sessions')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('status', 'active')
-              .maybeSingle()
-            if (realSession) targetSessionId = realSession.id
-          }
-
-          await supabase.from('break_sessions').insert({
-            work_session_id: targetSessionId,
-            organization_id: item.payload.orgId,
-            user_id: user.id,
-            type: item.payload.type,
-            start_time: item.timestamp
-          })
-        } else if (item.action === 'end_break') {
-          const isOfflineBreak = item.payload.breakId.startsWith('offline-')
-          let targetBreakId = item.payload.breakId
-
-          if (isOfflineBreak) {
-            const { data: realBreak } = await supabase
-              .from('break_sessions')
-              .select('id')
-              .eq('user_id', user.id)
-              .is('end_time', null)
-              .maybeSingle()
-            if (realBreak) targetBreakId = realBreak.id
-          }
-
-          await supabase.from('break_sessions')
-            .update({ end_time: item.timestamp })
-            .eq('id', targetBreakId)
-        }
-      }
-      localStorage.removeItem('vibe_timedesk_offline_queue')
-      toast.success('Offline time tracking records synchronized successfully!')
-    } catch (err) {
-      console.error('Offline queue processing failed:', err)
-    } finally {
-      set({ isSyncing: false })
-    }
+    // Offline queueing is deprecated to enforce strict server-side timestamps.
+    // This function is kept for signature compatibility but disabled.
+    localStorage.removeItem('vibe_timedesk_offline_queue');
   },
 
   sendHeartbeat: async () => {

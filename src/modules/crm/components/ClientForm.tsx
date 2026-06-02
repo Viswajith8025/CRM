@@ -4,6 +4,8 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input"
+import "react-phone-number-input/style.css"
 import {
   Form,
   FormControl,
@@ -29,7 +31,10 @@ import { toast } from "sonner"
 const formSchema = z.object({
   name: z.string().min(2, "Client name is required"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().optional(),
+  phone: z.string().optional().refine((val) => {
+    if (!val) return true
+    return isValidPhoneNumber(val)
+  }, "Must be a valid phone number (including country code)").or(z.literal("")),
   service: z.string().min(2, "Service description is required"),
   contract_value: z.coerce.number().min(0, "Contract value must be positive"),
   address: z.string().optional(),
@@ -131,7 +136,16 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
               <FormItem>
                 <FormLabel>Phone</FormLabel>
                 <FormControl>
-                  <Input placeholder="+1 (555) 000-0000" {...field} />
+                  <PhoneInput 
+                    placeholder="Enter phone number" 
+                    defaultCountry="IN"
+                    international
+                    withCountryCallingCode
+                    limitMaxLength={true}
+                    value={field.value}
+                    onChange={field.onChange}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

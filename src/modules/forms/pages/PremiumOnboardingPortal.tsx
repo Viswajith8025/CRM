@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 import { useFormsStore } from '../formsStore'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -747,46 +749,21 @@ export default function PremiumOnboardingPortal() {
 
                   if (isContactNumber) {
                     let currentVal = formData[field.code] || ''
-                    let countryCode = '+91'
-                    let phoneNum = currentVal
-                    if (currentVal.startsWith('+')) {
-                      const match = currentVal.match(/^(\+\d{1,4})\s*(.*)$/)
-                      if (match) {
-                        countryCode = match[1]
-                        phoneNum = match[2]
-                      } else {
-                        // fallback if no space
-                        countryCode = currentVal.substring(0, 3) // approximation
-                        phoneNum = currentVal.substring(3)
-                      }
-                    }
-
                     return (
                       <div key={field.id} className="space-y-2">
                         <label className="text-xs font-bold text-slate-700">
                           {field.label} {field.is_required && <span className="text-rose-500 font-bold">*</span>}
                         </label>
-                        <div className="flex gap-2">
-                          <select
-                            value={countryCode}
-                            onChange={(e) => handleInputChange(field.code, `${e.target.value} ${phoneNum}`.trim())}
-                            className="w-[110px] px-3 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium cursor-pointer"
-                          >
-                            <option value="+91">+91 (IN)</option>
-                            <option value="+1">+1 (US/CA)</option>
-                            <option value="+44">+44 (UK)</option>
-                            <option value="+971">+971 (UAE)</option>
-                            <option value="+61">+61 (AU)</option>
-                            <option value="+65">+65 (SG)</option>
-                          </select>
-                          <input
-                            type="tel"
-                            placeholder="Phone number"
-                            value={phoneNum}
-                            onChange={(e) => handleInputChange(field.code, `${countryCode} ${e.target.value}`.trim())}
-                            className="flex-1 px-4 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium"
-                          />
-                        </div>
+                        <PhoneInput 
+                          placeholder="Phone number" 
+                          defaultCountry="IN"
+                          international
+                          withCountryCallingCode
+                          limitMaxLength={true}
+                          value={currentVal}
+                          onChange={(val) => handleInputChange(field.code, val || '')}
+                          className="flex h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-4 focus-within:ring-sky-500/10 focus-within:border-sky-500 transition-all font-medium"
+                        />
                       </div>
                     )
                   }
@@ -818,12 +795,15 @@ export default function PremiumOnboardingPortal() {
                             </label>
                           )}
                         </div>
-                        <input
-                          type="tel"
-                          placeholder={field.placeholder || 'Enter value...'}
+                        <PhoneInput
+                          placeholder={field.placeholder || 'Enter WhatsApp value...'}
+                          defaultCountry="IN"
+                          international
+                          withCountryCallingCode
+                          limitMaxLength={true}
                           value={formData[field.code] || ''}
-                          onChange={(e) => handleInputChange(field.code, e.target.value)}
-                          className="w-full px-4 py-3.5 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-4 focus:ring-sky-500/10 focus:border-sky-500 transition-all bg-white font-medium"
+                          onChange={(val) => handleInputChange(field.code, val || '')}
+                          className="flex h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-4 focus-within:ring-sky-500/10 focus-within:border-sky-500 transition-all font-medium"
                         />
                       </div>
                     )

@@ -41,8 +41,14 @@ export default function ProjectsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
 
+  const [sortBy, setSortBy] = useState("created_at")
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc")
+
   useEffect(() => {
-    fetchProjects()
+    fetchProjects({ sortBy, sortOrder })
+  }, [sortBy, sortOrder])
+
+  useEffect(() => {
     fetchArchivedProjects()
     const unsubscribe = subscribeToProjects()
     return () => unsubscribe()
@@ -80,7 +86,7 @@ export default function ProjectsPage() {
         module="projects" 
         open={isImportOpen} 
         onOpenChange={setIsImportOpen} 
-        onComplete={() => fetchProjects(true)} 
+        onComplete={() => fetchProjects({ force: true, sortBy, sortOrder })} 
       />
       <Tabs defaultValue="projects" className="space-y-6">
         <TabsList className="bg-muted/50 border">
@@ -144,6 +150,32 @@ export default function ProjectsPage() {
               </Button>
             </div>
           </div>
+          
+          {/* Sorting controls for list and grid views */}
+          {view !== 'kanban' && (
+            <div className="flex items-center gap-2 mb-6">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-[150px] h-9 text-xs">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Date Created</SelectItem>
+                  <SelectItem value="name">Project Name</SelectItem>
+                  <SelectItem value="budget">Budget</SelectItem>
+                  <SelectItem value="due_date">Due Date</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9 px-3 text-xs font-bold"
+                onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+              >
+                {sortOrder === 'desc' ? 'Desc ↓' : 'Asc ↑'}
+              </Button>
+            </div>
+          )}
 
           {isLoading ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

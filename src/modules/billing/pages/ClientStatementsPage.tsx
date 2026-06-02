@@ -564,7 +564,7 @@ export default function ClientStatementsPage() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse">
+                  <table className="w-full text-left text-sm border-collapse min-w-[800px]">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-muted-foreground text-[10px] font-black uppercase tracking-wider">
                         <th className="p-4">Transaction Date</th>

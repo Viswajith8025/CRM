@@ -4,6 +4,8 @@ import * as z from "zod"
 import { Button } from "@/components/ui/button"
 import { Loader2, User, Building, Target, Mail, Phone } from "lucide-react"
 import { useState, useEffect } from "react"
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input"
+import "react-phone-number-input/style.css"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import {
   Form,
@@ -31,7 +33,10 @@ const formSchema = z.object({
   last_name: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   company: z.string().optional(),
-  phone: z.string().optional(),
+  phone: z.string().optional().refine((val) => {
+    if (!val) return true
+    return isValidPhoneNumber(val)
+  }, "Must be a valid phone number (including country code)").or(z.literal("")),
   job_title: z.string().optional(),
   status: z.enum(['new', 'contacted', 'qualified', 'proposal_sent', 'negotiation', 'awaiting_payment', 'active_client', 'closed_lost']),
   source: z.string().optional(),
@@ -56,27 +61,8 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     fetchMembers()
   }, [])
 
-  // Strict filter: sales role/dynamic_role AND department is BDE
-  const strictBdeUsers = (members || []).filter(m => {
-    const role = (m.role || '').toLowerCase().trim()
-    const dynRole = (m.dynamic_role_name || '').toLowerCase().trim()
-    const dept = (m.department || '').toLowerCase().trim()
-    
-    const isSalesRole = role === 'sales' || role.includes('bde') || dynRole.includes('sales') || dynRole.includes('bde')
-    const isBdeDept = dept.includes('bde') || dept.includes('sales')
-    return isSalesRole && isBdeDept && !!m.id
-  })
-  // Fallback: anyone with a sales/bde dynamic_role or standard role
-  const bdeRoleUsers = (members || []).filter(m => {
-    const role = (m.role || '').toLowerCase().trim()
-    const dynRole = (m.dynamic_role_name || '').toLowerCase().trim()
-    return (role === 'sales' || role.includes('bde') || dynRole.includes('sales') || dynRole.includes('bde')) && !!m.id
-  })
-
-  // Final Fallback: if no strict matches, use role matches. If still empty, use all members.
-  const bdeUsers = strictBdeUsers.length > 0
-    ? strictBdeUsers
-    : (bdeRoleUsers.length > 0 ? bdeRoleUsers : (members || []))
+  // Fully dynamic: use all fetched members
+  const bdeUsers = members || []
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -121,7 +107,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-[calc(100vh-140px)]">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[80vh] h-full sm:h-[calc(100vh-140px)]">
         <ScrollArea className="flex-1 pr-4 -mr-4">
           <div className="space-y-8 pb-8">
             {/* SECTION 1: CONTACT INFO */}
@@ -228,8 +214,16 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                     <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Phone Number</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                        <Input placeholder="+1 (555) 000-0000" {...field} className="pl-9 bg-muted/20" />
+                        <PhoneInput 
+                          placeholder="Enter phone number" 
+                          defaultCountry="IN"
+                          international
+                          withCountryCallingCode
+                          limitMaxLength={true}
+                          value={field.value}
+                          onChange={field.onChange}
+                          className="flex h-10 w-full rounded-md border border-input bg-muted/20 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        />
                       </div>
                     </FormControl>
                     <FormMessage />

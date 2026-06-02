@@ -544,7 +544,10 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
   subscribeToInvoices: () => {
     let channel: any = null;
+    let isUnsubscribed = false;
+    
     import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
       const orgId = useAuthStore.getState().profile?.organization_id
       if (!orgId) return
 
@@ -558,6 +561,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
         .subscribe()
     })
     return () => {
+      isUnsubscribed = true;
       if (channel) supabase.removeChannel(channel)
     }
   }

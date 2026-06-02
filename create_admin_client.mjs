@@ -1,0 +1,1 @@
+import fs from 'fs'; import dotenv from 'dotenv'; const env = dotenv.parse(fs.readFileSync('.env')); const key = env.SUPABASE_SERVICE_ROLE_KEY; const url = env.VITE_SUPABASE_URL; fs.writeFileSync('src/lib/adminClient.ts', \import { createClient } from '@supabase/supabase-js';\n\nexport const adminSupabase = createClient('\', '\');\); console.log('Admin client created!');

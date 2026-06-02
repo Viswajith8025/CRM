@@ -17,8 +17,52 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Validation states
+  const [emailError, setEmailError] = useState("")
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, messages: [] as string[] })
+  
   const navigate = useNavigate()
   const { user } = useAuthStore()
+
+  // Email regex
+  const validateEmail = (email: string) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!email) return "Email is required"
+    if (!re.test(email)) return "Invalid email address format"
+    return ""
+  }
+
+  // Password strength checker
+  const checkPasswordStrength = (pass: string) => {
+    let score = 0
+    const messages = []
+    
+    if (pass.length >= 8) score++
+    else messages.push("At least 8 characters")
+    
+    if (/[A-Z]/.test(pass)) score++
+    else messages.push("One uppercase letter")
+    
+    if (/[a-z]/.test(pass)) score++
+    else messages.push("One lowercase letter")
+    
+    if (/[0-9]/.test(pass)) score++
+    else messages.push("One number")
+
+    if (/[^A-Za-z0-9]/.test(pass)) score++
+    else messages.push("One special character")
+
+    return { score, messages }
+  }
+
+  useEffect(() => {
+    if (email) setEmailError(validateEmail(email))
+  }, [email])
+
+  useEffect(() => {
+    if (password) setPasswordStrength(checkPasswordStrength(password))
+  }, [password])
 
   useEffect(() => {
     if (user) {
@@ -29,6 +73,21 @@ export default function RegisterPage() {
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
     setIsLoading(true)
+
+    // Check conditions explicitly
+    const emailErr = validateEmail(email)
+    if (emailErr) {
+      setEmailError(emailErr)
+      toast.error(emailErr)
+      setIsLoading(false)
+      return
+    }
+
+    if (passwordStrength.score < 3) {
+      toast.error("Password is too weak. Please meet the requirements.")
+      setIsLoading(false)
+      return
+    }
     
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -100,8 +159,11 @@ export default function RegisterPage() {
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-muted/30"
+                  className={`bg-muted/30 ${emailError && email ? 'border-destructive' : ''}`}
                 />
+                {emailError && email && (
+                  <p className="text-xs text-destructive mt-1 font-medium">{emailError}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -123,8 +185,31 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {password && (
+                  <div className="space-y-2 mt-2">
+                    <div className="flex gap-1 h-1.5 w-full">
+                      {[...Array(5)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`flex-1 rounded-full transition-colors ${
+                            passwordStrength.score > i 
+                              ? passwordStrength.score < 3 ? 'bg-rose-500' : passwordStrength.score < 5 ? 'bg-amber-500' : 'bg-emerald-500' 
+                              : 'bg-muted'
+                          }`} 
+                        />
+                      ))}
+                    </div>
+                    {passwordStrength.messages.length > 0 && (
+                      <ul className="text-[10px] text-muted-foreground list-disc pl-4 space-y-0.5">
+                        {passwordStrength.messages.map((msg, i) => (
+                          <li key={i}>{msg}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
-              <Button type="submit" className="w-full font-black py-6" disabled={isLoading}>
+              <Button type="submit" className="w-full font-black py-6" disabled={isLoading || !!emailError || (passwordStrength.score < 3 && password.length > 0)}>
                 {isLoading ? "Creating account..." : "Create Account"}
               </Button>
             </form>

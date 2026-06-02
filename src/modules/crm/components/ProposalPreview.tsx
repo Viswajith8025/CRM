@@ -249,7 +249,8 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
                 Investment Breakdown
                 <div className="h-px flex-1 bg-slate-100" />
               </h3>
-              <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="border-b-8 border-slate-950">
                     <th className="py-8 text-[11px] font-black uppercase tracking-[0.4em] text-slate-400">Component</th>
@@ -270,6 +271,7 @@ export function ProposalPreview({ data, onClose }: ProposalPreviewProps) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* 6. SUMMARY & TERMS */}

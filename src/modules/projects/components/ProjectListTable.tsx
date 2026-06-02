@@ -88,7 +88,7 @@ export function ProjectListTable({ projects }: ProjectListTableProps) {
   return (
     <div className="w-full bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm text-left">
+        <table className="w-full text-sm text-left min-w-[800px]">
           <thead className="bg-slate-50/80 text-xs font-black text-slate-500 uppercase tracking-wider border-b border-slate-200">
             <tr>
               <th className="px-6 py-4 font-bold text-slate-500">PROJECT DETAILS</th>

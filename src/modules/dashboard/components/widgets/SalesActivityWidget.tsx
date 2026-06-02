@@ -38,7 +38,7 @@ export function SalesActivityWidget() {
   }
 
   return (
-    <Card className="bg-card/40 border-border/40 backdrop-blur-md shadow-sm overflow-hidden flex flex-col h-[400px]">
+    <Card className="bg-card/40 border-border/40 backdrop-blur-md shadow-sm overflow-hidden flex flex-col h-[400px] sm:h-[450px]">
       <CardHeader className="pb-4 border-b border-border/10 bg-gradient-to-r from-emerald-500/5 to-teal-500/5 shrink-0">
         <div className="flex items-center justify-between">
           <div>

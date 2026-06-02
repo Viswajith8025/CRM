@@ -113,7 +113,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-[calc(100vh-140px)]">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col max-h-[80vh] h-full sm:h-[calc(100vh-140px)]">
         <ScrollArea className="flex-1 pr-4 -mr-4">
           <div className="space-y-8 pb-8">
             {/* SECTION 1: BASIC INFO */}

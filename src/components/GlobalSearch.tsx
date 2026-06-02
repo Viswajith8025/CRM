@@ -20,6 +20,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command"
 import { useSearchStore } from "@/store/useSearchStore"
+import { useSecurePermissions } from "@/hooks/useSecurePermissions"
 import { useDebounce } from "@/hooks/useDebounce"
 
 export function GlobalSearch() {
@@ -28,10 +29,12 @@ export function GlobalSearch() {
   const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
   const { results, isLoading, search, clearResults } = useSearchStore()
+  const { canSearch } = useSecurePermissions()
 
   // Keyboard shortcut Ctrl+K or Cmd+K
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      if (!canSearch) return
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((open) => !open)
@@ -39,7 +42,7 @@ export function GlobalSearch() {
     }
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [])
+  }, [canSearch])
 
   // Trigger search on debounced query change
   useEffect(() => {
@@ -64,11 +67,15 @@ export function GlobalSearch() {
     employee: results.filter(r => r.type === 'employee'),
   }
 
+  if (!canSearch) {
+    return null
+  }
+
   return (
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 w-full md:w-64 px-3 py-1.5 text-sm text-muted-foreground bg-muted/50 border rounded-lg hover:bg-muted transition-colors group"
+        className="flex items-center gap-2 w-full max-w-[200px] md:max-w-none md:w-64 px-3 py-1.5 text-sm text-muted-foreground bg-muted/50 border rounded-lg hover:bg-muted transition-colors group"
       >
         <Search className="h-4 w-4 group-hover:text-primary transition-colors" />
         <span className="flex-1 text-left">Quick Search...</span>

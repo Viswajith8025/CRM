@@ -94,7 +94,7 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
     const activeId = active.id
     const overId = over.id
 
-    const activeTask = allTasks.find((t) => t.id === activeId)
+    const activeTask = filteredTasks.find((t) => t.id === activeId) || allTasks.find((t) => t.id === activeId)
     if (!activeTask) return
 
     // If dragging over a column
@@ -110,7 +110,7 @@ export const KanbanBoard = memo(({ tasks: filteredTasks, filterStatus = "all" }:
     }
 
     // If dragging over another task
-    const overTask = allTasks.find(t => t.id === overId)
+    const overTask = filteredTasks.find(t => t.id === overId) || allTasks.find(t => t.id === overId)
     if (overTask && activeTask.status !== overTask.status) {
       try {
         setSyncingTaskId(activeId as string)

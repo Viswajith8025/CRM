@@ -593,7 +593,11 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
   subscribeToLeads: () => {
     let channel: any = null;
+    let isUnsubscribed = false;
+
     import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
+
       const orgId = useAuthStore.getState().profile?.organization_id
       if (!orgId) return
 
@@ -607,13 +611,18 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .subscribe()
     })
     return () => {
+      isUnsubscribed = true;
       if (channel) supabase.removeChannel(channel)
     }
   },
 
   subscribeToClients: () => {
     let channel: any = null;
+    let isUnsubscribed = false;
+
     import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
+
       const orgId = useAuthStore.getState().profile?.organization_id
       if (!orgId) return
 
@@ -627,6 +636,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .subscribe()
     })
     return () => {
+      isUnsubscribed = true;
       if (channel) supabase.removeChannel(channel)
     }
   }

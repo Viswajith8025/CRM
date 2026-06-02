@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { 
@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { DocumentRecord } from '../types'
+import { useInView } from 'react-intersection-observer'
 
 interface FileVaultProps {
   clientId?: string
@@ -37,9 +38,32 @@ export function FileVault({ clientId, projectId }: FileVaultProps) {
   const [search, setSearch] = useState("")
   const [view, setView] = useState<'grid' | 'list'>('grid')
 
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const { ref, inView } = useInView()
+
   useEffect(() => {
-    fetchDocuments(projectId, projectId ? 'project' : undefined, clientId)
+    // Reset state on project/client change
+    setPage(1)
+    setHasMore(true)
+    fetchDocuments(projectId, projectId ? 'project' : undefined, clientId, 1, 20).then(docs => {
+      setHasMore(docs.length === 20)
+    })
   }, [clientId, projectId])
+
+  const loadMore = useCallback(async () => {
+    if (isLoading || !hasMore) return
+    const nextPage = page + 1
+    const newDocs = await fetchDocuments(projectId, projectId ? 'project' : undefined, clientId, nextPage, 20)
+    setPage(nextPage)
+    if (newDocs.length < 20) setHasMore(false)
+  }, [page, isLoading, hasMore, projectId, clientId, fetchDocuments])
+
+  useEffect(() => {
+    if (inView && hasMore) {
+      loadMore()
+    }
+  }, [inView, hasMore, loadMore])
 
   const filteredDocs = documents.filter(doc => {
     const matchesFolder = currentFolder ? doc.folder === currentFolder : true
@@ -238,6 +262,13 @@ export function FileVault({ clientId, projectId }: FileVaultProps) {
               </div>
             )
           ))}
+        </div>
+      )}
+
+      {/* Infinite Scroll Trigger */}
+      {hasMore && (currentFolder || search) && (
+        <div ref={ref} className="py-4 text-center text-xs text-muted-foreground animate-pulse">
+          Loading more files...
         </div>
       )}
     </div>

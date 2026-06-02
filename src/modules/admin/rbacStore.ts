@@ -349,11 +349,19 @@ export const useRBACStore = zustand.create<RBACState>((set, get) => ({
   // hasPermission — Super Admin always returns true
   // ----------------------------------------------------------
   hasPermission: (code) => {
-    const profile = useAuthStore.getState().profile
-    if (profile?.role === 'super_admin') return true
+    const session = useAuthStore.getState().session;
     
-    // Resilient dual check: check both cached RBAC store and auth store profile fallback
-    const authPermissions = profile?.permissions || []
-    return get().userPermissions.includes(code) || authPermissions.includes(code)
+    // 1. If no session, no permissions
+    if (!session || !session.user) return false;
+
+    // 2. Read the cryptographically signed JWT payload directly
+    const appMetadata = session.user.app_metadata || {};
+    const role = appMetadata.role || 'employee';
+
+    // 3. Super Admins bypass all UI permission checks
+    if (role === 'super_admin' || role === 'admin') return true;
+    
+    // 4. Fine-grained permissions (UI only, data still protected by RLS)
+    return get().userPermissions.includes(code);
   },
 }))

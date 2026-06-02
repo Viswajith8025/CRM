@@ -1,0 +1,17 @@
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+async function run() {
+  const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY);
+  console.log('Testing supabase.rpc using supabase-js...');
+  const { data, error } = await supabase.rpc('submit_leave_request', {
+    p_leave_type_id: 'd82a9994-03d5-48e2-bda2-29e3f7c29b07',
+    p_start_date: '2026-06-10',
+    p_end_date: '2026-06-11',
+    p_reason: 'Test',
+    p_is_emergency: false
+  });
+  console.log('Result:', JSON.stringify({ data, error }, null, 2));
+}
+run();

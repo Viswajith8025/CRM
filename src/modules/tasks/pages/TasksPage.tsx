@@ -43,13 +43,22 @@ export default function TasksPage() {
   const [view, setView] = useState<'kanban' | 'list' | 'workload'>('kanban')
   const [statusFilter, setStatusFilter] = useState("all")
   const [priorityFilter, setPriorityFilter] = useState("all")
+  const [sortBy, setSortBy] = useState("created_at")
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc")
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
 
   // BUG-001 FIX: Pass debouncedSearchQuery as the 4th argument so backend search is triggered
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(undefined, false, statusFilter, debouncedSearchQuery)
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(
+    undefined, 
+    false, 
+    statusFilter, 
+    debouncedSearchQuery,
+    sortBy,
+    sortOrder
+  )
   const tasks = data?.pages.flat() || []
 
   useEffect(() => {
@@ -60,11 +69,13 @@ export default function TasksPage() {
     }
   }, [searchParams])
 
-  const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all"
+  const hasActiveFilters = statusFilter !== "all" || priorityFilter !== "all" || sortBy !== "created_at" || sortOrder !== "desc"
 
   const clearFilters = () => {
     setStatusFilter("all")
     setPriorityFilter("all")
+    setSortBy("created_at")
+    setSortOrder("desc")
   }
 
   // BUG-004 FIX: Invalidate query cache after import completes instead of blowing away the entire app state
@@ -146,6 +157,32 @@ export default function TasksPage() {
               className="w-full bg-background border border-border/50 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
             />
           </div>
+          
+          {/* Sorting Dropdowns */}
+          {view === 'list' && (
+            <div className="flex items-center gap-2">
+              <Select value={sortBy} onValueChange={(val) => setSortBy(val)}>
+                <SelectTrigger className="w-[140px] h-9 text-xs font-medium">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Date Created</SelectItem>
+                  <SelectItem value="due_date">Due Date</SelectItem>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="title">Title</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-9 px-3 text-xs font-bold"
+                onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+              >
+                {sortOrder === 'desc' ? 'Desc ↓' : 'Asc ↑'}
+              </Button>
+            </div>
+          )}
         </div>
 
         {hasActiveFilters && (

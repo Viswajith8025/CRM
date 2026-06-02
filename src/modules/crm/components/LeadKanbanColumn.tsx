@@ -22,7 +22,7 @@ export function LeadKanbanColumn({ id, title, leads, syncingLeadId, onEdit, onVi
   })
 
   return (
-    <div className="flex flex-col w-72 shrink-0">
+    <div className="flex flex-col w-[85vw] sm:w-72 shrink-0 snap-center">
       <div className="flex items-center justify-between mb-4 px-2">
         <div className="flex items-center gap-2">
           <h3 className="font-black text-xs uppercase tracking-widest text-muted-foreground">

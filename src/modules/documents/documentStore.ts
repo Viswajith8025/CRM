@@ -17,7 +17,7 @@ interface DocumentState {
   isLoading: boolean
   error: string | null
 
-  fetchDocuments: (relatedId?: string, relatedType?: string, clientId?: string) => Promise<void>
+  fetchDocuments: (relatedId?: string, relatedType?: string, clientId?: string, page?: number, limit?: number) => Promise<DocumentRecord[]>
   fetchVersions: (documentId: string) => Promise<any[]>
   uploadFile: (params: UploadParams) => Promise<DocumentRecord>
   bulkUpload: (files: File[], bucket: UploadParams['bucket'], relatedId: string, relatedType: UploadParams['relatedType'], folder?: string, clientId?: string) => Promise<void>
@@ -30,12 +30,12 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchDocuments: async (relatedId, relatedType, clientId) => {
+  fetchDocuments: async (relatedId, relatedType, clientId, page = 1, limit = 20) => {
     set({ isLoading: true })
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
-      if (!orgId) return
+      if (!orgId) return []
 
       let query = supabase
         .from('documents')
@@ -53,12 +53,25 @@ export const useDocumentStore = create<DocumentState>((set, get) => ({
       if (relatedType && relatedId !== 'vault-root') query = query.eq('related_entity_type', relatedType)
       if (clientId) query = query.eq('client_id', clientId)
 
+      // Memory Optimization: Paginated Fetching
+      const from = (page - 1) * limit
+      const to = from + limit - 1
+      query = query.range(from, to)
+
       const { data, error } = await query
       
       if (error) throw error
-      set({ documents: data as DocumentRecord[], error: null })
+      
+      const newDocs = data as DocumentRecord[]
+      set(state => ({ 
+        documents: page === 1 ? newDocs : [...state.documents, ...newDocs], 
+        error: null 
+      }))
+      
+      return newDocs
     } catch (err) {
       set({ error: getFriendlySupabaseError(err, "Failed to load documents.") })
+      return []
     } finally {
       set({ isLoading: false })
     }

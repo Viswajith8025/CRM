@@ -576,7 +576,11 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
   subscribeToTasks: (projectId) => {
     let channel: any = null;
+    let isUnsubscribed = false;
+
     import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
+
       const orgId = useAuthStore.getState().profile?.organization_id
       if (!orgId) return
 
@@ -603,6 +607,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     })
 
     return () => {
+      isUnsubscribed = true;
       if (channel) supabase.removeChannel(channel)
     }
   }

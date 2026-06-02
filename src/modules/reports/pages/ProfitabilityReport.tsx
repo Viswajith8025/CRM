@@ -136,7 +136,7 @@ export default function ProfitabilityReport() {
             <CardTitle className="text-lg font-bold">Revenue vs Profit</CardTitle>
             <CardDescription>Top projects by verified revenue</CardDescription>
           </CardHeader>
-          <CardContent className="h-[400px] w-full pt-4">
+          <CardContent className="h-[300px] sm:h-[400px] w-full pt-4">
             {!isLoading && data.length > 0 && (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.slice(0, 10)} layout="vertical">
@@ -169,7 +169,7 @@ export default function ProfitabilityReport() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left border-collapse">
+              <table className="w-full text-sm text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="border-b border-border/50 bg-muted/20">
                     <th className="p-4 font-black uppercase tracking-widest text-[10px] text-muted-foreground">Project</th>

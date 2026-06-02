@@ -13,10 +13,16 @@ export const taskKeys = {
   detail: (id: string) => [...taskKeys.details(), id] as const,
 }
 
-export function useTasksQuery(projectId?: string, includeArchived = false, status?: string, search?: string) {
+export function useTasksQuery(
+  projectId?: string, 
+  includeArchived = false, 
+  status?: string, 
+  search?: string,
+  sortBy: string = 'created_at',
+  sortOrder: 'asc' | 'desc' = 'desc'
+) {
   return useInfiniteQuery({
-    // BUG-001 FIX: search is now included in the query key — triggers a new fetch on each keystroke
-    queryKey: taskKeys.list(`project:${projectId}-archived:${includeArchived}-status:${status}-search:${search}`),
+    queryKey: taskKeys.list(`project:${projectId}-archived:${includeArchived}-status:${status}-search:${search}-sort:${sortBy}-${sortOrder}`),
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const { profile } = useAuthStore.getState()
@@ -48,13 +54,12 @@ export function useTasksQuery(projectId?: string, includeArchived = false, statu
         baseQuery = baseQuery.eq('status', status)
       }
 
-      // BUG-001 FIX: Backend search via PostgreSQL ilike — not client-side filter
       if (search && search.trim().length > 0) {
         baseQuery = baseQuery.ilike('title', `%${search.trim()}%`)
       }
 
       const { data, error } = await baseQuery
-        .order('created_at', { ascending: false })
+        .order(sortBy, { ascending: sortOrder === 'asc' })
         .range(pageParam, pageParam + limit - 1)
 
       if (error) throw error

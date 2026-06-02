@@ -249,14 +249,31 @@ export const useHRStore = create<HRState>((set, get) => ({
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
+      
+      let typeId = request.leave_type_id
+      if (!typeId && (request as any).leave_type) {
+        // Fallback for older forms that pass the string name instead of the UUID
+        const { data: typeData } = await supabase
+          .from('leave_types')
+          .select('id')
+          .ilike('name', `%${(request as any).leave_type}%`)
+          .limit(1)
+          .single()
+        
+        if (typeData) {
+          typeId = typeData.id
+        }
+      }
 
-      // Use the backend RPC to enforce date overlap constraints (RISK-005 Fix)
-      const { data, error } = await supabase.rpc('submit_leave_request', {
-        p_leave_type_id: request.leave_type_id,
-        p_start_date: request.start_date,
-        p_end_date: request.end_date,
-        p_reason: request.reason,
-        p_is_emergency: request.is_emergency || false
+      const { error } = await supabase.from('leave_requests').insert({
+        organization_id: orgId,
+        user_id: profile.id,
+        leave_type_id: typeId,
+        start_date: request.start_date,
+        end_date: request.end_date,
+        reason: request.reason,
+        is_emergency: request.is_emergency || false,
+        status: 'pending'
       })
 
       if (error) throw error
@@ -284,6 +301,16 @@ export const useHRStore = create<HRState>((set, get) => ({
         .single()
 
       if (error) throw error
+      
+      // Insert approval trail record
+      if (profile?.id) {
+        await supabase.from('leave_request_actions').insert({
+          leave_request_id: id,
+          actor_id: profile.id,
+          action: status,
+          note: `Status changed to ${status}`
+        })
+      }
       set({
         leaves: get().leaves.map((r) => (r.id === id ? { ...r, status } : r))
       })

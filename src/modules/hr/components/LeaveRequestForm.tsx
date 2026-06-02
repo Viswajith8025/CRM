@@ -1,17 +1,6 @@
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
@@ -21,121 +10,229 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { useHRStore } from "../hrStore"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 
-const leaveSchema = z.object({
-  leave_type: z.enum(["annual", "sick", "casual", "unpaid"]),
-  start_date: z.string(),
-  end_date: z.string(),
-  reason: z.string().min(5, "Please provide a reason (min 5 chars)"),
-})
+interface LeaveType {
+  id: string
+  name: string
+}
 
 interface LeaveRequestFormProps {
   onSuccess?: () => void
 }
 
 export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
-  const { submitLeaveRequest } = useHRStore()
   const [loading, setLoading] = useState(false)
-
-  const form = useForm<z.infer<typeof leaveSchema>>({
-    resolver: zodResolver(leaveSchema),
-    defaultValues: {
-      leave_type: "annual",
-      start_date: new Date().toISOString().split('T')[0],
-      end_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-      reason: "",
-    },
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([])
+  const [formData, setFormData] = useState({
+    leave_type_id: '',
+    start_date: '',
+    end_date: '',
+    reason: '',
+    is_emergency: false
   })
 
-  async function onSubmit(values: z.infer<typeof leaveSchema>) {
+  useEffect(() => {
+    // Fetch real leave type UUIDs from the database
+    supabase
+      .from('leave_types')
+      .select('id, name')
+      .eq('is_active', true)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          // Deduplicate by name (take first occurrence)
+          const seen = new Set<string>()
+          const unique = data.filter(t => {
+            if (seen.has(t.name)) return false
+            seen.add(t.name)
+            return true
+          })
+          setLeaveTypes(unique)
+          setFormData(prev => ({ ...prev, leave_type_id: unique[0].id }))
+        }
+      })
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!formData.leave_type_id || !formData.start_date || !formData.end_date || !formData.reason) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+    if (formData.reason.length < 5) {
+      toast.error("Please provide a reason (min 5 characters)")
+      return
+    }
+
     setLoading(true)
     try {
-      await submitLeaveRequest({ ...values, status: 'pending' })
+      // Get the current user's session for the insert
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('You must be logged in to submit a leave request.')
+
+      // Get the user's profile to find their organization_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile?.organization_id) throw new Error('Could not find your organization. Please contact your admin.')
+
+      console.log("SUPABASE URL:", import.meta.env.VITE_SUPABASE_URL)
+      console.log("TABLE:", "leave_requests")
+      console.log("PAYLOAD:", {
+        organization_id: profile.organization_id,
+        user_id: user.id,
+        leave_type_id: formData.leave_type_id,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        reason: formData.reason,
+        is_emergency: formData.is_emergency,
+        status: 'pending'
+      })
+      console.log("CLIENT INSTANCE:", "supabase (Standard Client)")
+
+      const { data: insertData, error } = await supabase.from('leave_requests').insert({
+        organization_id: profile.organization_id,
+        user_id: user.id,
+        leave_type_id: formData.leave_type_id,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        reason: formData.reason,
+        is_emergency: formData.is_emergency,
+        status: 'pending'
+      })
+
+      console.log("INSERT RESULT:", { error, data: insertData })
+      if (error) throw error
+
       toast.success("Leave request submitted successfully")
       onSuccess?.()
-    } catch (error) {
-      console.error(error)
-      toast.error("Failed to submit leave request")
+    } catch (error: any) {
+      console.error('Leave submission error:', JSON.stringify(error))
+      toast.error(error?.message || error?.details || "Failed to submit leave request", {
+        description: error?.hint || error?.code || undefined
+      })
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-        <FormField
-          control={form.control}
-          name="leave_type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Leave Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="annual">Annual Leave</SelectItem>
-                  <SelectItem value="sick">Sick Leave</SelectItem>
-                  <SelectItem value="casual">Casual Leave</SelectItem>
-                  <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <form onSubmit={handleSubmit} className="space-y-4 pt-4">
 
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="start_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="end_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg text-xs text-muted-foreground space-y-1 mb-4">
+        <p className="font-bold text-foreground uppercase tracking-tight">Leave Policy Overview</p>
+        <ul className="list-disc pl-4 space-y-1 mt-2">
+          <li><strong>Paid Leave:</strong> Requires 14 days prior notice.</li>
+          <li><strong>Sick Leave:</strong> Exceeding 2 days requires a medical certificate upon return.</li>
+          <li><strong>Casual Leave:</strong> Maximum 3 consecutive days.</li>
+          <li><strong>Unpaid Leave:</strong> Subject to management approval based on current workload.</li>
+        </ul>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-widest">Leave Type</Label>
+        <Select
+          value={formData.leave_type_id}
+          onValueChange={(val) => setFormData(prev => ({ ...prev, leave_type_id: val }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select leave type" />
+          </SelectTrigger>
+          <SelectContent>
+            {leaveTypes.map(type => (
+              <SelectItem key={type.id} value={type.id}>{type.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2 flex flex-col">
+          <Label className="text-xs font-bold uppercase tracking-widest">Start Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn("w-full pl-3 text-left font-normal h-10", !formData.start_date && "text-muted-foreground")}
+              >
+                {formData.start_date ? format(new Date(formData.start_date), "dd/MM/yyyy") : <span>Pick a date</span>}
+                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={formData.start_date ? new Date(formData.start_date) : undefined}
+                onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? date.toISOString().split('T')[0] : '' }))}
+                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
+        <div className="space-y-2 flex flex-col">
+          <Label className="text-xs font-bold uppercase tracking-widest">End Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                className={cn("w-full pl-3 text-left font-normal h-10", !formData.end_date && "text-muted-foreground")}
+              >
+                {formData.end_date ? format(new Date(formData.end_date), "dd/MM/yyyy") : <span>Pick a date</span>}
+                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={formData.end_date ? new Date(formData.end_date) : undefined}
+                onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                disabled={(date) => {
+                  const min = formData.start_date ? new Date(formData.start_date) : new Date(new Date().setHours(0, 0, 0, 0))
+                  return date < min
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
 
-        <FormField
-          control={form.control}
-          name="reason"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Reason</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Explain your reason for leave..." {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+      <div className="space-y-2">
+        <Label className="text-xs font-bold uppercase tracking-widest">Reason</Label>
+        <Textarea
+          placeholder="Explain your reason for leave..."
+          value={formData.reason}
+          onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
         />
+      </div>
 
-        <Button type="submit" className="w-full font-bold" disabled={loading}>
-          {loading ? "Submitting..." : "Submit Leave Request"}
-        </Button>
-      </form>
-    </Form>
+      <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-100 rounded-xl">
+        <input
+          type="checkbox"
+          id="is_emergency"
+          className="h-4 w-4 accent-rose-500"
+          checked={formData.is_emergency}
+          onChange={(e) => setFormData(prev => ({ ...prev, is_emergency: e.target.checked }))}
+        />
+        <Label htmlFor="is_emergency" className="text-xs font-bold text-rose-700 uppercase cursor-pointer">
+          This is an Emergency Leave
+        </Label>
+      </div>
+
+      <Button type="submit" className="w-full font-bold" disabled={loading}>
+        {loading ? "Submitting..." : "Submit Leave Request"}
+      </Button>
+    </form>
   )
 }

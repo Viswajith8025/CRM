@@ -407,23 +407,15 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       }
 
       if (lead_id !== undefined || member_ids !== undefined) {
-        await supabase.from('project_members').delete().eq('project_id', id).eq('organization_id', orgId)
-        
-        const memberInserts = []
-        if (lead_id) {
-          memberInserts.push({ project_id: id, user_id: lead_id, role: 'lead', organization_id: orgId })
-        }
-        
-        if (member_ids && member_ids.length > 0) {
-          member_ids.forEach(userId => {
-            if (userId !== lead_id) {
-              memberInserts.push({ project_id: id, user_id: userId, role: 'member', organization_id: orgId })
-            }
-          })
-        }
-        
-        if (memberInserts.length > 0) {
-          await supabase.from('project_members').insert(memberInserts)
+        const rpcError = await supabase.rpc('update_project_members', {
+          p_project_id: id,
+          p_org_id: orgId,
+          p_lead_id: lead_id || null,
+          p_member_ids: member_ids || []
+        });
+
+        if (rpcError.error) {
+           console.error("Failed to update project members atomically", rpcError.error);
         }
       }
 

@@ -46,7 +46,7 @@ export const TaskList = memo(({ tasks }: TaskListProps) => {
     <div className="space-y-4">
       <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-muted/50 border-b border-border/50">
                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Task Details</th>

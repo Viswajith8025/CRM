@@ -1,0 +1,1 @@
+import dotenv from 'dotenv'; dotenv.config(); async function run() { const res = await fetch(process.env.VITE_SUPABASE_URL + '/rest/v1/?apikey=' + process.env.VITE_SUPABASE_ANON_KEY); const json = await res.json(); console.log(JSON.stringify(json.paths['/rpc/submit_leave_request'], null, 2)); } run();

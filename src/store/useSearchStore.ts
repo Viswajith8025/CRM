@@ -30,21 +30,33 @@ export const useSearchStore = create<SearchState>((set) => ({
     const term = `%${query}%`
 
     try {
-      // Use the optimized Database RPC for unified global search
-      const { data, error } = await supabase.rpc('global_search', {
-        p_query: query,
-        p_limit: 20
-      })
+      // Fallback to parallel standard queries to ensure RLS is respected for all roles
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
       
-      if (error) throw error
+      let queries = [
+        supabase.from('leads').select('id, first_name, last_name, company').ilike('first_name', term).limit(5),
+        supabase.from('clients').select('id, name, email').ilike('name', term).limit(5),
+        supabase.from('projects').select('id, name, status').ilike('name', term).limit(5),
+        supabase.from('tasks').select('id, title, status').ilike('title', term).limit(5),
+        supabase.from('invoices').select('id, invoice_number, status').ilike('invoice_number', term).limit(5),
+        supabase.from('profiles').select('id, full_name, email, role').ilike('full_name', term).limit(5)
+      ]
 
-      const formattedResults: SearchResult[] = (data || []).map((r: any) => ({
-        id: r.id,
-        title: r.title,
-        subtitle: r.subtitle,
-        type: r.type,
-        url: r.link
-      }))
+      if (profile?.role !== 'super_admin' && orgId) {
+        queries = queries.map(q => q.eq('organization_id', orgId))
+      }
+
+      const [leads, clients, projects, tasks, invoices, profiles] = await Promise.all(queries)
+
+      const formattedResults: SearchResult[] = [
+        ...(leads.data || []).map(r => ({ id: r.id, title: `${r.first_name} ${r.last_name || ''}`, subtitle: r.company || 'Lead', type: 'lead' as const, url: `/crm` })),
+        ...(clients.data || []).map(r => ({ id: r.id, title: r.name, subtitle: r.email || 'Client', type: 'client' as const, url: `/clients` })),
+        ...(projects.data || []).map(r => ({ id: r.id, title: r.name, subtitle: `Status: ${r.status}`, type: 'project' as const, url: `/projects` })),
+        ...(tasks.data || []).map(r => ({ id: r.id, title: r.title, subtitle: `Status: ${r.status}`, type: 'task' as const, url: `/tasks` })),
+        ...(invoices.data || []).map(r => ({ id: r.id, title: r.invoice_number, subtitle: `Status: ${r.status}`, type: 'invoice' as const, url: `/billing` })),
+        ...(profiles.data || []).map(r => ({ id: r.id, title: r.full_name || r.email || 'Unknown', subtitle: r.role || 'Employee', type: 'employee' as const, url: `/settings` }))
+      ]
 
       set({ results: formattedResults })
     } catch (error) {

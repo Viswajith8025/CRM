@@ -286,8 +286,8 @@ export function ProjectExpenseModal({ open, onOpenChange, defaultProjectId, onSu
               No expenses logged yet. Add one above to start tracking profitability.
             </p>
           ) : (
-            <div className="rounded-xl border border-border/50 overflow-hidden">
-              <table className="w-full text-xs">
+            <div className="rounded-xl border border-border/50 overflow-x-auto">
+              <table className="w-full text-xs min-w-[500px]">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border/50">
                     <th className="p-3 text-left font-black uppercase tracking-widest text-[9px] text-muted-foreground">Date</th>

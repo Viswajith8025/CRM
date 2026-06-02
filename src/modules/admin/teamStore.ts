@@ -125,6 +125,11 @@ export const useTeamStore = create<TeamState>((set, get) => ({
       const { profile: currentUser } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!currentUser) throw new Error('Not authenticated.')
 
+      const target = get().members.find(m => m.id === userId)
+      if (target?.status === 'denied') {
+        throw new Error('Cannot assign a role to a denied member.')
+      }
+
       const { error } = await supabase.rpc('assign_user_role', {
         p_user_id: userId,
         p_role_id: roleId,

@@ -32,12 +32,11 @@ export function useOptimisticTaskUpdate() {
         if (!old || !old.pages) return old
         return {
           ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            data: page.data.map((task: any) => 
+          pages: old.pages.map((page: any[]) => 
+            page.map((task: any) => 
               task.id === updatedTask.id ? { ...task, ...updatedTask } : task
             )
-          }))
+          )
         }
       })
 
