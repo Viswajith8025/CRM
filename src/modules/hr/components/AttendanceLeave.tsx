@@ -41,11 +41,8 @@ export function AttendanceLeave() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" /> Daily Attendance
+            <Clock className="h-5 w-5 text-primary" /> Daily Attendance Logs
           </h3>
-          <div className="flex gap-2">
-            <Button size="sm" onClick={() => clockIn()}>Clock In</Button>
-          </div>
         </div>
 
         <div className="rounded-xl border bg-card overflow-hidden">
@@ -94,28 +91,8 @@ export function AttendanceLeave() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-lg flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" /> Leave Requests
+            <Calendar className="h-5 w-5 text-primary" /> Leave Approvals
           </h3>
-          
-          {canRequest && (
-            <Dialog open={isLeaveOpen} onOpenChange={setIsLeaveOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="secondary">Request Leave</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Submit Leave Request</DialogTitle>
-                  <DialogDescription>
-                    Request time off for approval by HR.
-                  </DialogDescription>
-                </DialogHeader>
-                <LeaveRequestForm onSuccess={() => {
-                  setIsLeaveOpen(false)
-                  fetchLeaves()
-                }} />
-              </DialogContent>
-            </Dialog>
-          )}
         </div>
 
         <div className="rounded-xl border bg-card overflow-hidden">

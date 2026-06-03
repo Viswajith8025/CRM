@@ -36,11 +36,12 @@ export function EmployeeDirectory() {
     fetchEmployees()
   }, [])
 
-  const filteredEmployees = employees.filter((emp) => {
-    const matchesSearch = emp.profile?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+  const filteredEmployees = employees.filter((emp: any) => {
+    const matchesSearch = emp.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       emp.department?.toLowerCase().includes(search.toLowerCase()) ||
-      emp.designation?.toLowerCase().includes(search.toLowerCase())
-    const isNotDenied = emp.profile?.status !== 'denied'
+      emp.designation?.toLowerCase().includes(search.toLowerCase()) ||
+      emp.email?.toLowerCase().includes(search.toLowerCase())
+    const isNotDenied = emp.status !== 'denied' && emp.status !== 'archived'
     return matchesSearch && isNotDenied
   })
 
@@ -114,18 +115,18 @@ export function EmployeeDirectory() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                        <AvatarImage src={emp.profile?.avatar_url || ""} />
+                        <AvatarImage src={emp.avatar_url || ""} />
                         <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
-                          {emp.profile?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "U"}
+                          {emp.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col">
                         <span className="text-sm font-bold tracking-tight group-hover:text-primary transition-colors">
-                          {emp.profile?.full_name || "Unknown"}
+                          {emp.full_name || "Unknown"}
                         </span>
                         <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                           <Mail className="h-2.5 w-2.5" />
-                          {emp.profile?.email}
+                          {emp.email}
                         </span>
                       </div>
                     </div>
@@ -161,7 +162,7 @@ export function EmployeeDirectory() {
                       size="icon" 
                       className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
                       onClick={() => {
-                        setSelectedEmployee(emp)
+                        setSelectedEmployee({ ...emp, user_id: emp.id } as any)
                         setIsFormOpen(true)
                       }}
                     >
