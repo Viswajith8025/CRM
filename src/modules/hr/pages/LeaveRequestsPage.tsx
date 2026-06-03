@@ -105,7 +105,7 @@ export default function LeaveRequestsPage() {
         .select('*, policies:leave_policies(yearly_limit, approval_required)')
         .eq('is_active', true)
       
-      setLeaveTypes(types || [])
+      setLeaveTypes((types || []).filter(t => t.name !== 'Casual Leave' && t.name !== 'casual' && t.name !== 'Casual'))
 
       // Fetch balances for the current year
       const currentYear = new Date().getFullYear()
@@ -262,6 +262,16 @@ export default function LeaveRequestsPage() {
                   Fill out the form below to apply for a leave request, including start and end dates and reason.
                 </DialogDescription>
               </DialogHeader>
+              
+              <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                <h4 className="text-[10px] font-black uppercase text-primary tracking-widest mb-2">Leave Policy Overview</h4>
+                <ul className="text-xs text-foreground space-y-1.5 font-medium leading-relaxed">
+                  <li><strong className="text-primary">Paid Leave:</strong> Requires 2 days prior notice.</li>
+                  <li><strong className="text-primary">Sick Leave:</strong> Exceeding 2 days requires a medical certificate upon return.</li>
+                  <li><strong className="text-primary">Unpaid Leave:</strong> Subject to management approval based on current workload.</li>
+                </ul>
+              </div>
+
               <form onSubmit={handleSubmit} className="space-y-4 py-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
