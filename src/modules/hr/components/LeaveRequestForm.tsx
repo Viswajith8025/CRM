@@ -84,32 +84,16 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
 
       if (!profile?.organization_id) throw new Error('Could not find your organization. Please contact your admin.')
 
-      console.log("SUPABASE URL:", import.meta.env.VITE_SUPABASE_URL)
-      console.log("TABLE:", "leave_requests")
-      console.log("PAYLOAD:", {
-        organization_id: profile.organization_id,
-        user_id: user.id,
-        leave_type_id: formData.leave_type_id,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        reason: formData.reason,
-        is_emergency: formData.is_emergency,
-        status: 'pending'
-      })
-      console.log("CLIENT INSTANCE:", "supabase (Standard Client)")
-
-      const { data: insertData, error } = await supabase.from('leave_requests').insert({
-        organization_id: profile.organization_id,
-        user_id: user.id,
-        leave_type_id: formData.leave_type_id,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-        reason: formData.reason,
-        is_emergency: formData.is_emergency,
-        status: 'pending'
+      // Use RPC to bypass PostgREST schema cache issues
+      const { data: insertData, error } = await supabase.rpc('submit_leave_request', {
+        p_leave_type_id: formData.leave_type_id,
+        p_start_date: formData.start_date,
+        p_end_date: formData.end_date,
+        p_reason: formData.reason,
+        p_is_emergency: formData.is_emergency
       })
 
-      console.log("INSERT RESULT:", { error, data: insertData })
+      console.log("RPC RESULT:", { error, data: insertData })
       if (error) throw error
 
       toast.success("Leave request submitted successfully")
@@ -172,7 +156,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               <Calendar
                 mode="single"
                 selected={formData.start_date ? new Date(formData.start_date) : undefined}
-                onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? date.toISOString().split('T')[0] : '' }))}
+                onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
                 disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                 initialFocus
               />
@@ -196,7 +180,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               <Calendar
                 mode="single"
                 selected={formData.end_date ? new Date(formData.end_date) : undefined}
-                onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
                 disabled={(date) => {
                   const min = formData.start_date ? new Date(formData.start_date) : new Date(new Date().setHours(0, 0, 0, 0))
                   return date < min

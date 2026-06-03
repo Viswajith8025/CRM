@@ -99,77 +99,91 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
     }, 10000)
 
     try {
-      // 1. Fetch Profile
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle()
-      
-      let finalProfileData = profile;
-      if (error) {
-        // Self-healing safeguard: if token is invalid, expired, or unauthorized (401), clear session and sign out
-        if (error.status === 401 || error.message?.toLowerCase().includes("jwt") || error.message?.toLowerCase().includes("invalid token")) {
-          console.warn("[Auth] Invalid or expired credentials detected. Auto-resetting session.");
-          await get().signOut();
-          return;
-        }
-        console.warn("[Auth] RLS or fetch error (e.g. empty string cast). Proceeding to fallback profile creation:", error);
-      }
+      // 1. Try Optimized Bootstrap RPC
+      const { data: bootstrapData, error: bootstrapError } = await supabase
+        .rpc('bootstrap_user_session', { p_user_id: user.id });
 
-      // 2. Resolve Dynamic Role Name
-      let dynamicRoleName = null
-      if (profile) {
-        try {
-          const { data: userRoleData, error: rpcError } = await supabase
-            .rpc('get_user_dynamic_role', { p_user_id: user.id })
-          
-          if (!rpcError && userRoleData && userRoleData.length > 0) {
-            dynamicRoleName = userRoleData[0].role_name
-          } else {
-            // Fallback manual query
-            const { data: qData } = await supabase
-              .from('user_roles')
-              .select('roles(name)')
-              .eq('user_id', user.id)
-              .limit(1)
-            if (qData && qData.length > 0) {
-              const roleInfo = qData[0].roles
-              dynamicRoleName = Array.isArray(roleInfo) ? roleInfo[0]?.name : (roleInfo as any)?.name
+      let finalProfileData = null;
+      let dynamicRoleName = null;
+      let is_org_suspended = false;
+      let perms: any[] = [];
+
+      if (!bootstrapError && bootstrapData && !bootstrapData.error) {
+        // Fast Path
+        finalProfileData = bootstrapData.profile;
+        dynamicRoleName = bootstrapData.dynamic_role;
+        is_org_suspended = bootstrapData.is_org_suspended;
+        perms = bootstrapData.permissions || [];
+      } else {
+        // Fallback: 4 Sequential Queries
+        if (bootstrapError) {
+           console.log("[Auth] Bootstrap RPC not found or failed, falling back to sequential fetch. Please run FIX_HIGH_2_AUTH_HYDRATION.sql");
+        }
+
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle()
+        
+        finalProfileData = profile;
+        if (error) {
+          if (error.status === 401 || error.message?.toLowerCase().includes("jwt") || error.message?.toLowerCase().includes("invalid token")) {
+            console.warn("[Auth] Invalid or expired credentials detected. Auto-resetting session.");
+            await get().signOut();
+            return;
+          }
+          console.warn("[Auth] RLS or fetch error (e.g. empty string cast). Proceeding to fallback profile creation:", error);
+        }
+
+        if (profile) {
+          try {
+            const { data: userRoleData, error: rpcError } = await supabase
+              .rpc('get_user_dynamic_role', { p_user_id: user.id })
+            
+            if (!rpcError && userRoleData && userRoleData.length > 0) {
+              dynamicRoleName = userRoleData[0].role_name
+            } else {
+              const { data: qData } = await supabase
+                .from('user_roles')
+                .select('roles(name)')
+                .eq('user_id', user.id)
+                .limit(1)
+              if (qData && qData.length > 0) {
+                const roleInfo = qData[0].roles
+                dynamicRoleName = Array.isArray(roleInfo) ? roleInfo[0]?.name : (roleInfo as any)?.name
+              }
             }
+          } catch (roleErr) {
+            console.error("Dynamic role resolution error:", roleErr)
           }
-        } catch (roleErr) {
-          console.error("Dynamic role resolution error:", roleErr)
         }
-      }
-      
-      let is_org_suspended = false
-      if (profile && profile.role !== 'super_admin') {
-        try {
-          const { data: orgStatus } = await supabase.rpc('check_org_status')
-          if (orgStatus && orgStatus.status === 'suspended') {
-            is_org_suspended = true
+        
+        if (profile && profile.role !== 'super_admin') {
+          try {
+            const { data: orgStatus } = await supabase.rpc('check_org_status')
+            if (orgStatus && orgStatus.status === 'suspended') {
+              is_org_suspended = true
+            }
+          } catch (orgErr) {
+            console.error("Org status check error:", orgErr)
           }
-        } catch (orgErr) {
-          console.error("Org status check error:", orgErr)
         }
-      }
 
-      // 4. Resolve Permissions
-      let perms = null
-      try {
-        const { data, error: permsError } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: user.id })
-        if (permsError) console.error("Permissions fetch error:", permsError)
-        perms = data
-      } catch (permErr) {
-        console.error("Permissions RPC threw error:", permErr)
+        try {
+          const { data, error: permsError } = await supabase.rpc('get_user_permission_codes_v2', { p_user_id: user.id })
+          if (permsError) console.error("Permissions fetch error:", permsError)
+          perms = data || []
+        } catch (permErr) {
+          console.error("Permissions RPC threw error:", permErr)
+        }
       }
       
       const finalProfile = finalProfileData || await get().createMissingProfile(user)
       const newProfileState = { 
         ...(finalProfile || { role: 'employee', status: 'pending' }), 
         dynamic_role: dynamicRoleName,
-        permissions: (perms || []).map((p: any) => p.permission_code || p), // handle both RPC result formats
+        permissions: perms.map((p: any) => p.permission_code || p), // handle both RPC result formats
         is_org_suspended 
       } as UserProfile
       

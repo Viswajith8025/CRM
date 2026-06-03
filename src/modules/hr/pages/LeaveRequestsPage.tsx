@@ -180,15 +180,13 @@ export default function LeaveRequestsPage() {
 
         toast.success("Leave request updated and resubmitted successfully")
       } else {
-        const { error } = await supabase.from('leave_requests').insert({
-          organization_id: profile?.organization_id,
-          user_id: profile?.id,
-          leave_type_id: formData.leave_type_id,
-          start_date: formData.start_date,
-          end_date: formData.end_date,
-          reason: formData.reason,
-          is_emergency: formData.is_emergency,
-          status: 'pending'
+        // Use RPC to bypass PostgREST schema cache issues
+        const { data: rpcData, error } = await supabase.rpc('submit_leave_request', {
+          p_leave_type_id: formData.leave_type_id,
+          p_start_date: formData.start_date,
+          p_end_date: formData.end_date,
+          p_reason: formData.reason,
+          p_is_emergency: formData.is_emergency
         })
         
         if (error) throw error
@@ -352,7 +350,7 @@ export default function LeaveRequestsPage() {
                         <Calendar
                           mode="single"
                           selected={formData.start_date ? new Date(formData.start_date) : undefined}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, start_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
                           disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
                           initialFocus
                         />
@@ -382,7 +380,7 @@ export default function LeaveRequestsPage() {
                         <Calendar
                           mode="single"
                           selected={formData.end_date ? new Date(formData.end_date) : undefined}
-                          onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? date.toISOString().split('T')[0] : '' }))}
+                          onSelect={(date) => setFormData(prev => ({ ...prev, end_date: date ? format(date, 'yyyy-MM-dd') : '' }))}
                           disabled={(date) => {
                             const minDate = formData.start_date ? new Date(formData.start_date) : new Date(new Date().setHours(0,0,0,0));
                             return date < minDate;

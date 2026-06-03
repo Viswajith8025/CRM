@@ -125,16 +125,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .select(`
           *,
           client:clients(name),
-          members:project_members(role, user_id, profiles(full_name, email)),
-          milestones:project_milestones(*),
-          tasks:tasks(
-            status, 
-            due_date, 
-            assignee:assigned_to(id, full_name, avatar_url),
-            time_logs(duration_minutes, user:profiles(hourly_rate))
-          ),
-          invoices(grand_total, status),
-          expenses:project_expenses(*)
+          members:project_members(role, user_id, profiles(full_name, email, avatar_url))
         `, { count: 'exact' })
         .eq('organization_id', orgId)
 
@@ -158,49 +149,54 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         filters
       })
 
+      // Fetch pre-calculated health stats from the materialized view
+      const projectIds = result.data.map(p => p.id)
+      let statsMap = new Map()
+      
+      if (projectIds.length > 0) {
+        const { data: statsData } = await supabase
+          .from('v_project_health_stats')
+          .select('*')
+          .in('project_id', projectIds)
+          
+        if (statsData) {
+          statsData.forEach(s => statsMap.set(s.project_id, s))
+        }
+      }
+
       const projectsWithStats = result.data.map(project => {
-        // ... (The complex mapping logic remains identical)
+        // Derive team strictly from project_members, avoiding task iteration
         const teamMap = new Map()
-        project.tasks?.forEach((t: any) => {
-          if (t.assignee) teamMap.set(t.assignee.id, t.assignee)
+        project.members?.forEach((m: any) => {
+          if (m.profiles) {
+            teamMap.set(m.user_id, { 
+              id: m.user_id, 
+              full_name: m.profiles.full_name, 
+              avatar_url: m.profiles.avatar_url 
+            })
+          }
         })
         
         const leadMember = project.members?.find((m: any) => m.role === 'lead')
         const lead = leadMember ? {
           id: leadMember.user_id,
           full_name: leadMember.profiles?.full_name,
-          email: leadMember.profiles?.email
+          email: leadMember.profiles?.email,
+          avatar_url: leadMember.profiles?.avatar_url
         } : undefined
 
-        const totalTasks = project.tasks?.length || 0
-        const completedTasks = project.tasks?.filter((t: any) => t.status === 'done').length || 0
+        const stats = statsMap.get(project.id) || {}
         
-        const revenue = project.invoices?.filter((inv: any) => inv.status === 'paid').reduce((sum: number, inv: any) => sum + (inv.grand_total || 0), 0) || 0
+        const totalTasks = stats.total_tasks || 0
+        const completedTasks = stats.completed_tasks || 0
+        const overdueTasks = stats.overdue_tasks || 0
+        const missedMilestones = stats.missed_milestones || 0
         
-        let laborCost = 0
-        project.tasks?.forEach((task: any) => {
-          task.time_logs?.forEach((log: any) => {
-            const hours = (log.duration_minutes || 0) / 60
-            const rate = log.user?.hourly_rate || 0
-            laborCost += hours * rate
-          })
-        })
-
-        const expenseTotal = project.expenses?.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0) || 0
-        const totalCost = laborCost + expenseTotal
-        const profit = revenue - totalCost
-        
-        const now = new Date()
-        const overdueTasks = project.tasks?.filter((t: any) => 
-          t.due_date && new Date(t.due_date) < now && t.status !== 'done'
-        ).length || 0
-        
-        const missedMilestones = project.milestones?.filter((m: any) => 
-          m.due_date && new Date(m.due_date) < now && !m.is_completed
-        ).length || 0
-
-        const totalInvoiced = project.invoices?.reduce((sum: number, inv: any) => sum + (inv.grand_total || 0), 0) || 0
-        const budgetBurn = project.budget ? (totalInvoiced / project.budget) * 100 : 0
+        const revenue = stats.revenue || 0
+        const laborCost = stats.labor_cost || 0
+        const expenseTotal = stats.expense_total || 0
+        const profit = stats.profit || 0
+        const budgetBurn = stats.budget_burn || 0
         
         // Health Calculation Logic
         let healthStatus: 'on-track' | 'at-risk' | 'delayed' = 'on-track'
@@ -464,7 +460,8 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           deleted_at: new Date().toISOString(),
           deleted_by: profile?.id ?? null,
         })
-        .eq('id', id)   // no org filter — avoids zero-UUID mismatch
+        .eq('id', id)
+        .eq('organization_id', orgId)
 
       if (error) {
         console.error('[Delete Project] Supabase error:', {

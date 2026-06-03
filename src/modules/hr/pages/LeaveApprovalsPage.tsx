@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { supabase } from "@/lib/supabase"
 import { useAuthStore } from "@/store/useAuthStore"
@@ -174,21 +174,49 @@ export default function LeaveApprovalsPage() {
     }
   }
 
-  const filteredRequests = requests.filter(req => 
-    req.profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    req.leave_type?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredRequests = useMemo(() => {
+    return requests.filter(req => 
+      req.profile?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      req.leave_type?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [requests, searchTerm])
 
-  const pendingRequests = filteredRequests.filter(r => r.status === 'pending')
-  const processedRequests = filteredRequests.filter(r => r.status !== 'pending')
+  const pendingRequests = useMemo(() => filteredRequests.filter(r => r.status === 'pending'), [filteredRequests])
+  const processedRequests = useMemo(() => filteredRequests.filter(r => r.status !== 'pending'), [filteredRequests])
 
-  // Calculate dynamic active leaves (approved requests overlapping with today's date)
-  const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const activeLeavesCount = requests.filter(r => 
-    r.status === 'approved' && 
-    todayStr >= r.start_date && 
-    todayStr <= r.end_date
-  ).length
+  // Calculate dynamic statistics
+  const stats = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    
+    let approvedToday = 0
+    let teamOnLeave = 0
+    let emergencyPending = 0
+
+    requests.forEach(r => {
+      // 1. Team on leave today
+      if (r.status === 'approved' && todayStr >= r.start_date && todayStr <= r.end_date) {
+        teamOnLeave++
+      }
+      
+      // 2. Approved Today (checking action logs)
+      if (r.status === 'approved') {
+        const approveAction = r.actions?.find(a => a.action === 'approve')
+        if (approveAction && approveAction.created_at.startsWith(todayStr)) {
+          approvedToday++
+        } else if (!approveAction && r.created_at.startsWith(todayStr)) {
+           // Fallback for legacy records without action logs
+           approvedToday++
+        }
+      }
+
+      // 3. Emergency Pending
+      if (r.is_emergency && r.status === 'pending') {
+        emergencyPending++
+      }
+    })
+
+    return { approvedToday, teamOnLeave, emergencyPending }
+  }, [requests])
 
   return (
     <PageWrapper 
@@ -205,7 +233,7 @@ export default function LeaveApprovalsPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Pending</p>
-                <p className="text-xl font-black">{requests.filter(r => r.status === 'pending').length}</p>
+                <p className="text-xl font-black">{pendingRequests.length}</p>
               </div>
             </CardContent>
           </Card>
@@ -216,7 +244,7 @@ export default function LeaveApprovalsPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Approved Today</p>
-                <p className="text-xl font-black">{requests.filter(r => r.status === 'approved').length}</p>
+                <p className="text-xl font-black">{stats.approvedToday}</p>
               </div>
             </CardContent>
           </Card>
@@ -227,7 +255,7 @@ export default function LeaveApprovalsPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Emergency</p>
-                <p className="text-xl font-black">{requests.filter(r => r.is_emergency && r.status === 'pending').length}</p>
+                <p className="text-xl font-black">{stats.emergencyPending}</p>
               </div>
             </CardContent>
           </Card>
@@ -238,7 +266,7 @@ export default function LeaveApprovalsPage() {
               </div>
               <div>
                 <p className="text-[10px] font-black uppercase text-muted-foreground">Team on Leave</p>
-                <p className="text-xl font-black">{activeLeavesCount}</p>
+                <p className="text-xl font-black">{stats.teamOnLeave}</p>
               </div>
             </CardContent>
           </Card>

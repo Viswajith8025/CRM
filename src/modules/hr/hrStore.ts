@@ -166,21 +166,32 @@ export const useHRStore = create<HRState>((set, get) => ({
 
   addEmployee: async (employee) => {
     try {
-      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const { profile, session } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
 
       const payload = { ...employee, organization_id: orgId }
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert(payload)
-        .select()
-        .single()
+      
+      const { data, error } = await supabase.functions.invoke('invite-employee', {
+        body: payload,
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`
+        }
+      })
 
-      if (error) throw error
-      set({ employees: [...get().employees, data as Employee] })
+      if (error) {
+         console.error('Edge function error:', error)
+         throw new Error(error.message || 'Failed to invite user')
+      }
+      
+      if (data?.error) {
+         throw new Error(data.error)
+      }
+
+      // Refresh employees list to get the updated DB record with the correct UUID
+      get().fetchEmployees({ force: true } as any)
     } catch (err) {
-      throw toFriendlyError(err, "Failed to create employee profile.")
+      throw toFriendlyError(err, "Failed to create employee profile. Make sure the edge function is deployed.")
     }
   },
 
