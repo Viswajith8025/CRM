@@ -25,8 +25,8 @@ import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
 import type { HREmployee } from "../types"
 
 const employeeSchema = z.object({
-  department: z.string().min(2, "Department is required"),
-  designation: z.string().min(2, "Designation is required"),
+  department: z.string().optional().or(z.literal("")),
+  designation: z.string().optional().or(z.literal("")),
   base_salary: z.coerce.number().min(0),
   kpi_score: z.coerce.number().min(0).max(100),
   join_date: z.string(),
@@ -81,68 +81,23 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-        <div className="grid grid-cols-2 gap-4">
-          {/* Department — dynamic dropdown from the database */}
-          <FormField
-            control={form.control}
-            name="department"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Department</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        activeDepartments.length > 0
-                          ? "Select department"
-                          : "No departments found"
-                      } />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {activeDepartments.length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        No active departments — create one in Settings
-                      </SelectItem>
-                    ) : (
-                      activeDepartments.map(dept => (
-                        <SelectItem key={dept.id} value={dept.name}>
-                          {dept.name}
-                        </SelectItem>
-                      ))
-                    )}
-                    {/* If editing and the current department is inactive, still show it */}
-                    {employee?.department &&
-                      !activeDepartments.some(d => d.name === employee.department) && (
-                        <SelectItem value={employee.department}>
-                          {employee.department}{" "}
-                          <span className="text-xs text-muted-foreground">(inactive)</span>
-                        </SelectItem>
-                      )}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="designation"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Designation</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Senior Developer" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+          {/* Department & Role are managed via Teams tab. We just display them here. */}
+          <div className="space-y-1">
+            <FormLabel>Department & Role</FormLabel>
+            <div className="flex flex-col gap-1.5 pt-1">
+              {employee?.department ? (
+                <span className="text-sm font-bold text-sky-600">{employee.department}</span>
+              ) : (
+                <span className="text-sm text-muted-foreground italic">No department assigned</span>
+              )}
+              {employee?.designation && (
+                <span className="text-xs font-bold text-muted-foreground">{employee.designation}</span>
+              )}
+              <span className="text-[10px] text-muted-foreground mt-1">
+                Managed via Teams directory.
+              </span>
+            </div>
+          </div>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField

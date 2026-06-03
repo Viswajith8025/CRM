@@ -133,10 +133,19 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const baseQuery = supabase
         .from('profiles')
-        .select('*', { count: 'exact' })
+        .select(`
+          *,
+          user_roles (
+            roles:role_id ( id, name )
+          ),
+          department_members (
+            is_primary,
+            departments:department_id ( id, name )
+          )
+        `, { count: 'exact' })
         .eq('organization_id', orgId)
 
-      const result = await fetchPaginatedData<Employee>(baseQuery, {
+      const result = await fetchPaginatedData<any>(baseQuery, {
         page,
         limit,
         sortBy,
@@ -144,8 +153,20 @@ export const useHRStore = create<HRState>((set, get) => ({
         filters
       })
 
+      const mapped = result.data.map((m: any) => {
+        const userRole = m.user_roles?.[0]
+        const primaryDeptMember = m.department_members?.find((dm: any) => dm.is_primary) || m.department_members?.[0]
+        return {
+          ...m,
+          designation: userRole?.roles?.name || m.role || null,
+          department: primaryDeptMember?.departments?.name || null,
+          user_roles: undefined,
+          department_members: undefined,
+        }
+      })
+
       set(state => ({ 
-        employees: result.data, 
+        employees: mapped, 
         pagination: {
           ...state.pagination,
           employees: {
