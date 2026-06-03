@@ -45,9 +45,10 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
       .eq('is_active', true)
       .then(({ data }) => {
         if (data && data.length > 0) {
-          // Deduplicate by name (take first occurrence)
+          // Deduplicate by name and filter out 'casual' leave
           const seen = new Set<string>()
           const unique = data.filter(t => {
+            if (t.name.toLowerCase() === 'casual') return false
             if (seen.has(t.name)) return false
             seen.add(t.name)
             return true
@@ -114,9 +115,8 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
       <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg text-xs text-muted-foreground space-y-1 mb-4">
         <p className="font-bold text-foreground uppercase tracking-tight">Leave Policy Overview</p>
         <ul className="list-disc pl-4 space-y-1 mt-2">
-          <li><strong>Paid Leave:</strong> Requires 14 days prior notice.</li>
+          <li><strong>Paid Leave:</strong> Requires 2 days prior notice.</li>
           <li><strong>Sick Leave:</strong> Exceeding 2 days requires a medical certificate upon return.</li>
-          <li><strong>Casual Leave:</strong> Maximum 3 consecutive days.</li>
           <li><strong>Unpaid Leave:</strong> Subject to management approval based on current workload.</li>
         </ul>
       </div>
