@@ -144,7 +144,7 @@ export function EmployeeDirectory() {
                   </TableCell>
                   <TableCell>
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
-                      {emp.join_date ? format(new Date(emp.join_date), 'MMM d, yyyy') : "N/A"}
+                      {emp.created_at ? format(new Date(emp.created_at), 'MMM d, yyyy') : "N/A"}
                     </span>
                   </TableCell>
                   <TableCell>

@@ -57,8 +57,8 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
       designation: employee?.designation || "",
       base_salary: employee?.base_salary || 0,
       kpi_score: employee?.kpi_score || 0,
-      join_date: employee?.join_date || new Date().toISOString().split('T')[0],
-      user_id: employee?.user_id || "",
+      join_date: employee?.join_date ? new Date(employee.join_date).toISOString().split('T')[0] : (employee?.created_at ? new Date(employee.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+      user_id: employee?.user_id || employee?.id || "",
     },
   })
 
