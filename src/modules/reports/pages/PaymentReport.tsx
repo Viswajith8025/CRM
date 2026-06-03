@@ -62,7 +62,7 @@ export default function PaymentReport() {
     tableName: 'payments',
     select: '*, invoice:invoices(invoice_number, client:clients(name))',
     pageSize: 20,
-    searchFields: ['amount', 'payment_method', 'status'],
+    searchFields: ['payment_method'],
     defaultSortBy: 'paid_at'
   })
 

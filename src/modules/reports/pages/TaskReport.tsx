@@ -63,7 +63,7 @@ export default function TaskReport() {
     tableName: 'tasks',
     select: '*, assignee:profiles!assigned_to(full_name), project:projects(name)',
     pageSize: 20,
-    searchFields: ['title', 'description', 'status', 'priority']
+    searchFields: ['title', 'description']
   })
 
   const filterOptions: FilterOption[] = [

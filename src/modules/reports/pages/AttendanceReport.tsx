@@ -63,7 +63,7 @@ export default function AttendanceReport() {
     select: '*, profile:profiles!user_id(full_name)',
     pageSize: 20,
     defaultSortBy: 'date',
-    searchFields: ['status', 'notes']
+    searchFields: ['notes']
   })
 
   const filterOptions: FilterOption[] = [

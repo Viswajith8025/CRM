@@ -63,7 +63,7 @@ export default function ProjectReport() {
     tableName: 'projects',
     select: '*, client:clients(name)',
     pageSize: 15,
-    searchFields: ['name', 'description', 'status']
+    searchFields: ['name', 'description']
   })
 
   const filterOptions: FilterOption[] = [

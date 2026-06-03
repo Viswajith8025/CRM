@@ -62,7 +62,7 @@ export default function RenewalsReport() {
     tableName: 'renewals',
     select: '*, client:clients(name), project:projects(name)',
     pageSize: 20,
-    searchFields: ['description', 'category', 'status']
+    searchFields: ['description']
   })
 
   const filterOptions: FilterOption[] = [

@@ -55,8 +55,16 @@ export function ReportFilters({
           <div key={opt.value} className="shrink-0">
             {opt.type === 'select' ? (
               <Select 
-                value={activeFilters[opt.value] || ""} 
-                onValueChange={(val) => onFilterChange({ ...activeFilters, [opt.value]: val })}
+                value={activeFilters[opt.value] || "_all"} 
+                onValueChange={(val) => {
+                  const newFilters = { ...activeFilters }
+                  if (val === "_all") {
+                    delete newFilters[opt.value]
+                  } else {
+                    newFilters[opt.value] = val
+                  }
+                  onFilterChange(newFilters)
+                }}
               >
                 <SelectTrigger className="h-11 min-w-[140px] border-border/50 bg-card/30 font-bold uppercase tracking-tighter text-[10px]">
                   <div className="flex items-center gap-2">
@@ -65,6 +73,9 @@ export function ReportFilters({
                   </div>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="_all" className="text-[10px] font-bold uppercase text-muted-foreground">
+                    All {opt.label}s
+                  </SelectItem>
                   {opt.options?.map((o) => (
                     <SelectItem key={o.value} value={o.value} className="text-[10px] font-bold uppercase">
                       {o.label}

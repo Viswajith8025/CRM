@@ -62,7 +62,7 @@ export default function EmployeeReport() {
   } = useReport<any>({
     tableName: 'profiles',
     pageSize: 20,
-    searchFields: ['full_name', 'email', 'role', 'department']
+    searchFields: ['full_name', 'email']
   })
 
   const filterOptions: FilterOption[] = [

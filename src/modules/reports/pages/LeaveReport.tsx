@@ -62,7 +62,7 @@ export default function LeaveReport() {
     tableName: 'leave_requests',
     select: '*, profile:profiles!user_id(full_name)',
     pageSize: 20,
-    searchFields: ['reason', 'status', 'leave_type']
+    searchFields: ['reason']
   })
 
   const filterOptions: FilterOption[] = [

@@ -61,7 +61,7 @@ export default function ExpenseReport() {
     tableName: 'project_expenses',
     select: '*, project:projects(name)',
     pageSize: 20,
-    searchFields: ['description', 'category', 'status']
+    searchFields: ['description']
   })
 
   const filterOptions: FilterOption[] = [
