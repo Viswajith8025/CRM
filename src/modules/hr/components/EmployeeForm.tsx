@@ -83,7 +83,7 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
           {/* Department & Role are managed via Teams tab. We just display them here. */}
           <div className="space-y-1">
-            <FormLabel>Department & Role</FormLabel>
+            <span className="text-sm font-medium leading-none">Department & Role</span>
             <div className="flex flex-col gap-1.5 pt-1">
               {employee?.department ? (
                 <span className="text-sm font-bold text-sky-600">{employee.department}</span>
