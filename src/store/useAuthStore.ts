@@ -3,6 +3,12 @@ import { supabase } from '../lib/supabase'
 import { logActivity } from '../lib/auditLogger'
 
 import type { User, Session } from '@supabase/supabase-js'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
+// Module-level singleton — ensures only ONE profile-sync channel exists
+// at any time, regardless of how many components call subscribeToProfile.
+let _profileChannel: RealtimeChannel | null = null
+let _profileChannelUserId: string | null = null
 
 export interface UserProfile {
   id: string
@@ -42,28 +48,57 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
   
   subscribeToProfile: () => {
     const { user } = get()
-    if (!user) return () => {}
-
-    // Unique channel per mount to avoid "callbacks after subscribe" errors
-    const channel = supabase.channel(`profile-sync-${user.id}-${Date.now()}`)
-    
-    channel.on(
-      'postgres_changes',
-      { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'profiles', 
-        filter: `id=eq.${user.id}` 
-      },
-      () => {
-        get().fetchProfile()
+    if (!user) {
+      // No user — teardown any existing channel and return a no-op cleanup
+      if (_profileChannel) {
+        supabase.removeChannel(_profileChannel)
+        _profileChannel = null
+        _profileChannelUserId = null
       }
-    )
-    
-    channel.subscribe()
+      return () => {}
+    }
 
+    // If we already have a channel for THIS user, just return the teardown
+    if (_profileChannel && _profileChannelUserId === user.id) {
+      return () => {
+        // Caller-level teardown is intentionally a no-op here;
+        // the singleton lives until signOut or a user change.
+      }
+    }
+
+    // Teardown channel for a DIFFERENT previous user (e.g. after account switch)
+    if (_profileChannel) {
+      supabase.removeChannel(_profileChannel)
+      _profileChannel = null
+      _profileChannelUserId = null
+    }
+
+    // Create one deterministic channel per user ID (no Math.random or Date.now)
+    _profileChannel = supabase
+      .channel(`profile-sync-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user.id}`,
+        },
+        () => {
+          get().fetchProfile()
+        }
+      )
+      .subscribe()
+
+    _profileChannelUserId = user.id
+
+    // Return a teardown that fully destroys the singleton (used on signOut)
     return () => {
-      supabase.removeChannel(channel)
+      if (_profileChannel) {
+        supabase.removeChannel(_profileChannel)
+        _profileChannel = null
+        _profileChannelUserId = null
+      }
     }
   },
 

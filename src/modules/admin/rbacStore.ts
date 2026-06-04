@@ -2,6 +2,12 @@ import * as zustand from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/store/useAuthStore'
+import type { RealtimeChannel } from '@supabase/supabase-js'
+
+// Module-level singleton — one channel per app lifetime, keyed to the user.
+// Prevents N duplicate subscriptions when N components use usePermissions.
+let _rbacChannel: RealtimeChannel | null = null
+let _rbacChannelUserId: string | null = null
 
 // ============================================================
 // TYPES
@@ -53,6 +59,8 @@ interface RBACState {
   updateRole: (roleId: string, updates: Partial<Role>, permissionIds: string[]) => Promise<void>
   deleteRole: (roleId: string) => Promise<void>
   hasPermission: (code: string) => boolean
+  /** Call once on app startup to wire RBAC realtime updates as a singleton. */
+  initRBACSubscription: (userId: string) => (() => void)
 }
 
 // ============================================================
@@ -242,6 +250,8 @@ export const useRBACStore = zustand.create<RBACState>((set, get) => ({
       if (JSON.stringify(get().userPermissions) !== JSON.stringify(sorted)) {
         set({ userPermissions: sorted })
       }
+      // Mark as fetched so usePermissions skips duplicate calls across mounts
+      ;(get() as any).__rbacFetched = true
     } catch (err: any) {
       console.error('[RBAC] fetchUserPermissions error:', err.message)
     } finally {
@@ -342,6 +352,47 @@ export const useRBACStore = zustand.create<RBACState>((set, get) => ({
       get().fetchRoles()
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete role.')
+    }
+  },
+
+  // ----------------------------------------------------------
+  // initRBACSubscription — singleton realtime channel for role changes.
+  // Call this ONCE from App.tsx or a top-level auth effect.
+  // Replaces the per-component channel that was previously in usePermissions.
+  // ----------------------------------------------------------
+  initRBACSubscription: (userId: string) => {
+    // If we already have a channel for THIS user, return a no-op teardown
+    if (_rbacChannel && _rbacChannelUserId === userId) {
+      return () => {}
+    }
+
+    // Teardown any stale channel (different user or stale instance)
+    if (_rbacChannel) {
+      supabase.removeChannel(_rbacChannel)
+      _rbacChannel = null
+      _rbacChannelUserId = null
+    }
+
+    _rbacChannel = supabase
+      .channel(`rbac-updates-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${userId}` },
+        () => {
+          // Force-refetch permissions on any role change for this user
+          get().fetchUserPermissions(userId, true)
+        }
+      )
+      .subscribe()
+
+    _rbacChannelUserId = userId
+
+    return () => {
+      if (_rbacChannel) {
+        supabase.removeChannel(_rbacChannel)
+        _rbacChannel = null
+        _rbacChannelUserId = null
+      }
     }
   },
 

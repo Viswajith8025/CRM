@@ -140,3 +140,9 @@
     display: none;
   }
 }
+
+/* HP-05: PermissionGuard skeleton shimmer animation */
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

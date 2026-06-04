@@ -67,7 +67,8 @@ function App() {
   const { setSession, subscribeToProfile } = useAuthStore()
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined
+    let unsubProfileChannel: (() => void) | undefined
+    let unsubRBACChannel: (() => void) | undefined
 
     // Listen for auth changes - deduplicated to avoid rapid fire events during initialization
     let lastProcessedSession = ""
@@ -78,12 +79,15 @@ function App() {
       lastProcessedSession = sessionKey
 
       setSession(session)
-      if (unsubscribe) unsubscribe()
+      if (unsubProfileChannel) unsubProfileChannel()
+      if (unsubRBACChannel) unsubRBACChannel()
       if (session?.user) {
-        unsubscribe = subscribeToProfile()
-        // Initialize RBAC
+        unsubProfileChannel = subscribeToProfile()
+        // Wire ONE RBAC singleton channel for this user — HP-03 fix
         import('@/modules/admin/rbacStore').then(m => {
-          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
+          const store = m.useRBACStore.getState()
+          store.fetchUserPermissions(session.user.id)
+          unsubRBACChannel = store.initRBACSubscription(session.user.id)
         })
       }
     })
@@ -96,16 +100,19 @@ function App() {
       
       setSession(session)
       if (session?.user) {
-        unsubscribe = subscribeToProfile()
+        unsubProfileChannel = subscribeToProfile()
         import('@/modules/admin/rbacStore').then(m => {
-          m.useRBACStore.getState().fetchUserPermissions(session.user.id)
+          const store = m.useRBACStore.getState()
+          store.fetchUserPermissions(session.user.id)
+          unsubRBACChannel = store.initRBACSubscription(session.user.id)
         })
       }
     }).catch(() => setSession(null))
 
     return () => {
       subscription.unsubscribe()
-      if (unsubscribe) unsubscribe()
+      if (unsubProfileChannel) unsubProfileChannel()
+      if (unsubRBACChannel) unsubRBACChannel()
     }
   }, [])
 

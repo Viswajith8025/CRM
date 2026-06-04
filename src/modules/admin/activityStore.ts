@@ -173,44 +173,49 @@ export const useAuditStore = create<AuditState>((set, get) => ({
   fetchActivities: (filters) => get().fetchAuditTrail(filters),
 
   subscribeToAudit: () => {
-    const { profile } = (() => {
-      try {
-        return (window as any).useAuthStore?.getState() || { profile: null };
-      } catch {
-        return { profile: null }
-      }
-    })()
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
-    const channel = supabase
-      .channel(`audit-realtime-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'audit_logs',
-          ...(profile?.organization_id && profile?.role !== 'super_admin'
-            ? { filter: `organization_id=eq.${profile.organization_id}` }
-            : {}),
-        },
-        async (payload) => {
-          const { data } = await supabase
-            .from('audit_logs')
-            .select(`*, profiles:user_id(full_name, avatar_url)`)
-            .eq('id', payload.new.id)
-            .single()
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      // Super admins listen globally; all others are org-scoped
+      const filter = orgId && profile?.role !== 'super_admin'
+        ? { filter: `organization_id=eq.${orgId}` }
+        : {}
 
-          if (data) {
-            set(state => ({
-              records: [mapAuditLogToRecord(data), ...state.records],
-              totalCount: state.totalCount + 1,
-            }))
+      channel = supabase
+        .channel(`audit-realtime-${orgId ?? 'global'}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'audit_logs',
+            ...filter,
+          },
+          async (payload) => {
+            const { data } = await supabase
+              .from('audit_logs')
+              .select(`*, profiles:user_id(full_name, avatar_url)`)
+              .eq('id', payload.new.id)
+              .single()
+
+            if (data) {
+              set(state => ({
+                records: [mapAuditLogToRecord(data), ...state.records],
+                totalCount: state.totalCount + 1,
+              }))
+            }
           }
-        }
-      )
-      .subscribe()
+        )
+        .subscribe()
+    }
 
-    return () => supabase.removeChannel(channel)
+    setup()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   },
 
   subscribeToActivities: () => get().subscribeToAudit(),

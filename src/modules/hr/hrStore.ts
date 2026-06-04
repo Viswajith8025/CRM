@@ -285,20 +285,30 @@ export const useHRStore = create<HRState>((set, get) => ({
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
-      
-      let typeId = request.leave_type_id
-      if (!typeId && (request as any).leave_type) {
-        // Fallback for older forms that pass the string name instead of the UUID
-        const { data: typeData } = await supabase
-          .from('leave_types')
-          .select('id')
-          .ilike('name', `%${(request as any).leave_type}%`)
-          .limit(1)
-          .single()
-        
-        if (typeData) {
-          typeId = typeData.id
-        }
+
+      // HP-04 FIX: Require an explicit UUID. The ILIKE fuzzy fallback has been
+      // removed because partial string matching (e.g. "Casual" matching
+      // "Casual Leave (Half Day)") can silently deduct from the wrong leave
+      // type balance. The LeaveRequestForm must always pass leave_type_id.
+      const typeId = request.leave_type_id
+      if (!typeId) {
+        throw new Error(
+          "A valid leave type must be selected. Please choose a leave type from the dropdown before submitting."
+        )
+      }
+
+      // Validate UUID format as an extra safety net
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      if (!UUID_REGEX.test(typeId)) {
+        throw new Error("Invalid leave type selection. Please re-select the leave type and try again.")
+      }
+
+      if (!request.start_date || !request.end_date) {
+        throw new Error("Start date and end date are required.")
+      }
+
+      if (new Date(request.end_date) < new Date(request.start_date)) {
+        throw new Error("End date cannot be before start date.")
       }
 
       const { error } = await supabase.from('leave_requests').insert({
@@ -313,7 +323,7 @@ export const useHRStore = create<HRState>((set, get) => ({
       })
 
       if (error) throw error
-      
+
       // Update local state by re-fetching to ensure relations are loaded
       get().fetchLeaves()
       get().fetchLeaveRequests()
