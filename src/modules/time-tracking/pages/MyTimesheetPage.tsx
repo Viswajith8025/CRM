@@ -56,6 +56,7 @@ export default function MyTimesheetPage() {
           .from('tasks')
           .select('id, title, status, updated_at, created_at')
           .eq('assigned_to', profile.id)
+          .is('deleted_at', null)
           .limit(1000)
           
         const officialTasks = officialTaskData || []

@@ -50,6 +50,12 @@ import { MyAssignedTasksWidget } from "@/modules/dashboard/components/widgets/My
 import { MyAssignedModulesWidget } from "@/modules/dashboard/components/widgets/MyAssignedModulesWidget"
 import { DepartmentIntelligenceCockpit } from "@/modules/dashboard/components/widgets/DepartmentIntelligenceCockpit"
 import { SalesActivityWidget } from "@/modules/dashboard/components/widgets/SalesActivityWidget"
+import { ContentWriterWidget } from "@/modules/dashboard/components/widgets/ContentWriterWidget"
+import { GraphicDesignerWidget } from "@/modules/dashboard/components/widgets/GraphicDesignerWidget"
+import { VideoEditorWidget } from "@/modules/dashboard/components/widgets/VideoEditorWidget"
+import { DigitalMarketerWidget } from "@/modules/dashboard/components/widgets/DigitalMarketerWidget"
+import { BDEDailyReportWidget } from "@/modules/dashboard/components/widgets/BDEDailyReportWidget"
+import { useTeamStore } from "@/modules/admin"
 import { useTheme } from "@/hooks/useTheme"
 import Grainient from "@/components/ui/Grainient"
 import { WorkforceAnalyticsWorkspace } from "@/modules/workforce"
@@ -67,6 +73,17 @@ export default function Dashboard() {
   const isSales = profile?.dynamic_role?.toLowerCase() === 'sales' || 
                   profile?.dynamic_role?.toLowerCase() === 'salesperson' || 
                   profile?.role?.toLowerCase() === 'salesperson'
+
+  const { members, fetchMembers } = useTeamStore()
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
+  const currentUserMember = members.find(m => m.id === profile?.id)
+  const isContentWriter = profile?.role === 'employee' && currentUserMember?.department?.toLowerCase().includes('content')
+  const isGraphicDesigner = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('graphic') || currentUserMember?.department?.toLowerCase().includes('design'))
+  const isVideoEditor = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('video') || currentUserMember?.department?.toLowerCase().includes('editing'))
+  const isDigitalMarketer = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('digital') || currentUserMember?.department?.toLowerCase().includes('marketing') || currentUserMember?.department?.toLowerCase().includes('seo'))
+  const isBDE = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('bde') || currentUserMember?.department?.toLowerCase().includes('business development'))
 
   // Default to overview (My Workspace) for Team Leads so they see their own data first
   useEffect(() => {
@@ -381,14 +398,24 @@ export default function Dashboard() {
                   <TimeDeskDashboardClock />
                   {/* Role-based dashboard split */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {isSales ? (
+                    {isBDE ? (
+                      <BDEDailyReportWidget />
+                    ) : isSales ? (
                       <SalesActivityWidget />
+                    ) : isContentWriter ? (
+                      <ContentWriterWidget />
+                    ) : isGraphicDesigner ? (
+                      <GraphicDesignerWidget />
+                    ) : isVideoEditor ? (
+                      <VideoEditorWidget />
+                    ) : isDigitalMarketer ? (
+                      <DigitalMarketerWidget />
                     ) : (
                       <MyAssignedTasksWidget />
                     )}
                     <DailyTaskList />
                   </div>
-                  {!isSales && <MyAssignedModulesWidget />}
+                  {!isSales && !isBDE && !isContentWriter && !isGraphicDesigner && !isVideoEditor && !isDigitalMarketer && <MyAssignedModulesWidget />}
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

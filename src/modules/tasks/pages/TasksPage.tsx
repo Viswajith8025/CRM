@@ -9,6 +9,7 @@ import { KanbanBoard } from "../components/KanbanBoard"
 import { TaskList } from "../components/TaskList"
 import { WorkloadBoard } from "../components/WorkloadBoard"
 import { useTasksStore } from "../tasksStore"
+import { useTeamStore } from "@/modules/admin"
 import { useTasksQuery, taskKeys } from "../hooks/useTasksQuery"
 import {
   Dialog,
@@ -19,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import TaskForm from "../components/TaskForm"
+import { ContentWritingTaskForm } from "../components/ContentWritingTaskForm"
 import { toast } from "sonner"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
@@ -49,6 +51,13 @@ export default function TasksPage() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isImportOpen, setIsImportOpen] = useState(false)
+
+  const { members, fetchMembers } = useTeamStore()
+  useEffect(() => {
+    fetchMembers()
+  }, [])
+  const currentUserMember = members.find(m => m.id === profile?.id)
+  const isContentWriter = profile?.role === 'employee' && currentUserMember?.department?.toLowerCase().includes('content')
 
   // BUG-001 FIX: Pass debouncedSearchQuery as the 4th argument so backend search is triggered
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useTasksQuery(
@@ -92,17 +101,15 @@ export default function TasksPage() {
       actions={
         <div className="flex gap-2">
           {profile?.role !== 'employee' && (
-            <>
-              <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
-                <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
-                Bulk Import
-              </Button>
-              <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
-                <Plus className="h-4 w-4" />
-                New Task
-              </Button>
-            </>
+            <Button variant="outline" className="gap-2 border-primary/20 hover:bg-primary/5" onClick={() => setIsImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
+              Bulk Import
+            </Button>
           )}
+          <Button className="gap-2 font-bold" onClick={() => setIsFormOpen(true)}>
+            <Plus className="h-4 w-4" />
+            New Task
+          </Button>
         </div>
       }
     >
@@ -227,12 +234,16 @@ export default function TasksPage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Create New Task</DialogTitle>
+            <DialogTitle>{isContentWriter ? "Log Content Work" : "Create New Task"}</DialogTitle>
             <DialogDescription>
-              Add a new task to your workspace. You can optionally link it to a project.
+              {isContentWriter ? "Track your content writing work and link it to a client." : "Add a new task to your workspace. You can optionally link it to a project."}
             </DialogDescription>
           </DialogHeader>
-          <TaskForm onSuccess={() => setIsFormOpen(false)} />
+          {isContentWriter ? (
+            <ContentWritingTaskForm onSuccess={() => setIsFormOpen(false)} />
+          ) : (
+            <TaskForm onSuccess={() => setIsFormOpen(false)} />
+          )}
         </DialogContent>
       </Dialog>
     </PageWrapper>

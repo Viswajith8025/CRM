@@ -27,6 +27,7 @@ import { useTeamStore } from "@/modules/admin"
 import { toast } from "sonner"
 import type { Task } from "../types/types"
 import { sanitizeObject } from "@/lib/security"
+import { useAuthStore } from "@/store/useAuthStore"
 
 const formSchema = z.object({
   title: z.string().min(2, "Task title is required").max(200),
@@ -49,6 +50,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
   const { addTask, updateTask } = useTasksStore()
   const { projects, fetchProjects } = useProjectsStore()
   const { members, fetchMembers } = useTeamStore()
+  const { profile } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
       status: (task?.status as any) || "todo",
       priority: (task?.priority as any) || "medium",
       project_id: task?.project_id || "",
-      assigned_to: task?.assigned_to || "none",
+      assigned_to: task?.assigned_to || (profile?.role === 'employee' ? profile.id : "none"),
       due_date: task?.due_date || "",
       module_id: (task as any)?.module_id || null,
     },
@@ -217,7 +219,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Owner</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={profile?.role === 'employee'}>
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder="Assign someone" />

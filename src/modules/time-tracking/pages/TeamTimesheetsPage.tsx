@@ -7,7 +7,7 @@ import { usePermissions } from "@/hooks/usePermissions"
 import { format, differenceInMinutes } from "date-fns"
 import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
-import { Clock, Calendar as CalendarIcon, Filter, Search, UserCircle, Coffee, CheckSquare, ChevronDown } from "lucide-react"
+import { Clock, Calendar as CalendarIcon, Filter, Search, UserCircle, Coffee, CheckSquare, ChevronDown, BarChart2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -72,6 +72,7 @@ export default function TeamTimesheetsPage() {
   const [dateFilter, setDateFilter] = useState("today")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedSession, setSelectedSession] = useState<TeamSession | null>(null)
+  const [bdeReport, setBdeReport] = useState<any>(null)
   const { departments, fetchDepartments } = useDepartmentStore()
 
   useEffect(() => {
@@ -80,6 +81,25 @@ export default function TeamTimesheetsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isAdjustOpen, setIsAdjustOpen] = useState(false)
   const [adjustData, setAdjustData] = useState({ start_time: "", end_time: "", admin_note: "" })
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setBdeReport(null)
+      return
+    }
+    const sessionDate = selectedSession.start_time.split('T')[0]
+    
+    async function fetchBdeReport() {
+      const { data } = await supabase
+        .from('bde_daily_reports')
+        .select('*')
+        .eq('employee_id', (selectedSession as any).user_id)
+        .eq('report_date', sessionDate)
+        .maybeSingle()
+      setBdeReport(data)
+    }
+    fetchBdeReport()
+  }, [selectedSession])
 
   useEffect(() => {
     async function fetchTeamTimesheets() {
@@ -144,6 +164,7 @@ export default function TeamTimesheetsPage() {
           .from('tasks')
           .select('id, title, status, assigned_to, updated_at, created_at')
           .eq('organization_id', profile.organization_id)
+          .is('deleted_at', null)
           .limit(2000)
 
         const officialTasks = officialTaskData || []
@@ -544,6 +565,42 @@ export default function TeamTimesheetsPage() {
               </div>
             </div>
 
+            {/* BDE Report Section injected here */}
+            {bdeReport && (
+              <div className="pt-4 border-t border-border/10">
+                <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600 border-b border-indigo-100 pb-2 mb-4 flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4" /> BDE Daily Report Snapshot
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Calls / Meetings</p>
+                    <p className="text-sm font-black text-indigo-950">{bdeReport.total_calls_made} <span className="text-xs text-indigo-400 font-medium">/</span> {bdeReport.meetings_completed}</p>
+                  </div>
+                  <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Deals / Revenue</p>
+                    <p className="text-sm font-black text-indigo-950">{bdeReport.deals_closed} <span className="text-xs text-indigo-400 font-medium">/</span> ₹{bdeReport.revenue_generated}</p>
+                  </div>
+                  <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1 sm:col-span-2">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Lead Focus</p>
+                    <p className="text-xs font-bold text-indigo-950 truncate">{bdeReport.lead_name || 'N/A'} <span className="text-indigo-400 font-medium">({bdeReport.lead_status || 'No status'})</span></p>
+                  </div>
+                </div>
+                {(bdeReport.challenges_faced || bdeReport.next_day_plan) && (
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    {bdeReport.challenges_faced && (
+                      <div className="bg-rose-50/50 p-3 rounded-lg border border-rose-100/50 text-xs text-rose-900">
+                        <span className="font-bold block mb-1">Challenges:</span> {bdeReport.challenges_faced}
+                      </div>
+                    )}
+                    {bdeReport.next_day_plan && (
+                      <div className="bg-sky-50/50 p-3 rounded-lg border border-sky-100/50 text-xs text-sky-900">
+                        <span className="font-bold block mb-1">Next Plan:</span> {bdeReport.next_day_plan}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {selectedSession?.admin_note && (
               <div className="mt-4 p-4 bg-amber-50 border border-amber-100 rounded-xl">
                 <h5 className="text-[10px] font-black uppercase text-amber-600 mb-1">Admin Note</h5>
