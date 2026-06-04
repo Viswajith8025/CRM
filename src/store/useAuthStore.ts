@@ -1,5 +1,6 @@
 import * as zustand from 'zustand'
 import { supabase } from '../lib/supabase'
+import { logActivity } from '../lib/auditLogger'
 
 import type { User, Session } from '@supabase/supabase-js'
 
@@ -179,7 +180,24 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         }
       }
       
-      const finalProfile = finalProfileData || await get().createMissingProfile(user)
+      const finalProfile = finalProfileData
+      // SECURITY: If no profile row found, this is an unauthorized or unregistered user.
+      // We do NOT auto-create a profile. We log the critical event and deny access.
+      if (!finalProfile) {
+        console.error('[Auth] SECURITY: No profile found for authenticated user. Denying access and signing out.', { userId: user.id, email: user.email })
+        logActivity({
+          action: 'PERMISSION_CHANGE',
+          targetType: 'user',
+          targetId: user.id,
+          targetName: user.email || user.id,
+          description: `SECURITY ALERT: Authenticated user has no profile row. Access denied. Email: ${user.email}`,
+          severity: 'critical',
+        })
+        clearTimeout(timeout)
+        set({ isLoading: false, _isFetching: false } as any)
+        await get().signOut()
+        return
+      }
       const newProfileState = { 
         ...(finalProfile || { role: 'employee', status: 'pending' }), 
         dynamic_role: dynamicRoleName,
@@ -205,6 +223,11 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
   },
 
   createMissingProfile: async (user: any) => {
+    // DEPRECATED: This function is kept only for the registerOrganization flow
+    // where a brand-new OAuth user needs their first profile created after
+    // completing the organization setup wizard. It MUST NOT be called in
+    // the general fetchProfile path. See security hardening above.
+    console.warn('[Auth] createMissingProfile called. This should only happen during organization registration.')
     const { data: newProfile } = await supabase
       .from('profiles')
       .insert({

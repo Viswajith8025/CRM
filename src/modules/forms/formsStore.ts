@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { logActivity } from '@/lib/auditLogger'
+import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
 import type { FormTemplate, FormSection, FormField, FormSubmission, SubmissionAnswer, FormCondition, FormAttachment, FinancialData } from './types'
 
 interface FormsState {
@@ -20,7 +21,8 @@ interface FormsState {
   subscribeToSubmissions: () => () => void
 
   // Client Portal & Submissions
-  fetchSubmissions: () => Promise<void>
+  fetchSubmissions: (params?: Partial<PaginationParams> & { force?: boolean }) => Promise<void>
+  submissionPagination: { totalCount: number; page: number; limit: number; totalPages: number }
   getSubmissionById: (id: string) => Promise<FormSubmission | null>
   createSubmission: (templateId: string, leadId?: string, clientId?: string) => Promise<FormSubmission>
   saveAnswers: (submissionId: string, answers: { field_id: string; value: string; is_sensitive?: boolean }[], currentStep?: number) => Promise<void>
@@ -43,6 +45,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
   currentSubmission: null,
   isLoading: false,
   error: null,
+  submissionPagination: { totalCount: 0, page: 1, limit: 20, totalPages: 0 },
 
   fetchTemplates: async () => {
     set({ isLoading: true })
@@ -303,26 +306,41 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
   },
 
-  fetchSubmissions: async () => {
+  fetchSubmissions: async (params = {}) => {
+    const { page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc', force = false } = params as any
     set({ isLoading: true })
     try {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) throw new Error('No organization context found.')
 
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from('form_submissions')
         .select(`
           *,
-          template:form_templates (*),
+          template:form_templates (id, name, service_type),
           lead:leads!lead_id (first_name, last_name, company),
           client:clients!client_id (name)
-        `)
+        `, { count: 'exact' })
         .eq('organization_id', orgId)
-        .order('updated_at', { ascending: false })
 
-      if (error) throw error
-      set({ submissions: data || [], error: null })
+      const result = await fetchPaginatedData<FormSubmission>(baseQuery, {
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+      })
+
+      set({
+        submissions: result.data,
+        submissionPagination: {
+          totalCount: result.totalCount,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
+        error: null,
+      })
     } catch (err: any) {
       set({ error: err.message || 'Failed to fetch submissions' })
     } finally {
