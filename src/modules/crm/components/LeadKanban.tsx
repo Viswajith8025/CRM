@@ -107,6 +107,11 @@ export function LeadKanban({ searchQuery = "", segmentFilter = "all", onEdit, on
     const overColumn = COLUMNS.find(col => col.id === overId)
     const targetStatus = overColumn ? overColumn.id : localLeads.find(l => l.id === overId)?.status
 
+    if (draggedLead.status === 'active_client') {
+      toast.error("Converted clients cannot be moved back to leads pipeline.")
+      return
+    }
+
     if (targetStatus && draggedLead.status !== targetStatus) {
       // 1. IMMEDIATELY move the card in local state — this is instant and
       //    cannot be overwritten by any background store fetch

@@ -51,6 +51,14 @@ interface TimeDeskState {
 }
 
 let heartbeatInterval: any = null;
+let lastActivityTime = Date.now();
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+const resetActivity = () => {
+  lastActivityTime = Date.now();
+};
+
+const activityEvents = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
 
 export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
   activeSession: null,
@@ -156,15 +164,29 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         return
       }
 
-      const { error } = await supabase.rpc('handle_check_out', {
+      let { error } = await supabase.rpc('handle_check_out', {
         p_user_id: user.id
       })
 
-      if (error) throw error
+      if (error) {
+        // Attempt silent session refresh to resolve 401 Unauthorized conflicts
+        await supabase.auth.refreshSession()
+        const retry = await supabase.rpc('handle_check_out', { p_user_id: user.id })
+        error = retry.error
+      }
+      
+      if (error) {
+        // Fallback: Queue for offline sync so session isn't lost
+        const queue = JSON.parse(localStorage.getItem('timeDeskOfflineQueue') || '[]')
+        queue.push({ action: 'check_out', payload: { p_user_id: user.id }, timestamp: Date.now() })
+        localStorage.setItem('timeDeskOfflineQueue', JSON.stringify(queue))
+        toast.warning('Network issue: Checkout queued for background sync.')
+      } else {
+        toast.success('Work session completed. Well done!')
+      }
       
       set({ activeSession: null, activeBreak: null, workDuration: 0, breakDuration: 0 })
       get().stopHeartbeatSync()
-      toast.success('Work session completed. Well done!')
     } catch (err: any) {
       if (err.message !== 'PENDING_TASKS') {
         toast.error(err.message || 'Failed to check out')
@@ -386,10 +408,25 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
 
   startHeartbeatSync: () => {
     get().stopHeartbeatSync()
+    
+    // Attach activity listeners for idle detection
+    lastActivityTime = Date.now()
+    activityEvents.forEach(e => window.addEventListener(e, resetActivity))
+
     // Send one immediately, then every 5 minutes (300,000 ms)
     get().sendHeartbeat()
     heartbeatInterval = setInterval(() => {
-      get().sendHeartbeat()
+      const idleTime = Date.now() - lastActivityTime;
+      if (idleTime > IDLE_TIMEOUT_MS) {
+        // User has been idle for > 15 mins. Automatically put them on break to prevent time fraud.
+        const { activeBreak } = get();
+        if (!activeBreak) {
+          console.warn('[TimeDesk] User idle detected. Auto-pausing session.');
+          get().startBreak('personal');
+        }
+      } else {
+        get().sendHeartbeat()
+      }
     }, 5 * 60 * 1000)
   },
 
@@ -398,5 +435,7 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       clearInterval(heartbeatInterval)
       heartbeatInterval = null
     }
+    // Remove activity listeners
+    activityEvents.forEach(e => window.removeEventListener(e, resetActivity))
   }
 }))

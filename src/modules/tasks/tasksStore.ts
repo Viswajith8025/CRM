@@ -250,6 +250,18 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       }
 
       console.log('[updateTask] PATCH payload:', taskDetails)
+      
+      // OPTIMISTIC UI UPDATE: Apply changes instantly to local state for buttery smooth Kanban
+      const mergedTask = currentTask ? { ...currentTask, ...taskDetails } : null
+      const previousTasks = get().tasks
+      const previousMyTasks = get().myTasks
+      
+      if (mergedTask) {
+        set({
+          tasks: previousTasks.map((t) => t.id === id ? mergedTask as Task : t),
+          myTasks: previousMyTasks.map((t) => t.id === id ? mergedTask as Task : t)
+        })
+      }
 
       // A. Client-side Task Dependency Check (run after sanitizing status)
       if (safeStatus === 'done') {
@@ -362,15 +374,23 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         organization_id: orgId
       })
 
-      // Reconstruct updated task from local state + applied changes
-      const mergedTask = currentTask ? { ...currentTask, ...taskDetails } : null
-      if (mergedTask) {
+      logActivity({
+        action: updates.status ? 'STATUS_CHANGE' : 'UPDATE',
+        targetType: 'task',
+        targetId: id,
+        targetName: currentTask?.title || '',
+        description: updates.status ? `Task status changed to ${updates.status}` : `Updated task details`,
+        organization_id: orgId
+      })
+
+    } catch (err) {
+      // ROLLBACK OPTIMISTIC UPDATE ON FAILURE
+      if (currentTask) {
         set({
-          tasks: get().tasks.map((t) => t.id === id ? mergedTask as Task : t),
-          myTasks: get().myTasks.map((t) => t.id === id ? mergedTask as Task : t)
+          tasks: get().tasks.map((t) => t.id === id ? currentTask : t),
+          myTasks: get().myTasks.map((t) => t.id === id ? currentTask : t)
         })
       }
-    } catch (err) {
       throw toFriendlyError(err, "Failed to update task.")
     }
   },
@@ -599,8 +619,25 @@ export const useTasksStore = create<TasksState>((set, get) => ({
             table: 'tasks',
             filter: filterConfig
           },
-          () => {
-            get().fetchTasks({ projectId, force: true } as any)
+          (payload) => {
+            const { eventType, new: newRecord, old: oldRecord } = payload;
+            const currentTasks = get().tasks;
+            const currentMyTasks = get().myTasks;
+
+            if (eventType === 'UPDATE') {
+              set({
+                tasks: currentTasks.map(t => t.id === newRecord.id ? { ...t, ...newRecord } : t),
+                myTasks: currentMyTasks.map(t => t.id === newRecord.id ? { ...t, ...newRecord } : t)
+              });
+            } else if (eventType === 'DELETE') {
+              set({
+                tasks: currentTasks.filter(t => t.id !== oldRecord.id),
+                myTasks: currentMyTasks.filter(t => t.id !== oldRecord.id)
+              });
+            } else if (eventType === 'INSERT') {
+              // For inserts, we need the join data (assignee, project), so we refetch.
+              get().fetchTasks({ projectId } as any)
+            }
           }
         )
         .subscribe()

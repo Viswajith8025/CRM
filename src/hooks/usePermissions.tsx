@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react"
 import { useRBACStore } from "@/modules/admin/rbacStore"
 import { useAuthStore } from "@/store/useAuthStore"
+import { supabase } from "@/lib/supabase"
 
 /**
  * usePermissions — resolves the current user's permission set.
@@ -26,6 +27,24 @@ export function usePermissions() {
       fetchUserPerms(user.id)
     }
     if (!user) hasFetched.current = false
+
+    // Realtime RBAC updates (Fixes High Priority CTO Audit Issue)
+    // Instantly invalidates permissions cache if an admin alters this user's role
+    if (user) {
+      const channelName = `rbac-updates-${user.id}-${Math.random()}`
+      const channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'user_roles', filter: `user_id=eq.${user.id}` },
+          () => fetchUserPerms(user.id, true) // Force refetch
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
+    }
   }, [user?.id])
 
   const can    = (perm: string)   => hasPermission(perm)

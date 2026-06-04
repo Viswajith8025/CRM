@@ -19,6 +19,17 @@ export interface Contact {
   requirement: string | null
   brought_by_id: string | null
   remarks: string | null
+  whatsapp?: string | null
+  website?: string | null
+  address?: string | null
+  business_type?: string | null
+  services_needed?: string | null
+  target_locations?: string | null
+  has_instagram?: boolean
+  ig_username?: string | null
+  ig_password?: string | null
+  li_username?: string | null
+  li_password?: string | null
   created_at: string
   updated_at: string
 }

@@ -45,6 +45,17 @@ const formSchema = z.object({
   remarks: z.string().optional(),
   created_at: z.string().optional(),
   value: z.coerce.number().optional(),
+  whatsapp: z.string().optional(),
+  website: z.string().url("Invalid URL").optional().or(z.literal("")),
+  address: z.string().optional(),
+  business_type: z.string().optional(),
+  services_needed: z.string().optional(),
+  target_locations: z.string().optional(),
+  has_instagram: z.boolean().optional(),
+  ig_username: z.string().optional(),
+  ig_password: z.string().optional(),
+  li_username: z.string().optional(),
+  li_password: z.string().optional(),
 })
 
 interface LeadFormProps {
@@ -80,6 +91,17 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       remarks: lead?.remarks || "",
       created_at: lead?.created_at ? new Date(lead.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       value: lead?.value || undefined,
+      whatsapp: lead?.whatsapp || "",
+      website: lead?.website || "",
+      address: lead?.address || "",
+      business_type: lead?.business_type || "",
+      services_needed: lead?.services_needed || "",
+      target_locations: lead?.target_locations || "",
+      has_instagram: lead?.has_instagram || false,
+      ig_username: lead?.ig_username || "",
+      ig_password: lead?.ig_password || "",
+      li_username: lead?.li_username || "",
+      li_password: lead?.li_password || "",
     },
   })
 
@@ -376,6 +398,170 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Internal Remarks</FormLabel>
                       <FormControl>
                         <Input placeholder="Additional notes about this lead..." {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* SECTION 4: EXTENDED ONBOARDING DETAILS */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                <div className="p-1.5 rounded-md bg-indigo-500/10 text-indigo-500">
+                  <User className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest">Extended Onboarding Details</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="business_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Business Type</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                        <FormControl>
+                          <SelectTrigger className="bg-muted/20">
+                            <SelectValue placeholder="e.g. B2B, B2C, SaaS" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="B2B">B2B</SelectItem>
+                          <SelectItem value="B2C">B2C</SelectItem>
+                          <SelectItem value="Ecommerce">Ecommerce</SelectItem>
+                          <SelectItem value="SaaS">SaaS</SelectItem>
+                          <SelectItem value="Hybrid">Hybrid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="services_needed"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Services Needed (Comma Separated)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Web, SEO, Marketing" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border/50 pt-4">
+                <FormField
+                  control={form.control}
+                  name="whatsapp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">WhatsApp Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+1 555-0199" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Website URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="target_locations"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Target Locations</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. US, UK, India" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Full Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Main St, City, Country" {...field} className="bg-muted/20" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-border/50 pt-4">
+                <FormField
+                  control={form.control}
+                  name="ig_username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Instagram Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="@username" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="ig_password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Instagram Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="********" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="li_username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">LinkedIn Username</FormLabel>
+                      <FormControl>
+                        <Input placeholder="username" {...field} className="bg-muted/20" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="li_password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">LinkedIn Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="********" {...field} className="bg-muted/20" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

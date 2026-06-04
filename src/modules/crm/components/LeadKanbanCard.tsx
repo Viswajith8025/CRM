@@ -17,6 +17,8 @@ interface LeadKanbanCardProps {
 }
 
 export function LeadKanbanCard({ lead, isOverlay, isSyncing, onEdit, onViewDetails }: LeadKanbanCardProps) {
+  const isConverted = lead.status === 'active_client'
+
   const {
     attributes,
     listeners,
@@ -26,6 +28,7 @@ export function LeadKanbanCard({ lead, isOverlay, isSyncing, onEdit, onViewDetai
     isDragging,
   } = useSortable({
     id: lead.id,
+    disabled: isConverted,
     data: {
       type: 'Lead',
       lead,
@@ -42,7 +45,8 @@ export function LeadKanbanCard({ lead, isOverlay, isSyncing, onEdit, onViewDetai
   const cardContent = (
     <Card 
       className={cn(
-        "p-4 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all group relative",
+        "p-4 transition-all group relative",
+        isConverted ? "cursor-default opacity-80" : "cursor-grab active:cursor-grabbing hover:border-primary/50",
         isDragging && "opacity-50",
         isOverlay && "cursor-grabbing border-primary shadow-xl scale-105 rotate-2",
         isSyncing && "animate-pulse border-primary/30"

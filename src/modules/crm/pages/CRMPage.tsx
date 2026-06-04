@@ -36,7 +36,7 @@ export default function CRMPage() {
   const [isImportOpen, setIsImportOpen] = useState(false)
   const [selectedLead, setSelectedLead] = useState<Lead | undefined>()
   const [detailedLead, setDetailedLead] = useState<Lead | undefined>()
-  const [view, setView] = useState<'list' | 'kanban'>('kanban')
+  const [view, setView] = useState<'list' | 'kanban'>('list')
 
   useEffect(() => {
     fetchLeads()

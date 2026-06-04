@@ -41,10 +41,18 @@ export function RenewalForm({ onSuccess, initialData }: RenewalFormProps) {
     async function loadData() {
       try {
         const [clientsRes, projectsRes] = await Promise.all([
-          supabase.from('clients').select('id, name'),
-          supabase.from('projects').select('id, name')
+          supabase.from('clients').select('id, name, lead_id, leads(status)'),
+          supabase.from('projects').select('id, name, client_id, status')
         ])
-        setClients(clientsRes.data || [])
+        
+        // Filter to only active clients (where lead status is active_client, or no lead exists but is a client)
+        const activeClients = (clientsRes.data || []).filter(c => {
+          if (c.leads && Array.isArray(c.leads)) return c.leads[0]?.status === 'active_client';
+          if (c.leads) return (c.leads as any).status === 'active_client';
+          return true; // If no lead is attached, assume active
+        })
+        
+        setClients(activeClients)
         setProjects(projectsRes.data || [])
       } catch (error) {
         console.error('Failed to load form data', error)
@@ -114,7 +122,10 @@ export function RenewalForm({ onSuccess, initialData }: RenewalFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Independent Service</SelectItem>
-              {projects.filter(p => !(p as any).is_archived && p.status !== 'completed' && p.status !== 'cancelled').map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              {projects
+                .filter(p => p.status !== 'completed' && p.status !== 'cancelled' && p.status !== 'archived')
+                .filter(p => !formData.client_id || p.client_id === formData.client_id)
+                .map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
