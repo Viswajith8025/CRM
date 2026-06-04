@@ -35,57 +35,7 @@ export function AttendanceLeave() {
   }, [])
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      
-      {/* ATTENDANCE SECTION */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" /> Daily Attendance Logs
-          </h3>
-        </div>
-
-        <div className="rounded-xl border bg-card overflow-hidden">
-          {isLoading && attendance.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">Loading attendance...</div>
-          ) : attendance.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No attendance records found.</div>
-          ) : (
-            <div className="divide-y">
-              {attendance.filter(r => r.profile?.status !== 'denied').map((record) => (
-                <div key={record.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={record.profile?.avatar_url || ""} />
-                      <AvatarFallback>{record.profile?.full_name?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-bold">{record.profile?.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(new Date(record.date), 'MMM d, yyyy')}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="text-xs font-medium text-emerald-600">IN: {record.clock_in ? format(new Date(record.clock_in), 'p') : '--:--'}</p>
-                      <p className="text-xs font-medium text-rose-600">OUT: {record.clock_out ? format(new Date(record.clock_out), 'p') : '--:--'}</p>
-                    </div>
-                    {record.clock_in && !record.clock_out ? (
-                      <Button size="sm" variant="outline" className="text-[10px] h-7" onClick={() => clockOut(record.id)}>
-                        Clock Out
-                      </Button>
-                    ) : (
-                      <Badge variant="secondary" className="text-[10px] uppercase">
-                        {record.status}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="grid grid-cols-1 gap-6">
 
       {/* LEAVES SECTION */}
       <div className="space-y-4">
@@ -112,7 +62,7 @@ export function AttendanceLeave() {
                       </Avatar>
                       <div>
                         <p className="text-sm font-bold">{leave.profile?.full_name}</p>
-                        <Badge variant="outline" className="text-[9px] uppercase mt-0.5">{leave.leave_type} LEAVE</Badge>
+                        <Badge variant="outline" className="text-[9px] uppercase mt-0.5">{leave.leave_type?.name || 'UNKNOWN'} LEAVE</Badge>
                       </div>
                     </div>
                     

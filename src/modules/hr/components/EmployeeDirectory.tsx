@@ -88,7 +88,6 @@ export function EmployeeDirectory() {
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Employee</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Department & Role</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">Join Date</TableHead>
-              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4">KPI Score</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Base Salary</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Actions</TableHead>
             </TableRow>
@@ -96,7 +95,7 @@ export function EmployeeDirectory() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32">
+                <TableCell colSpan={5} className="text-center h-32">
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     <span className="text-xs font-bold text-muted-foreground">Loading employee directory...</span>
@@ -105,7 +104,7 @@ export function EmployeeDirectory() {
               </TableRow>
             ) : filteredEmployees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center h-32 text-muted-foreground font-medium">
+                <TableCell colSpan={5} className="text-center h-32 text-muted-foreground font-medium">
                   No employees found matching your search.
                 </TableCell>
               </TableRow>
@@ -146,12 +145,6 @@ export function EmployeeDirectory() {
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-tight">
                       {emp.created_at ? format(new Date(emp.created_at), 'MMM d, yyyy') : "N/A"}
                     </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-emerald-500" />
-                      <span className="font-bold">{emp.kpi_score}%</span>
-                    </div>
                   </TableCell>
                   <TableCell className="text-right font-bold text-emerald-600">
                     ${emp.base_salary?.toLocaleString() || "0"}

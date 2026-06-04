@@ -76,13 +76,17 @@ export const useHRStore = create<HRState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('leave_requests')
-        .select('*, profile:profiles(full_name, avatar_url, status)')
+        .select('*, profile:profiles!leave_requests_user_profile_fk_v2(full_name, avatar_url, status), leave_type:leave_types(name)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("fetchLeaves Supabase Error:", error)
+        throw error
+      }
       set({ leaves: data || [], error: null })
     } catch (err) {
+      console.error("fetchLeaves catch block:", err)
       set({ error: getFriendlySupabaseError(err) })
     } finally {
       set({ isLoading: false })

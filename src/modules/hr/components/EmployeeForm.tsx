@@ -115,32 +115,18 @@ export function EmployeeForm({ employee, onSuccess }: EmployeeFormProps) {
           />
           <FormField
             control={form.control}
-            name="kpi_score"
+            name="join_date"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>KPI Score (%)</FormLabel>
+                <FormLabel>Join Date</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} />
+                  <Input type="date" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="join_date"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Join Date</FormLabel>
-              <FormControl>
-                <Input type="date" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         <Button type="submit" className="w-full font-bold" disabled={loading}>
           {loading ? "Saving..." : (employee ? "Update Employee" : "Add Employee")}
