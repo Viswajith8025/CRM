@@ -91,14 +91,14 @@ export default function LeaveApprovalsPage() {
         .from('leave_requests')
         .select(`
           *,
-          user:profiles!leave_requests_user_id_fkey(full_name, avatar_url, role),
-          leave_type:leave_types!leave_requests_leave_type_id_fkey(name, color),
+          user:profiles!user_id(full_name, avatar_url, role),
+          leave_type:leave_types(name, color),
           actions:leave_request_actions(
             id,
             action,
             note,
             created_at,
-            actor:profiles!leave_request_actions_actor_id_fkey(full_name)
+            actor:profiles!actor_id(full_name)
           )
         `)
         .eq('organization_id', profile.organization_id)
