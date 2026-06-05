@@ -81,6 +81,28 @@ export default function LeaveApprovalsPage() {
 
   useEffect(() => {
     fetchRequests()
+
+    if (!profile?.organization_id) return
+
+    const channel = supabase
+      .channel('leave_approvals_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'leave_requests',
+          filter: `organization_id=eq.${profile.organization_id}`
+        },
+        () => {
+          fetchRequests()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [profile?.organization_id])
 
   async function fetchRequests() {
@@ -431,11 +453,39 @@ export default function LeaveApprovalsPage() {
                       
                       {/* Render clarification audit note log if present */}
                       {req.status === 'clarification_required' && req.actions && req.actions.length > 0 && (
-                        <div className="ml-12 p-3 bg-blue-500/10 dark:bg-blue-500/5 rounded-xl border border-blue-500/20">
-                          <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Clarification Request note:</p>
-                          <p className="text-xs italic text-foreground mt-1">
-                            "{req.actions.find(a => a.action === 'clarification')?.note || 'Please specify details.'}"
-                          </p>
+                        <div className="ml-12 mt-2 space-y-3">
+                          <div className="p-3 bg-blue-500/10 dark:bg-blue-500/5 rounded-xl border border-blue-500/20">
+                            <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Clarification Request note:</p>
+                            <p className="text-xs italic text-foreground mt-1">
+                              "{req.actions.find(a => a.action === 'clarification')?.note || 'Please specify details.'}"
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[10px] uppercase font-bold border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                              onClick={() => {
+                                setSelectedRequest(req)
+                                setActionType('approve')
+                                setIsActionOpen(true)
+                              }}
+                            >
+                              <Check className="h-3 w-3 mr-1" /> Approve Now
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[10px] uppercase font-bold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                              onClick={() => {
+                                setSelectedRequest(req)
+                                setActionType('reject')
+                                setIsActionOpen(true)
+                              }}
+                            >
+                              <X className="h-3 w-3 mr-1" /> Reject
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
