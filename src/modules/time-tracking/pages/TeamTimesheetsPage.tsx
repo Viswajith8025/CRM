@@ -498,7 +498,7 @@ export default function TeamTimesheetsPage() {
 
         {/* Detailed Log Modal */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
