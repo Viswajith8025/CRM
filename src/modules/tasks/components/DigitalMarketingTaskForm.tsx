@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Loader2, Calendar, FileText, UserSquare2, Briefcase, Plus } from "lucide-react"
+import { Loader2, Calendar, FileText, UserSquare2, Briefcase, Plus, Clock } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -31,6 +31,8 @@ const formSchema = z.object({
   work: z.string().min(1, "Work description is required"),
   status: z.enum(['pending', 'ongoing', 'done']),
   due_date: z.string().min(1, "Date is required"),
+  timing: z.string().optional(),
+  remarks: z.string().optional(),
 })
 
 interface Props {
@@ -42,31 +44,37 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
   const { profile } = useAuthStore()
   const { clients, fetchClients } = useCRMStore()
   const [isLoading, setIsLoading] = useState(false)
-  const [previousWorks, setPreviousWorks] = useState<string[]>([])
   const [isManualClient, setIsManualClient] = useState(false)
-  const [isManualWork, setIsManualWork] = useState(false)
+  const [isManualTiming, setIsManualTiming] = useState(false)
+  const [previousTimings, setPreviousTimings] = useState<string[]>(["10AM - 1PM", "1:30PM - 3:30PM", "4:15PM - 6:00PM"])
 
   useEffect(() => {
     fetchClients()
-    fetchPreviousWorks()
+    fetchPreviousTimings()
   }, [])
 
-  const fetchPreviousWorks = async () => {
+  const fetchPreviousTimings = async () => {
     if (!profile?.id) return
     try {
       const { data } = await supabase
         .from('tasks')
-        .select('title')
+        .select('description')
         .eq('assigned_to', profile.id)
         .not('description', 'is', null)
         .ilike('description', 'Client:%')
 
       if (data) {
-        const works = Array.from(new Set(data.map(d => d.title).filter(Boolean)))
-        setPreviousWorks(works)
+        const extractedTimings = data
+          .map(d => d.description?.includes('| Timing: ') ? d.description.split('| Timing: ')[1] : null)
+          .filter(Boolean) as string[]
+
+        if (extractedTimings.length > 0) {
+          const uniqueTimings = Array.from(new Set(["10AM - 1PM", "1:30PM - 3:30PM", "4:15PM - 6:00PM", ...extractedTimings]))
+          setPreviousTimings(uniqueTimings)
+        }
       }
     } catch (e) {
-      console.error("Failed to fetch previous works", e)
+      console.error("Failed to fetch previous timings", e)
     }
   }
 
@@ -79,19 +87,28 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
 
   const defaultClient = task ? (task.description?.replace("Client: ", "") || "") : ""
 
+  // Parse existing description for edit mode
+  let defaultTiming = ""
+  if (task?.description?.includes("| Timing: ")) {
+    const parts = task.description.split("| Timing: ")
+    defaultTiming = parts[1] || ""
+  }
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      client_name: defaultClient,
+      client_name: defaultClient.split(" | Timing: ")[0],
       work: task?.title || "",
       status: task?.status === 'in_progress' ? 'ongoing' : (task?.status === 'done' ? 'done' : 'pending'),
       due_date: task?.due_date || new Date().toISOString().split('T')[0],
+      timing: defaultTiming,
+      remarks: task?.remarks || "",
     },
   })
 
   // FIX: Use useEffect to watch for manual_entry — never call setState during render
   const selectedClient = form.watch("client_name")
-  const selectedWork = form.watch("work")
+  const selectedTiming = form.watch("timing")
 
   useEffect(() => {
     if (selectedClient === "manual_entry") {
@@ -101,11 +118,11 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
   }, [selectedClient])
 
   useEffect(() => {
-    if (selectedWork === "manual_entry") {
-      setIsManualWork(true)
-      form.setValue("work", "")
+    if (selectedTiming === "manual_entry") {
+      setIsManualTiming(true)
+      form.setValue("timing", "")
     }
-  }, [selectedWork])
+  }, [selectedTiming])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -119,7 +136,8 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
       // Insert directly via supabase to avoid complex RLS chain in addTask store
       const payload = {
         title: values.work,
-        description: `Client: ${values.client_name}`,
+        description: `Client: ${values.client_name}${values.timing ? ` | Timing: ${values.timing}` : ''}`,
+        remarks: values.remarks,
         status: dbStatus,
         priority: 'medium',
         project_id: null,
@@ -157,10 +175,12 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
         work: "",
         status: "pending",
         due_date: new Date().toISOString().split('T')[0],
+        timing: "",
+        remarks: "",
       })
       setIsManualClient(false)
-      setIsManualWork(false)
-      await fetchPreviousWorks()
+      setIsManualTiming(false)
+      await fetchPreviousTimings()
       onSuccess()
     } catch (error: any) {
       console.error("Task Save Error:", error)
@@ -172,7 +192,7 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-2 pb-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4 items-start pt-2 pb-4">
 
         {/* Client Name */}
         <FormField
@@ -232,22 +252,81 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
-                <Briefcase className="h-3 w-3" /> Work
+                <Briefcase className="h-3 w-3" /> Activity (Tasks)
               </FormLabel>
-              {!isManualWork ? (
+              <FormControl>
+                <Input placeholder="What to do today?" {...field} className="bg-muted/20" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Status */}
+        <FormField
+          control={form.control}
+          name="status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
+                <FileText className="h-3 w-3" /> Status
+              </FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="bg-muted/20">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="ongoing">Ongoing</SelectItem>
+                  <SelectItem value="done">Done</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Date */}
+        <FormField
+          control={form.control}
+          name="due_date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
+                <Calendar className="h-3 w-3" /> Date
+              </FormLabel>
+              <FormControl>
+                <Input type="date" {...field} className="bg-muted/20" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {/* Timing */}
+        <FormField
+          control={form.control}
+          name="timing"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
+                <Clock className="h-3 w-3" /> Timing
+              </FormLabel>
+              {!isManualTiming ? (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger className="bg-muted/20">
-                      <SelectValue placeholder="Select Work Type" />
+                      <SelectValue placeholder="Select Timing" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {previousWorks.map((w, idx) => (
-                      <SelectItem key={idx} value={w}>{w}</SelectItem>
+                    {previousTimings.map((t, idx) => (
+                      <SelectItem key={idx} value={t}>{t}</SelectItem>
                     ))}
                     <SelectItem value="manual_entry" className="text-primary font-bold border-t mt-1 pt-1">
                       <div className="flex items-center gap-2">
-                        <Plus className="h-3 w-3" /> Add New Work Manually
+                        <Plus className="h-3 w-3" /> Add Custom Timing
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -255,15 +334,15 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
               ) : (
                 <FormControl>
                   <div className="relative">
-                    <Input placeholder="e.g. Poster, Reel, Blog Post..." {...field} className="bg-muted/20 pr-20" />
+                    <Input placeholder="e.g. 10:00 AM - 12:00 PM" {...field} className="bg-muted/20 pr-20" />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="absolute right-1 top-1 h-7 text-[10px] uppercase font-bold"
                       onClick={() => {
-                        setIsManualWork(false)
-                        form.setValue("work", "")
+                        setIsManualTiming(false)
+                        form.setValue("timing", "")
                       }}
                     >
                       Cancel
@@ -276,55 +355,29 @@ export function DigitalMarketingTaskForm({ task, onSuccess }: Props) {
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          {/* Status */}
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
-                  <FileText className="h-3 w-3" /> Status
-                </FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="bg-muted/20">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="ongoing">Ongoing</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* Remarks */}
+        <FormField
+          control={form.control}
+          name="remarks"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
+                <FileText className="h-3 w-3" /> Remarks
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="Any additional notes..." {...field} className="bg-muted/20" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-          {/* Date */}
-          <FormField
-            control={form.control}
-            name="due_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
-                  <Calendar className="h-3 w-3" /> Date
-                </FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} className="bg-muted/20" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="pt-[22px]">
+          <Button type="submit" className="w-full font-black uppercase tracking-wider h-10" disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+            {task?.id ? "Update" : "Add Task"}
+          </Button>
         </div>
-
-        <Button type="submit" className="w-full font-black uppercase tracking-[0.2em] mt-4" disabled={isLoading}>
-          {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {task?.id ? "Update Work" : "Log Work"}
-        </Button>
       </form>
     </Form>
   )

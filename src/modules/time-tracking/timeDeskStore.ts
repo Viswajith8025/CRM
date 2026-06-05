@@ -259,16 +259,12 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         }
       }
 
-      const { data: breakSess, error } = await supabase
-        .from('break_sessions')
-        .insert({
-          work_session_id: activeSession.id,
-          organization_id: activeSession.organization_id,
-          user_id: activeSession.user_id,
-          type
-        })
-        .select()
-        .single()
+      const { data: breakSess, error } = await supabase.rpc('handle_start_break', {
+        p_work_session_id: activeSession.id,
+        p_org_id: activeSession.organization_id,
+        p_user_id: activeSession.user_id,
+        p_type: type
+      })
 
       if (error) throw error
       set({ activeBreak: breakSess })

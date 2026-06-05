@@ -501,38 +501,66 @@ export function BDEDailyReportWidget() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <Card className="shadow-none border-border/50 bg-muted/20">
-                      <CardContent className="p-4 space-y-2 text-xs">
-                        <p className="font-bold border-b pb-1 mb-2 text-muted-foreground uppercase tracking-widest text-[9px]">Activity</p>
+                      <CardContent className="p-3 space-y-1.5 text-xs">
+                        <p className="font-bold border-b pb-1 mb-1.5 text-muted-foreground uppercase tracking-widest text-[9px]">Activity</p>
                         <p>Calls: <b>{selectedHistoryReport.total_calls_made}</b></p>
-                        <p>Meetings: <b>{selectedHistoryReport.meetings_completed}</b> / {selectedHistoryReport.meetings_scheduled} scheduled</p>
+                        <p>Meetings: <b>{selectedHistoryReport.meetings_completed}</b> / {selectedHistoryReport.meetings_scheduled}</p>
                         <p>Follow-ups: <b>{selectedHistoryReport.followups_done}</b></p>
                       </CardContent>
                     </Card>
 
                     <Card className="shadow-none border-border/50 bg-muted/20">
-                      <CardContent className="p-4 space-y-2 text-xs">
-                        <p className="font-bold border-b pb-1 mb-2 text-muted-foreground uppercase tracking-widest text-[9px]">Sales</p>
+                      <CardContent className="p-3 space-y-1.5 text-xs">
+                        <p className="font-bold border-b pb-1 mb-1.5 text-muted-foreground uppercase tracking-widest text-[9px]">Sales</p>
                         <p>Deals: <b>{selectedHistoryReport.deals_closed}</b></p>
                         <p>Revenue: <b>₹{selectedHistoryReport.revenue_generated}</b></p>
                         <p>Pipeline: <b>₹{selectedHistoryReport.pipeline_value}</b></p>
+                        <p>Conversion: <b>{selectedHistoryReport.conversion_rate}%</b></p>
                       </CardContent>
                     </Card>
 
                     <Card className="shadow-none border-border/50 bg-muted/20 col-span-2">
-                      <CardContent className="p-4 space-y-2 text-xs">
-                        <p className="font-bold border-b pb-1 mb-2 text-muted-foreground uppercase tracking-widest text-[9px]">Lead Info</p>
-                        <p>Name: <b>{selectedHistoryReport.lead_name || '-'}</b></p>
-                        <p>Source: <b>{selectedHistoryReport.lead_source || '-'}</b></p>
-                        <p>Status: <b className="capitalize">{selectedHistoryReport.lead_status || '-'}</b></p>
-                        {selectedHistoryReport.lead_remarks && <p className="italic text-muted-foreground mt-2">"{selectedHistoryReport.lead_remarks}"</p>}
+                      <CardContent className="p-3 space-y-1.5 text-xs">
+                        <p className="font-bold border-b pb-1 mb-1.5 text-muted-foreground uppercase tracking-widest text-[9px]">Lead Details</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <p>Name: <b>{selectedHistoryReport.lead_name || '-'}</b></p>
+                          <p>Source: <b>{selectedHistoryReport.lead_source || '-'}</b></p>
+                          <p>Status: <b className="capitalize">{selectedHistoryReport.lead_status || '-'}</b></p>
+                          <p>Count: <b>{selectedHistoryReport.number_of_leads}</b></p>
+                        </div>
+                        {selectedHistoryReport.lead_remarks && <p className="italic text-muted-foreground mt-1">"{selectedHistoryReport.lead_remarks}"</p>}
                       </CardContent>
                     </Card>
 
-                    {selectedHistoryReport.next_day_plan && (
-                      <Card className="shadow-none border-border/50 bg-sky-50/50 col-span-2">
-                        <CardContent className="p-4 space-y-2 text-xs">
-                          <p className="font-bold border-b border-sky-100 pb-1 mb-2 text-sky-800 uppercase tracking-widest text-[9px]">Next Day Plan</p>
-                          <p className="whitespace-pre-wrap">{selectedHistoryReport.next_day_plan}</p>
+                    <Card className="shadow-none border-border/50 bg-muted/20 col-span-2">
+                      <CardContent className="p-3 space-y-1.5 text-xs">
+                        <p className="font-bold border-b pb-1 mb-1.5 text-muted-foreground uppercase tracking-widest text-[9px]">Client Interactions</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <p>New Clients: <b>{selectedHistoryReport.new_clients_contacted}</b></p>
+                          <p>Existing Follow-ups: <b>{selectedHistoryReport.existing_clients_followup}</b></p>
+                          <p>Referrals: <b>{selectedHistoryReport.referrals_received}</b></p>
+                        </div>
+                        {selectedHistoryReport.key_discussion_points && (
+                          <div className="mt-2"><p className="font-bold text-[10px] text-muted-foreground">Discussion Points:</p><p className="whitespace-pre-wrap">{selectedHistoryReport.key_discussion_points}</p></div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {(selectedHistoryReport.challenges_faced || selectedHistoryReport.competitor_insights || selectedHistoryReport.next_day_plan || selectedHistoryReport.manager_remarks) && (
+                      <Card className="shadow-none border-border/50 bg-indigo-50/30 col-span-2">
+                        <CardContent className="p-3 space-y-3 text-xs">
+                          {selectedHistoryReport.challenges_faced && (
+                            <div><p className="font-bold text-[10px] text-rose-500 uppercase tracking-widest">Challenges</p><p className="whitespace-pre-wrap">{selectedHistoryReport.challenges_faced}</p></div>
+                          )}
+                          {selectedHistoryReport.competitor_insights && (
+                            <div><p className="font-bold text-[10px] text-orange-500 uppercase tracking-widest">Competitor Insights</p><p className="whitespace-pre-wrap">{selectedHistoryReport.competitor_insights}</p></div>
+                          )}
+                          {selectedHistoryReport.next_day_plan && (
+                            <div><p className="font-bold text-[10px] text-sky-600 uppercase tracking-widest">Next Day Plan</p><p className="whitespace-pre-wrap">{selectedHistoryReport.next_day_plan}</p></div>
+                          )}
+                          {selectedHistoryReport.manager_remarks && (
+                            <div><p className="font-bold text-[10px] text-slate-500 uppercase tracking-widest">Manager Remarks</p><p className="whitespace-pre-wrap italic text-slate-700 bg-white/50 p-2 rounded">"{selectedHistoryReport.manager_remarks}"</p></div>
+                          )}
                         </CardContent>
                       </Card>
                     )}

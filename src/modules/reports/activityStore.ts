@@ -68,19 +68,29 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
   },
 
   subscribeToActivities: () => {
-    const channel = supabase
-      .channel(`activities-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'activities' },
-        () => {
-          get().fetchActivities()
-        }
-      )
-      .subscribe()
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) return
 
-    return () => {
-      supabase.removeChannel(channel)
+      const channel = supabase
+        .channel(`activities-${orgId}-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'activities', filter: `organization_id=eq.${orgId}` },
+          () => {
+            get().fetchActivities()
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(channel)
+      }
     }
+    
+    let cleanup: (() => void) | undefined;
+    setup().then(fn => { if(fn) cleanup = fn });
+    return () => { if(cleanup) cleanup() }
   }
 }))

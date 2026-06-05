@@ -326,9 +326,16 @@ export const useFormsStore = create<FormsState>((set, get) => ({
         .from('form_submissions')
         .select(`
           *,
-          template:form_templates (id, name, service_type),
+          template:form_templates (
+            id, name, service_type,
+            sections:form_sections (
+              id, title,
+              fields:form_fields (id, label, code, field_type)
+            )
+          ),
           lead:leads!lead_id (first_name, last_name, company),
-          client:clients!client_id (name)
+          client:clients!client_id (name),
+          answers:form_submission_answers (field_id, answer_value)
         `, { count: 'exact' })
         .eq('organization_id', orgId)
 
@@ -576,6 +583,26 @@ export const useFormsStore = create<FormsState>((set, get) => ({
 
   updateSubmissionStatus: async (submissionId, status, notes) => {
     try {
+      if (status === 'approved') {
+        // Ensure submission is loaded for conversion logic
+        const currentSub = get().currentSubmission;
+        if (!currentSub || currentSub.id !== submissionId) {
+           await get().getSubmissionById(submissionId);
+        }
+        
+        // Auto-convert to active client
+        await get().approveAndConvertToClient(submissionId);
+        
+        if (notes) {
+          await supabase
+            .from('form_submissions')
+            .update({ clarification_notes: notes, updated_at: new Date().toISOString() })
+            .eq('id', submissionId)
+        }
+        await get().fetchSubmissions()
+        return;
+      }
+
       const payload: any = {
         status,
         updated_at: new Date().toISOString()
@@ -591,6 +618,7 @@ export const useFormsStore = create<FormsState>((set, get) => ({
       await get().fetchSubmissions()
     } catch (err: any) {
       set({ error: err.message || 'Failed to update workflow status' })
+      throw err;
     }
   },
 
@@ -1031,6 +1059,15 @@ export const useFormsStore = create<FormsState>((set, get) => ({
           description: `Auto-initialized project for client ${clientName} on approval`,
           organization_id: orgId
         })
+      }
+
+      // Force CRM store to fetch fresh data so the new client shows up in the Active Clients list immediately
+      try {
+        const { useCRMStore } = await import('@/modules/crm/crmStore')
+        useCRMStore.getState().lastFetchedAt = 0 // Invalidate cache manually
+        await useCRMStore.getState().fetchClients({ force: true })
+      } catch (e) {
+        console.error("Failed to invalidate CRM cache", e)
       }
 
       // 4. Create Renewal record if date provided

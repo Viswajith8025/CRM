@@ -571,30 +571,66 @@ export default function TeamTimesheetsPage() {
                 <h4 className="text-xs font-black uppercase tracking-widest text-indigo-600 border-b border-indigo-100 pb-2 mb-4 flex items-center gap-2">
                   <BarChart2 className="h-4 w-4" /> BDE Daily Report Snapshot
                 </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                   <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1">
-                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Calls / Meetings</p>
-                    <p className="text-sm font-black text-indigo-950">{bdeReport.total_calls_made} <span className="text-xs text-indigo-400 font-medium">/</span> {bdeReport.meetings_completed}</p>
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Activity</p>
+                    <p className="text-[10px] text-indigo-950">Calls: <b>{bdeReport.total_calls_made}</b></p>
+                    <p className="text-[10px] text-indigo-950">Meetings: <b>{bdeReport.meetings_completed}</b> / {bdeReport.meetings_scheduled}</p>
+                    <p className="text-[10px] text-indigo-950">Follow-ups: <b>{bdeReport.followups_done}</b></p>
                   </div>
                   <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1">
-                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Deals / Revenue</p>
-                    <p className="text-sm font-black text-indigo-950">{bdeReport.deals_closed} <span className="text-xs text-indigo-400 font-medium">/</span> ₹{bdeReport.revenue_generated}</p>
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Sales & Pipeline</p>
+                    <p className="text-[10px] text-indigo-950">Deals: <b>{bdeReport.deals_closed}</b> ({bdeReport.conversion_rate}%)</p>
+                    <p className="text-[10px] text-indigo-950">Revenue: <b>₹{bdeReport.revenue_generated}</b></p>
+                    <p className="text-[10px] text-indigo-950">Pipeline: <b>₹{bdeReport.pipeline_value}</b></p>
                   </div>
                   <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100/50 space-y-1 sm:col-span-2">
-                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Lead Focus</p>
-                    <p className="text-xs font-bold text-indigo-950 truncate">{bdeReport.lead_name || 'N/A'} <span className="text-indigo-400 font-medium">({bdeReport.lead_status || 'No status'})</span></p>
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-indigo-400">Lead Focus ({bdeReport.number_of_leads} Leads)</p>
+                    <p className="text-[10px] font-bold text-indigo-950 truncate">Name: {bdeReport.lead_name || 'N/A'}</p>
+                    <p className="text-[10px] text-indigo-950 truncate">Source: {bdeReport.lead_source || 'N/A'} | Status: {bdeReport.lead_status || 'N/A'}</p>
+                    {bdeReport.lead_remarks && <p className="text-[10px] text-indigo-950 italic truncate">"{bdeReport.lead_remarks}"</p>}
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-sky-50/50 p-3 rounded-lg border border-sky-100/50 space-y-1">
+                    <p className="text-[9px] uppercase tracking-wider font-bold text-sky-600">Client Interactions</p>
+                    <p className="text-[10px] text-sky-950">New Contacted: <b>{bdeReport.new_clients_contacted}</b></p>
+                    <p className="text-[10px] text-sky-950">Existing Followed-up: <b>{bdeReport.existing_clients_followup}</b></p>
+                    <p className="text-[10px] text-sky-950">Referrals: <b>{bdeReport.referrals_received}</b></p>
+                    {bdeReport.key_discussion_points && <p className="text-[10px] text-sky-950 mt-1 whitespace-pre-wrap"><span className="font-bold">Points:</span> {bdeReport.key_discussion_points}</p>}
+                  </div>
+                  
+                  {(bdeReport.competitor_insights || bdeReport.manager_remarks) && (
+                    <div className="bg-slate-50/50 p-3 rounded-lg border border-slate-200/50 space-y-2">
+                      {bdeReport.competitor_insights && (
+                        <div>
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-orange-500">Competitor Insights</p>
+                          <p className="text-[10px] text-slate-700 whitespace-pre-wrap">{bdeReport.competitor_insights}</p>
+                        </div>
+                      )}
+                      {bdeReport.manager_remarks && (
+                        <div>
+                          <p className="text-[9px] uppercase tracking-wider font-bold text-slate-500">Manager Remarks</p>
+                          <p className="text-[10px] text-slate-700 whitespace-pre-wrap italic">"{bdeReport.manager_remarks}"</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {(bdeReport.challenges_faced || bdeReport.next_day_plan) && (
-                  <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {bdeReport.challenges_faced && (
                       <div className="bg-rose-50/50 p-3 rounded-lg border border-rose-100/50 text-xs text-rose-900">
-                        <span className="font-bold block mb-1">Challenges:</span> {bdeReport.challenges_faced}
+                        <span className="font-bold block mb-1 text-[10px] uppercase tracking-wider">Challenges Faced:</span> 
+                        <p className="text-[10px] whitespace-pre-wrap">{bdeReport.challenges_faced}</p>
                       </div>
                     )}
                     {bdeReport.next_day_plan && (
-                      <div className="bg-sky-50/50 p-3 rounded-lg border border-sky-100/50 text-xs text-sky-900">
-                        <span className="font-bold block mb-1">Next Plan:</span> {bdeReport.next_day_plan}
+                      <div className="bg-emerald-50/50 p-3 rounded-lg border border-emerald-100/50 text-xs text-emerald-900">
+                        <span className="font-bold block mb-1 text-[10px] uppercase tracking-wider">Next Day Plan:</span> 
+                        <p className="text-[10px] whitespace-pre-wrap">{bdeReport.next_day_plan}</p>
                       </div>
                     )}
                   </div>

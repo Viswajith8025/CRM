@@ -15,6 +15,7 @@ interface LoggedTask {
   status: string
   due_date: string | null
   created_at: string
+  remarks: string | null
 }
 
 export function GraphicDesignerWidget() {
@@ -28,7 +29,7 @@ export function GraphicDesignerWidget() {
     try {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, description, status, due_date, created_at')
+        .select('id, title, description, status, due_date, created_at, remarks')
         .eq('assigned_to', profile.id)
         .is('project_id', null)
         .ilike('description', 'Client:%')
@@ -150,9 +151,14 @@ export function GraphicDesignerWidget() {
                       )}>
                         {task.title}
                       </span>
-                      <span className="text-[10px] font-semibold text-purple-500 mt-0.5 truncate">
+                      <span className="text-[10px] font-semibold text-rose-500 mt-0.5 truncate">
                         {task.description?.replace('Client: ', '') || ''}
                       </span>
+                      {task.remarks && (
+                        <span className="text-[10px] font-medium text-slate-500 mt-0.5 italic truncate">
+                          "{task.remarks}"
+                        </span>
+                      )}
                     </div>
                   </div>
 

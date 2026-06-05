@@ -55,6 +55,8 @@ import { GraphicDesignerWidget } from "@/modules/dashboard/components/widgets/Gr
 import { VideoEditorWidget } from "@/modules/dashboard/components/widgets/VideoEditorWidget"
 import { DigitalMarketerWidget } from "@/modules/dashboard/components/widgets/DigitalMarketerWidget"
 import { BDEDailyReportWidget } from "@/modules/dashboard/components/widgets/BDEDailyReportWidget"
+import { CRMWidget } from "@/modules/dashboard/components/widgets/CRMWidget"
+import { VideographyWidget } from "@/modules/dashboard/components/widgets/VideographyWidget"
 import { useTeamStore } from "@/modules/admin"
 import { useTheme } from "@/hooks/useTheme"
 import Grainient from "@/components/ui/Grainient"
@@ -81,9 +83,11 @@ export default function Dashboard() {
   const currentUserMember = members.find(m => m.id === profile?.id)
   const isContentWriter = profile?.role === 'employee' && currentUserMember?.department?.toLowerCase().includes('content')
   const isGraphicDesigner = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('graphic') || currentUserMember?.department?.toLowerCase().includes('design'))
-  const isVideoEditor = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('video') || currentUserMember?.department?.toLowerCase().includes('editing'))
+  const isVideoEditor = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('video edit') || currentUserMember?.department?.toLowerCase().includes('editing'))
   const isDigitalMarketer = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('digital') || currentUserMember?.department?.toLowerCase().includes('marketing') || currentUserMember?.department?.toLowerCase().includes('seo'))
   const isBDE = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('bde') || currentUserMember?.department?.toLowerCase().includes('business development'))
+  const isCRM = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('crm') || currentUserMember?.department?.toLowerCase().includes('customer'))
+  const isVideography = profile?.role === 'employee' && (currentUserMember?.department?.toLowerCase().includes('shoot') || currentUserMember?.department?.toLowerCase().includes('videography') || currentUserMember?.department?.toLowerCase().includes('production'))
 
   // Default to overview (My Workspace) for Team Leads so they see their own data first
   useEffect(() => {
@@ -396,8 +400,7 @@ export default function Dashboard() {
               {workspaceMode === 'time_desk' ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <TimeDeskDashboardClock />
-                  {/* Role-based dashboard split */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className={cn("grid gap-6", (isDigitalMarketer || isVideography) ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2")}>
                     {isBDE ? (
                       <BDEDailyReportWidget />
                     ) : isSales ? (
@@ -410,12 +413,17 @@ export default function Dashboard() {
                       <VideoEditorWidget />
                     ) : isDigitalMarketer ? (
                       <DigitalMarketerWidget />
+                    ) : isCRM ? (
+                      <CRMWidget />
+                    ) : isVideography ? (
+                      <VideographyWidget />
                     ) : (
                       <MyAssignedTasksWidget />
                     )}
-                    <DailyTaskList />
+                    {!(isDigitalMarketer || isVideography) && <DailyTaskList />}
                   </div>
-                  {!isSales && !isBDE && !isContentWriter && !isGraphicDesigner && !isVideoEditor && !isDigitalMarketer && <MyAssignedModulesWidget />}
+                  {(isDigitalMarketer || isVideography) && <DailyTaskList />}
+                  {!isSales && !isBDE && !isContentWriter && !isGraphicDesigner && !isVideoEditor && !isDigitalMarketer && !isCRM && !isVideography && <MyAssignedModulesWidget />}
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">

@@ -138,6 +138,46 @@ export default function FormManagerDashboard() {
     }
   }
 
+  // Helper to extract client name from raw answers for general portal submissions
+  const getSubmissionName = (s: any) => {
+    if (s.client) return s.client.name
+    if (s.lead) return `${s.lead.first_name} ${s.lead.last_name}`
+    
+    // Attempt to extract from answers
+    if (s.answers && s.template?.sections) {
+      const answersMap = new Map((s.answers || []).map((a: any) => [a.field_id, a.answer_value || '']))
+      let extractedName = ''
+      let extractedCompany = ''
+      
+      s.template.sections.forEach((section: any) => {
+        section.fields?.forEach((field: any) => {
+          const code = (field.code || '').toLowerCase().trim()
+          const label = (field.label || '').toLowerCase().trim()
+          const val = (answersMap.get(field.id) || '').trim()
+          if (!val) return
+
+          if (
+            code === 'contact_name' || code === 'contact_person' || code === 'full_name' ||
+            label.includes('contact person') || label === 'your name' || label === 'full name' ||
+            (label.includes('client') && label.includes('name') && !label.includes('project') && !label.includes('company'))
+          ) {
+            if (!extractedName) extractedName = val
+          } else if (
+            code === 'company_name' || code === 'company' ||
+            label.includes('company name') || label.includes('business name')
+          ) {
+            if (!extractedCompany) extractedCompany = val
+          }
+        })
+      })
+      
+      if (extractedName) return extractedName
+      if (extractedCompany) return extractedCompany
+    }
+    
+    return 'Direct Workspace Portal'
+  }
+
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Premium Header */}
@@ -317,7 +357,7 @@ export default function FormManagerDashboard() {
                       <tr key={s.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="font-bold text-slate-900 text-sm">
-                            {s.client ? s.client.name : s.lead ? `${s.lead.first_name} ${s.lead.last_name}` : 'Direct Workspace Portal'}
+                            {getSubmissionName(s)}
                           </div>
                           <div className="text-xs text-sky-600 font-semibold">{s.template?.name}</div>
                         </td>
@@ -498,91 +538,14 @@ export default function FormManagerDashboard() {
 
               {!generatedLink ? (
                 <>
-                  {/* Select Association Type */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Associate Portal With:</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setAssociationType('general')}
-                        className={`py-3 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                          associationType === 'general'
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <Globe className="h-4 w-4" />
-                        <span>General / Public</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAssociationType('lead')}
-                        className={`py-3 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                          associationType === 'lead'
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <Users className="h-4 w-4" />
-                        <span>CRM Lead</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAssociationType('client')}
-                        className={`py-3 px-2 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 cursor-pointer transition-all ${
-                          associationType === 'client'
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                      >
-                        <User className="h-4 w-4" />
-                        <span>Active Client</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Dropdowns based on selection */}
-                  {associationType === 'lead' && (
-                    <div className="space-y-2 animate-slide-down">
-                      <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Select Target CRM Lead:</label>
-                      <select
-                        value={selectedLeadId}
-                        onChange={(e) => setSelectedLeadId(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-white"
-                      >
-                        <option value="">Choose a lead...</option>
-                        {leads.map(l => (
-                          <option key={l.id} value={l.id}>
-                            {l.first_name} {l.last_name} ({l.company || 'Individual'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {associationType === 'client' && (
-                    <div className="space-y-2 animate-slide-down">
-                      <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">Select Target Active Client:</label>
-                      <select
-                        value={selectedClientId}
-                        onChange={(e) => setSelectedClientId(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 bg-white"
-                      >
-                        <option value="">Choose a client...</option>
-                        {clients.filter(c => !c.isVirtual).map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({c.company || 'Individual'})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Generate Button */}
                   <div className="pt-2">
+                    <p className="text-sm text-slate-500 font-medium mb-6 leading-relaxed">
+                      Generate a secure, public link to send to your client. 
+                      Once they submit the form, you can review their requirements and approve them into an Active Client.
+                    </p>
                     <button
                       onClick={handleGenerateLink}
-                      disabled={isGeneratingLink || (associationType === 'lead' && !selectedLeadId) || (associationType === 'client' && !selectedClientId)}
+                      disabled={isGeneratingLink}
                       className="w-full py-3.5 rounded-2xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:hover:bg-sky-500 text-slate-950 font-bold text-sm shadow-xl shadow-sky-500/10 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
                     >
                       {isGeneratingLink ? (

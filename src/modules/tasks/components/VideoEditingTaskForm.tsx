@@ -31,6 +31,7 @@ const formSchema = z.object({
   work: z.string().min(1, "Work description is required"),
   status: z.enum(['pending', 'ongoing', 'done']),
   due_date: z.string().min(1, "Date is required"),
+  remarks: z.string().optional(),
 })
 
 interface Props {
@@ -86,6 +87,7 @@ export function VideoEditingTaskForm({ task, onSuccess }: Props) {
       work: task?.title || "",
       status: task?.status === 'in_progress' ? 'ongoing' : (task?.status === 'done' ? 'done' : 'pending'),
       due_date: task?.due_date || new Date().toISOString().split('T')[0],
+      remarks: task?.remarks || "",
     },
   })
 
@@ -127,6 +129,7 @@ export function VideoEditingTaskForm({ task, onSuccess }: Props) {
         assigned_to: profile.id,
         due_date: values.due_date,
         organization_id: profile.organization_id,
+        remarks: values.remarks,
       }
 
       let error: any = null
@@ -157,6 +160,7 @@ export function VideoEditingTaskForm({ task, onSuccess }: Props) {
         work: "",
         status: "pending",
         due_date: new Date().toISOString().split('T')[0],
+        remarks: "",
       })
       setIsManualClient(false)
       setIsManualWork(false)
@@ -320,6 +324,23 @@ export function VideoEditingTaskForm({ task, onSuccess }: Props) {
             )}
           />
         </div>
+
+        {/* Remarks */}
+        <FormField
+          control={form.control}
+          name="remarks"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground flex items-center gap-2">
+                <FileText className="h-3 w-3" /> Remarks
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="Any additional notes..." {...field} className="bg-muted/20" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <Button type="submit" className="w-full font-black uppercase tracking-[0.2em] mt-4" disabled={isLoading}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

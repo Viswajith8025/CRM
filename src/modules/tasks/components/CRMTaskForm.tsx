@@ -39,7 +39,7 @@ interface Props {
   onSuccess: () => void
 }
 
-export function GraphicDesignTaskForm({ task, onSuccess }: Props) {
+export function CRMTaskForm({ task, onSuccess }: Props) {
   const { profile } = useAuthStore()
   const { clients, fetchClients } = useCRMStore()
   const [isLoading, setIsLoading] = useState(false)
@@ -73,8 +73,8 @@ export function GraphicDesignTaskForm({ task, onSuccess }: Props) {
 
   const eligibleClients = useMemo(() => {
     return clients.filter(c =>
-      c.service?.toLowerCase().includes('graphic') ||
-      c.service?.toLowerCase().includes('design')
+      c.service?.toLowerCase().includes('crm') ||
+      c.service?.toLowerCase().includes('management')
     )
   }, [clients])
 

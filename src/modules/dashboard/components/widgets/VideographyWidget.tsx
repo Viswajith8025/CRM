@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Megaphone, CheckCircle2, Circle, Clock, Trash2 } from "lucide-react"
+import { Camera, CheckCircle2, Circle, Clock, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DigitalMarketingTaskForm } from "@/modules/tasks/components/DigitalMarketingTaskForm"
+import { VideographyTaskForm } from "@/modules/tasks/components/VideographyTaskForm"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
@@ -18,7 +18,7 @@ interface LoggedTask {
   remarks: string | null
 }
 
-export function DigitalMarketerWidget() {
+export function VideographyWidget() {
   const { profile } = useAuthStore()
   const [loggedTasks, setLoggedTasks] = useState<LoggedTask[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -88,15 +88,15 @@ export function DigitalMarketerWidget() {
       <CardHeader className="pb-4 border-b border-border/10 bg-primary/5 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-100 text-sky-600">
-              <Megaphone className="h-5 w-5" />
+            <div className="p-2 rounded-xl bg-indigo-100 text-indigo-600">
+              <Camera className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-800">
-                Log Marketing Work
+                Log Videography Work
               </CardTitle>
               <CardDescription className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                Track your digital marketing work and link it to a client.
+                Track your shoots and link them to clients.
               </CardDescription>
             </div>
           </div>
@@ -109,44 +109,46 @@ export function DigitalMarketerWidget() {
       <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
         {/* Input Form Section */}
         <div className="p-4 border-b border-border/10 shrink-0 bg-white">
-          <DigitalMarketingTaskForm onSuccess={() => fetchLoggedTasks()} />
+          <VideographyTaskForm onSuccess={() => fetchLoggedTasks()} />
         </div>
 
         {/* Logged Tasks List */}
         <div className="flex-1 overflow-x-auto p-4 bg-slate-50/50">
           <h4 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-4 flex items-center gap-2">
-            <Clock className="h-4 w-4 text-sky-500" /> Daily Work Focus
+            <Clock className="h-4 w-4 text-indigo-500" /> Recent Shoots
           </h4>
 
           {isLoading && loggedTasks.length === 0 ? (
             <div className="text-center py-8 text-xs text-muted-foreground font-medium animate-pulse">
-              Loading your daily focus logs...
+              Loading your logs...
             </div>
           ) : loggedTasks.length === 0 ? (
             <div className="text-center py-12 text-xs text-muted-foreground font-medium flex flex-col items-center gap-2 border-2 border-dashed border-slate-200 rounded-xl bg-white">
-              <Megaphone className="h-8 w-8 text-slate-200" />
+              <Camera className="h-8 w-8 text-slate-200" />
               <span className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">
-                No marketing work logged yet
+                No videography work logged yet
               </span>
             </div>
           ) : (
             <div className="bg-white rounded-xl border border-border/40 overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border/40">
                     <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-28">Date</th>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-36">Timing</th>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Activity (Tasks)</th>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-48">Client Name</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[150px]">Description</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-40">Place & Time</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-40">Client Name</th>
                     <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-36">Status</th>
-                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[200px]">Remarks</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground w-32">Anchor</th>
+                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground min-w-[150px]">Remarks</th>
                     <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right w-16">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/20">
                   {loggedTasks.map(task => {
-                    const clientName = task.description?.replace('Client: ', '').split(' | Timing: ')[0] || ''
-                    const timing = task.description?.includes('| Timing: ') ? task.description.split('| Timing: ')[1] : ''
+                    const clientName = task.description?.match(/Client: ([^|]+)/)?.[1]?.trim() || ''
+                    const placeTime = task.description?.match(/Place: ([^|]+)/)?.[1]?.trim() || ''
+                    const anchor = task.description?.match(/Anchor: ([^|]+)/)?.[1]?.trim() || ''
 
                     return (
                       <tr key={task.id} className="group hover:bg-slate-50/50 transition-colors">
@@ -157,18 +159,7 @@ export function DigitalMarketerWidget() {
                           </span>
                         </td>
 
-                        {/* Timing */}
-                        <td className="px-4 py-3">
-                          {timing ? (
-                            <span className="text-[10px] font-black text-sky-600 bg-sky-50 px-2 py-1 rounded">
-                              {timing}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-medium italic">-</span>
-                          )}
-                        </td>
-
-                        {/* Activity */}
+                        {/* Description */}
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
                             {task.status === 'done' ? (
@@ -187,9 +178,20 @@ export function DigitalMarketerWidget() {
                           </div>
                         </td>
 
+                        {/* Place & Time */}
+                        <td className="px-4 py-3">
+                          {placeTime ? (
+                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded truncate max-w-[140px] inline-block">
+                              {placeTime}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium italic">-</span>
+                          )}
+                        </td>
+
                         {/* Client Name */}
                         <td className="px-4 py-3">
-                          <span className="text-[11px] font-black uppercase tracking-wider text-purple-600">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-purple-600 truncate max-w-[140px] inline-block">
                             {clientName || '-'}
                           </span>
                         </td>
@@ -205,14 +207,14 @@ export function DigitalMarketerWidget() {
                             onValueChange={(val) => updateTaskStatus(task.id, val)}
                           >
                             <SelectTrigger className={cn(
-                              "h-7 text-[10px] font-black uppercase tracking-wider px-3 rounded border w-full gap-2",
-                              task.status === 'done' ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" :
-                              task.status === 'in_progress' ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" :
-                              "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                              "h-7 text-[10px] font-black uppercase tracking-wider px-3 rounded-md border-0 w-auto gap-2",
+                              task.status === 'done' ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" :
+                              task.status === 'in_progress' ? "bg-amber-100 text-amber-700 hover:bg-amber-200" :
+                              "bg-slate-100 text-slate-600 hover:bg-slate-200"
                             )}>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent align="center">
+                            <SelectContent align="end">
                               <SelectItem value="pending" className="text-xs font-bold">Pending</SelectItem>
                               <SelectItem value="ongoing" className="text-xs font-bold">Ongoing</SelectItem>
                               <SelectItem value="done" className="text-xs font-bold">Done</SelectItem>
@@ -220,19 +222,34 @@ export function DigitalMarketerWidget() {
                           </Select>
                         </td>
 
+                        {/* Anchor */}
+                        <td className="px-4 py-3">
+                          {anchor ? (
+                            <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded truncate max-w-[100px] inline-block">
+                              {anchor}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium italic">-</span>
+                          )}
+                        </td>
+
                         {/* Remarks */}
                         <td className="px-4 py-3">
-                          <p className="text-[11px] font-medium text-slate-500 line-clamp-2" title={task.remarks || ''}>
-                            {task.remarks ? `"${task.remarks}"` : <span className="italic text-slate-300">-</span>}
-                          </p>
+                          {task.remarks ? (
+                            <span className="text-[10px] font-medium text-slate-500 italic truncate max-w-[200px] inline-block" title={task.remarks}>
+                              "{task.remarks}"
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium italic">-</span>
+                          )}
                         </td>
 
                         {/* Actions */}
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => deleteTask(task.id)}
-                            className="p-1.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                            title="Delete entry"
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title="Delete log"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { AdvancedInvoiceFilter } from "./AdvancedInvoiceFilter"
+
 
 interface FilterCriteria {
   minAmount?: number
@@ -78,10 +78,10 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
         search: search || undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        ...advancedCriteria
+        endDate: endDate || undefined
       }
     })
-  }, [filterStatus, search, startDate, endDate, advancedCriteria])
+  }, [filterStatus, search, startDate, endDate])
 
   useEffect(() => {
     const urlSearch = searchParams.get("search")
@@ -115,18 +115,34 @@ export function InvoiceList({ filterStatus = "all", startDate, endDate }: Invoic
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <AdvancedInvoiceFilter onFilterChange={setAdvancedCriteria} />
-        <Button 
-          variant="outline" 
-          className="gap-2 h-11"
-          onClick={() => fetchInvoices({ 
-            page: 1, 
-            sortOrder: pagination.invoices.page === 1 ? 'asc' : 'desc' 
-          } as any)}
-        >
-          <Filter className="h-4 w-4" />
-          Quick Sort
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 h-11">
+              <Filter className="h-4 w-4" />
+              Quick Sort
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'created_at', sortOrder: 'desc' })}>
+              Date (Newest First)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'created_at', sortOrder: 'asc' })}>
+              Date (Oldest First)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'status', sortOrder: 'asc' })}>
+              Status (A-Z)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'status', sortOrder: 'desc' })}>
+              Status (Z-A)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'amount', sortOrder: 'desc' })}>
+              Amount (Highest First)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => fetchInvoices({ page: 1, sortBy: 'amount', sortOrder: 'asc' })}>
+              Amount (Lowest First)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {isLoading ? (

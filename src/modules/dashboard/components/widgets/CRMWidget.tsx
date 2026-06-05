@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Video, CheckCircle2, Circle, Clock, Trash2 } from "lucide-react"
+import { ClipboardList, CheckCircle2, Circle, Clock, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { VideoEditingTaskForm } from "@/modules/tasks/components/VideoEditingTaskForm"
+import { CRMTaskForm } from "@/modules/tasks/components/CRMTaskForm"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
@@ -18,7 +18,7 @@ interface LoggedTask {
   remarks: string | null
 }
 
-export function VideoEditorWidget() {
+export function CRMWidget() {
   const { profile } = useAuthStore()
   const [loggedTasks, setLoggedTasks] = useState<LoggedTask[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -88,15 +88,15 @@ export function VideoEditorWidget() {
       <CardHeader className="pb-4 border-b border-border/10 bg-primary/5 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
-              <Video className="h-5 w-5" />
+            <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+              <ClipboardList className="h-5 w-5" />
             </div>
             <div>
               <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-800">
-                Log Video Work
+                Log CRM Work
               </CardTitle>
               <CardDescription className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                Track your video editing work and link it to a client.
+                Track your CRM activities and link them to clients.
               </CardDescription>
             </div>
           </div>
@@ -109,7 +109,7 @@ export function VideoEditorWidget() {
       <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
         {/* Input Form Section */}
         <div className="p-4 border-b border-border/10 shrink-0 bg-white">
-          <VideoEditingTaskForm onSuccess={() => fetchLoggedTasks()} />
+          <CRMTaskForm onSuccess={() => fetchLoggedTasks()} />
         </div>
 
         {/* Logged Tasks List */}
@@ -125,9 +125,9 @@ export function VideoEditorWidget() {
               </div>
             ) : loggedTasks.length === 0 ? (
               <div className="text-center py-8 text-xs text-muted-foreground font-medium flex flex-col items-center gap-2">
-                <Video className="h-8 w-8 text-slate-200" />
+                <ClipboardList className="h-8 w-8 text-slate-200" />
                 <span className="font-bold uppercase tracking-wider text-slate-300 text-[10px]">
-                  No video work logged yet
+                  No CRM work logged yet
                 </span>
               </div>
             ) : (
@@ -151,7 +151,7 @@ export function VideoEditorWidget() {
                       )}>
                         {task.title}
                       </span>
-                      <span className="text-[10px] font-semibold text-orange-500 mt-0.5 truncate">
+                      <span className="text-[10px] font-semibold text-blue-500 mt-0.5 truncate">
                         {task.description?.replace('Client: ', '') || ''}
                       </span>
                       {task.remarks && (
