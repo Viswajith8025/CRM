@@ -177,9 +177,19 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
       
       if (error) {
         // Fallback: Queue for offline sync so session isn't lost
+        const payload = { action: 'check_out', payload: { p_user_id: user.id }, timestamp: Date.now() }
         const queue = JSON.parse(localStorage.getItem('timeDeskOfflineQueue') || '[]')
-        queue.push({ action: 'check_out', payload: { p_user_id: user.id }, timestamp: Date.now() })
+        queue.push(payload)
         localStorage.setItem('timeDeskOfflineQueue', JSON.stringify(queue))
+        
+        // Notify Service Worker for background sync if available
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'QUEUE_CHECKOUT',
+            payload: payload
+          });
+        }
+        
         toast.warning('Network issue: Checkout queued for background sync.')
       } else {
         toast.success('Work session completed. Well done!')
@@ -386,6 +396,14 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
     })
   },
 
+  /**
+   * IMPORTANT ARCHITECTURE NOTE:
+   * Offline queueing for time-desk events is purely frontend-only and currently deprecated.
+   * To ensure compliance with enterprise audit trails, strict server-side timestamps are enforced.
+   * If a user is offline, the check-in/out fails rather than queuing locally, to prevent 
+   * time-tampering or ghost sessions.
+   * This function simply clears any legacy queues left in localStorage.
+   */
   processOfflineQueue: async () => {
     // Offline queueing is deprecated to enforce strict server-side timestamps.
     // This function is kept for signature compatibility but disabled.

@@ -4,6 +4,9 @@ import { logActivity } from '@/lib/auditLogger'
 import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
 import type { FormTemplate, FormSection, FormField, FormSubmission, SubmissionAnswer, FormCondition, FormAttachment, FinancialData } from './types'
 
+let _templatesChannel: any = null
+let _submissionsChannel: any = null
+
 interface FormsState {
   templates: FormTemplate[]
   submissions: FormSubmission[]
@@ -286,15 +289,17 @@ export const useFormsStore = create<FormsState>((set, get) => ({
   },
 
   subscribeToTemplates: () => {
-    const channelId = `form_templates_${Math.random()}`
-    const channel = supabase.channel(channelId)
-    
     const setup = async () => {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel
+      if (_templatesChannel) return
+
+      const channelId = `form_templates_${orgId}`
+      _templatesChannel = supabase.channel(channelId)
+
+      _templatesChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_templates', filter: `organization_id=eq.${orgId}` }, () => {
           get().fetchTemplates()
         })
@@ -302,7 +307,10 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
     setup()
     return () => {
-      supabase.removeChannel(channel)
+      if (_templatesChannel) {
+        supabase.removeChannel(_templatesChannel)
+        _templatesChannel = null
+      }
     }
   },
 
@@ -349,15 +357,17 @@ export const useFormsStore = create<FormsState>((set, get) => ({
   },
 
   subscribeToSubmissions: () => {
-    const channelId = `form_submissions_${Math.random()}`
-    const channel = supabase.channel(channelId)
-    
     const setup = async () => {
       const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel
+      if (_submissionsChannel) return
+
+      const channelId = `form_submissions_${orgId}`
+      _submissionsChannel = supabase.channel(channelId)
+
+      _submissionsChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'form_submissions', filter: `organization_id=eq.${orgId}` }, () => {
           get().fetchSubmissions()
         })
@@ -365,7 +375,10 @@ export const useFormsStore = create<FormsState>((set, get) => ({
     }
     setup()
     return () => {
-      supabase.removeChannel(channel)
+      if (_submissionsChannel) {
+        supabase.removeChannel(_submissionsChannel)
+        _submissionsChannel = null
+      }
     }
   },
 
@@ -447,12 +460,18 @@ export const useFormsStore = create<FormsState>((set, get) => ({
 
   saveAnswers: async (submissionId, answers, currentStep = 0) => {
     try {
-      const { data: currentAnswers } = await supabase
-        .from('form_submission_answers')
-        .select('*')
-        .eq('submission_id', submissionId)
+      const submission = get().currentSubmission
+      
+      let existingAnswers = submission?.answers;
+      if (!existingAnswers) {
+         const { data: fetchedAnswers } = await supabase
+          .from('form_submission_answers')
+          .select('*')
+          .eq('submission_id', submissionId)
+         existingAnswers = fetchedAnswers || [];
+      }
 
-      const existingMap = new Map(currentAnswers?.map(a => [a.field_id, a.id]))
+      const existingMap = new Map(existingAnswers.map((a: any) => [a.field_id, a.id]))
 
       const inserts = []
       const updates = []
@@ -479,9 +498,12 @@ export const useFormsStore = create<FormsState>((set, get) => ({
         }
       }
 
+      let insertedAnswers: any[] = []
+
       if (inserts.length > 0) {
-        const { error } = await supabase.from('form_submission_answers').insert(inserts)
+        const { data, error } = await supabase.from('form_submission_answers').insert(inserts).select()
         if (error) throw error
+        if (data) insertedAnswers = data
       }
 
       for (const update of updates) {
@@ -493,17 +515,25 @@ export const useFormsStore = create<FormsState>((set, get) => ({
         if (error) throw error
       }
 
-      // Compute dynamic completion rate
-      const submission = get().currentSubmission
+      // Client-side diff update
+      const finalAnswers = [
+        ...existingAnswers.map((a: any) => {
+           const updated = updates.find(u => u.id === a.id)
+           if (updated) return { ...a, ...updated }
+           return a
+        }),
+        ...insertedAnswers
+      ]
+
+      if (submission) {
+        set({ currentSubmission: { ...submission, answers: finalAnswers } })
+      }
+
+      // Compute dynamic completion rate using local diff
       if (submission && submission.template?.sections) {
-        const totalFields = submission.template.sections.reduce((acc, s) => acc + (s.fields?.length || 0), 0)
+        const totalFields = submission.template.sections.reduce((acc: number, s: any) => acc + (s.fields?.length || 0), 0)
         
-        const { data: updatedAnswers } = await supabase
-          .from('form_submission_answers')
-          .select('id')
-          .eq('submission_id', submissionId)
-        
-        const answeredCount = updatedAnswers?.length || 0
+        const answeredCount = finalAnswers.length
         const rate = totalFields > 0 ? Math.min(Math.round((answeredCount / totalFields) * 100), 100) : 0
 
         await supabase
