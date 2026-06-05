@@ -2,6 +2,7 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Invoice } from '@/modules/billing'
 import { format } from 'date-fns'
+import { parseClientMetadata } from '@/lib/metadataFallback'
 
 /**
  * CSV Export Logic
@@ -73,7 +74,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
     emerald600: [5, 150, 105] as [number, number, number]
   }
 
-  const currencySymbol = '₹'
+  const currencySymbol = 'Rs. '
   
   // 1. TOP DECORATIVE STRIP
   doc.setFillColor(...colors.primary)
@@ -166,7 +167,7 @@ export function exportInvoiceToPDF(invoice: Invoice, returnBase64 = false) {
   doc.setFont('helvetica', 'normal')
   const clientInfoX = 110
   doc.text(`Email: ${invoice.client?.email || 'N/A'}`, clientInfoX, recipientY + 14)
-  doc.text(`Addr: ${invoice.client?.address || 'Standard Service Location'}`, clientInfoX, recipientY + 19)
+  doc.text(`Addr: ${parseClientMetadata(invoice.client).cleanAddress || 'Standard Service Location'}`, clientInfoX, recipientY + 19)
 
   // 6. ITEMS TABLE
   const tableData = []

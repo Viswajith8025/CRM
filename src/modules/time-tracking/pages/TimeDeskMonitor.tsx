@@ -123,11 +123,10 @@ export default function TimeDeskMonitor() {
     <PageWrapper 
       title="Time Monitor Hub" 
       description="Centralized operational hub for tracking live employee activity, managing personal timesheets, and governing shift policies."
-      className="bg-slate-50 dark:bg-slate-950 min-h-screen pb-12"
     >
-      <Tabs defaultValue="activity" className="space-y-8">
+      <Tabs defaultValue="activity" className="space-y-6">
         <TabsList className={cn(
-          "grid w-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl p-1.5 shadow-sm",
+          "grid w-full",
           isAdminOrSuperAdmin ? "max-w-md grid-cols-2" : "max-w-lg grid-cols-3"
         )}>
           <TabsTrigger value="activity" className="text-xs font-black uppercase py-3 rounded-xl transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md">
@@ -147,19 +146,18 @@ export default function TimeDeskMonitor() {
           {/* STAT METRICS */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card className="bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-900/80 border border-slate-200/60 dark:border-slate-800 shadow-sm overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-0" />
-                <CardContent className="pt-6 relative z-10">
+              <Card>
+                <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Online Now</p>
-                      <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter mt-1">{activeSessions.length}</h3>
+                      <p className="text-sm font-medium text-muted-foreground">Online Now</p>
+                      <h3 className="text-2xl font-bold mt-1">{activeSessions.length}</h3>
                     </div>
-                    <div className="p-4 rounded-2xl bg-primary/10 text-primary shadow-inner">
-                      <Monitor className="h-7 w-7" />
+                    <div className="p-3 rounded-full bg-emerald-500/10 text-emerald-500">
+                      <Monitor className="h-5 w-5" />
                     </div>
                   </div>
-                  <div className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded-full w-fit shadow-sm border border-emerald-100 dark:border-emerald-500/20">
+                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -171,44 +169,42 @@ export default function TimeDeskMonitor() {
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-              <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-none shadow-lg shadow-primary/20 overflow-hidden relative">
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-                <CardContent className="pt-6 relative z-10">
+              <Card>
+                <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-primary-foreground/80">Currently Working</p>
-                      <h3 className="text-4xl font-black tracking-tighter mt-1 text-white">{workingCount}</h3>
+                      <p className="text-sm font-medium text-muted-foreground">Currently Working</p>
+                      <h3 className="text-2xl font-bold mt-1">{workingCount}</h3>
                     </div>
-                    <div className="p-4 rounded-2xl bg-white/20 text-white backdrop-blur-sm border border-white/20">
-                      <Clock className="h-7 w-7" />
+                    <div className="p-3 rounded-full bg-primary/10 text-primary">
+                      <Clock className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="mt-7 text-[10px] text-primary-foreground/80 font-black uppercase tracking-widest">Active sessions without breaks</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Active sessions without breaks</p>
                 </CardContent>
               </Card>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-              <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-none shadow-lg shadow-amber-500/20 overflow-hidden relative">
-                <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
-                <CardContent className="pt-6 relative z-10">
+              <Card>
+                <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-amber-100">On Break</p>
-                      <h3 className="text-4xl font-black tracking-tighter mt-1">{breakCount}</h3>
+                      <p className="text-sm font-medium text-muted-foreground">On Break</p>
+                      <h3 className="text-2xl font-bold mt-1">{breakCount}</h3>
                     </div>
-                    <div className="p-4 rounded-2xl bg-white/20 text-white backdrop-blur-sm border border-white/20">
-                      <Coffee className="h-7 w-7" />
+                    <div className="p-3 rounded-full bg-amber-500/10 text-amber-500">
+                      <Coffee className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="mt-7 text-[10px] text-amber-100 font-black uppercase tracking-widest">Employees in pause state</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Employees in pause state</p>
                 </CardContent>
               </Card>
             </motion.div>
           </div>
 
           {/* FILTERS & SEARCH */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-md">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
             <div className="relative flex-1 w-full max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input 

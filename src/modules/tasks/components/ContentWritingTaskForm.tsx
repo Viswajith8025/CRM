@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Loader2, Calendar, FileText, UserSquare2, Briefcase, Plus } from "lucide-react"
+import { Loader2, Calendar, FileText, UserSquare2, Briefcase, Plus, Trash2 } from "lucide-react"
 import {
   Form,
   FormControl,
@@ -61,6 +61,7 @@ export function ContentWritingTaskForm({ task, onSuccess }: Props) {
         .eq('assigned_to', profile.id)
         .not('description', 'is', null)
         .ilike('description', 'Client:%')
+        .is('deleted_at', null)
 
       if (data) {
         const works = Array.from(new Set(data.map(d => d.title).filter(Boolean)))
@@ -68,6 +69,30 @@ export function ContentWritingTaskForm({ task, onSuccess }: Props) {
       }
     } catch (e) {
       console.error("Failed to fetch previous works", e)
+    }
+  }
+
+  const handleDeleteWork = async (workTitle: string) => {
+    if (!profile?.id) return
+    if (!confirm(`Are you sure you want to remove "${workTitle}" from your options? This will delete associated logs.`)) return
+    
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('assigned_to', profile.id)
+        .eq('title', workTitle)
+        .ilike('description', 'Client:%')
+        .is('deleted_at', null)
+      
+      if (error) throw error
+      toast.success('Work type removed successfully')
+      fetchPreviousWorks()
+      if (form.getValues('work') === workTitle) {
+        form.setValue('work', '')
+      }
+    } catch (e: any) {
+      toast.error('Failed to remove: ' + e.message)
     }
   }
 
@@ -247,7 +272,21 @@ export function ContentWritingTaskForm({ task, onSuccess }: Props) {
                   </FormControl>
                   <SelectContent>
                     {previousWorks.map((w, idx) => (
-                      <SelectItem key={idx} value={w}>{w}</SelectItem>
+                      <SelectItem key={idx} value={w}>
+                        <div className="flex items-center justify-between w-full group gap-4">
+                          <span>{w}</span>
+                          <div 
+                            className="opacity-0 group-hover:opacity-100 p-1 -m-1 text-slate-300 hover:text-red-500 rounded transition-all"
+                            onPointerDown={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handleDeleteWork(w)
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </div>
+                        </div>
+                      </SelectItem>
                     ))}
                     <SelectItem value="manual_entry" className="text-primary font-bold border-t mt-1 pt-1">
                       <div className="flex items-center gap-2">

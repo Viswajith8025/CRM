@@ -11,6 +11,7 @@ import {
   Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { parseClientMetadata } from '@/lib/metadataFallback';
 
 export interface InvoiceItem {
   id: string;
@@ -170,7 +171,7 @@ export const ProfessionalInvoice: React.FC<ProfessionalInvoiceProps> = ({ data }
               </p>
               <p className="flex items-start gap-3 leading-relaxed">
                 <Building2 className="w-4 h-4 mt-1 shrink-0 text-slate-900" />
-                {data.client.address || 'Standard Service Location'}
+                {parseClientMetadata(data.client).cleanAddress || 'Standard Service Location'}
               </p>
             </div>
           </div>
