@@ -158,41 +158,47 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
         throw new Error('PENDING_TASKS')
       }
 
-      // Online Enforcer
-      if (!navigator.onLine) {
-        toast.error('Cannot check out while offline. Server connection is required.')
-        return
-      }
+      // Robust Checkout Retry Mechanism (Exponential Backoff)
+      let checkoutError = null;
+      let attempt = 0;
+      const maxRetries = 3;
 
-      let { error } = await supabase.rpc('handle_check_out', {
-        p_user_id: user.id
-      })
-
-      if (error) {
-        // Attempt silent session refresh to resolve 401 Unauthorized conflicts
-        await supabase.auth.refreshSession()
-        const retry = await supabase.rpc('handle_check_out', { p_user_id: user.id })
-        error = retry.error
-      }
-      
-      if (error) {
-        // Fallback: Queue for offline sync so session isn't lost
-        const payload = { action: 'check_out', payload: { p_user_id: user.id }, timestamp: Date.now() }
-        const queue = JSON.parse(localStorage.getItem('timeDeskOfflineQueue') || '[]')
-        queue.push(payload)
-        localStorage.setItem('timeDeskOfflineQueue', JSON.stringify(queue))
-        
-        // Notify Service Worker for background sync if available
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'QUEUE_CHECKOUT',
-            payload: payload
-          });
+      while (attempt < maxRetries) {
+        // Enforce online check inside loop just in case network drops mid-retry
+        if (!navigator.onLine) {
+           if (attempt === 0) {
+             toast.warning('Network disconnected. Retrying checkout automatically...', { duration: 4000 });
+           }
+           await new Promise(resolve => setTimeout(resolve, 3000));
+           attempt++;
+           continue;
         }
-        
-        toast.warning('Network issue: Checkout queued for background sync.')
+
+        const res = await supabase.rpc('handle_check_out', { p_user_id: user.id });
+        checkoutError = res.error;
+
+        if (!checkoutError) {
+          break; // Success!
+        }
+
+        // If error is 401 Unauthorized, refresh session and retry immediately
+        if (checkoutError.code === '401' || checkoutError.message?.includes('JWT')) {
+          await supabase.auth.refreshSession();
+        }
+
+        attempt++;
+        if (attempt < maxRetries) {
+          const backoff = Math.pow(2, attempt) * 1000; // 2s, 4s
+          toast.info(`Checkout network hiccup. Retrying in ${backoff/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, backoff));
+        }
+      }
+
+      if (checkoutError) {
+         toast.error(`Checkout failed permanently after ${maxRetries} attempts. Server time compliance requires a stable connection. Please try again or contact IT.`);
+         throw checkoutError;
       } else {
-        toast.success('Work session completed. Well done!')
+         toast.success('Work session completed. Well done!')
       }
       
       set({ activeSession: null, activeBreak: null, workDuration: 0, breakDuration: 0 })
@@ -429,10 +435,17 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
 
     // Send one immediately, then every 5 minutes (300,000 ms)
     get().sendHeartbeat()
-    heartbeatInterval = setInterval(() => {
+    heartbeatInterval = setInterval(async () => {
       const idleTime = Date.now() - lastActivityTime;
-      if (idleTime > IDLE_TIMEOUT_MS) {
-        // User has been idle for > 15 mins. Automatically put them on break to prevent time fraud.
+      
+      // Respect organization settings for auto-break
+      const { useTimeDeskSettingsStore } = await import('./timeDeskSettingsStore');
+      const settings = useTimeDeskSettingsStore.getState().workSettings;
+      const isAutoIdleEnabled = (settings as any)?.enable_auto_idle_tracking ?? false;
+      const maxIdleMs = ((settings as any)?.auto_break_idle_minutes || 15) * 60 * 1000;
+
+      if (isAutoIdleEnabled && idleTime > maxIdleMs) {
+        // User has been idle for > configured mins. Automatically put them on break to prevent time fraud.
         const { activeBreak } = get();
         if (!activeBreak) {
           console.warn('[TimeDesk] User idle detected. Auto-pausing session.');
