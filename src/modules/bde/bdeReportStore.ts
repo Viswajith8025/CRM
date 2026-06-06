@@ -82,7 +82,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
 
       let query = supabase
         .from('bde_daily_reports')
-        .select('*, users:user_id(full_name, email)')
+        .select('*, users:profiles!user_id(full_name, email)')
         .eq('organization_id', profile.organization_id)
         .order('report_date', { ascending: false })
 

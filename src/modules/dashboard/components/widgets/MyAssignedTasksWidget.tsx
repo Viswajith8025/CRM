@@ -1,21 +1,21 @@
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
-  CheckCircle2, Circle, AlertCircle, Briefcase, Calendar,
-  Flag, Layers, ArrowRight, Loader2, ListTodo, Play, Pause, Timer
+  CheckCircle2, Circle, Briefcase, Calendar,
+  ArrowRight, Loader2, ListTodo
 } from "lucide-react"
-import { format, isPast, isToday, startOfDay, endOfDay, addDays } from "date-fns"
+import { format, isPast, isToday } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import { toast } from "sonner"
+import confetti from "canvas-confetti"
 import type { Task } from "@/modules/tasks/types/types"
-import { useTimeStore } from "@/modules/time-tracking/timeStore"
-import { useTimeDeskStore } from "@/modules/time-tracking/timeDeskStore"
+
 import { useMyTasksQuery } from '@/modules/tasks/hooks/useTasksQuery'
 import { useTasksStore } from "@/modules/tasks"
 
@@ -35,13 +35,11 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   done:        { label: "Done",        cls: "bg-emerald-500/10 text-emerald-500" },
 }
 
-type Filter = "all" | "today" | "week" | "overdue"
-
 function getDueDateDisplay(dueDate: string | null | undefined) {
   if (!dueDate) return null
   const d = new Date(dueDate)
   if (isPast(d) && !isToday(d)) {
-    return <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1"><AlertCircle className="h-2.5 w-2.5" />Overdue</span>
+    return <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1">Overdue</span>
   }
   if (isToday(d)) {
     return <span className="text-[10px] font-bold text-amber-500">Due Today</span>
@@ -54,73 +52,40 @@ export function MyAssignedTasksWidget() {
   const { updateTask } = useTasksStore()
   const { profile } = useAuthStore()
   const navigate = useNavigate()
-  const [filter, setFilter] = useState<Filter>("all")
+  
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  
+  const [isDayCompleted, setIsDayCompleted] = useState(() => {
+    return localStorage.getItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) === 'true'
+  })
 
-  // Time Desk active shifts and timers
-  const { activeTimer, startTimer, stopTimer } = useTimeStore()
-  const { activeSession, checkIn } = useTimeDeskStore()
-  const [timeTicker, setTimeTicker] = useState(0)
-
-  // React Query handles fetching automatically, no useEffect needed
-
-  // Periodic ticker to force render active timer durations
-  useEffect(() => {
-    let interval: any
-    if (activeTimer) {
-      interval = setInterval(() => {
-        setTimeTicker(prev => prev + 1)
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [activeTimer])
-
-  const getElapsedDuration = (startTime: string) => {
-    const diff = Math.floor((new Date().getTime() - new Date(startTime).getTime()) / 1000)
-    if (diff < 0) return "00:00"
-    const hrs = Math.floor(diff / 3600)
-    const mins = Math.floor((diff % 3600) / 60)
-    const secs = diff % 60
-    
-    if (hrs > 0) {
-      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const handleStartTaskTimer = async (task: Task) => {
-    try {
-      if (!activeSession) {
-        toast.info("Clocking you into shift automatically...")
-        await checkIn()
-      }
-      startTimer({
-        task_id: task.id,
-        start_time: new Date().toISOString(),
-        description: `Working on task: ${task.title}`,
-        is_billable: true
-      })
-      toast.success(`Timer started for "${task.title}"`)
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start timer")
-    }
-  }
-
-  const handleStopTaskTimer = async () => {
-    try {
-      await stopTimer()
-      toast.success("Focus timer stopped and logged successfully!")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to stop timer")
-    }
+  const handleCompleteDay = () => {
+    const today = new Date().toISOString().split('T')[0]
+    setIsDayCompleted(true)
+    localStorage.setItem(`day_completed_${profile?.id}_${today}`, 'true')
+    const duration = 3000;
+    const end = Date.now() + duration;
+    const frame = () => {
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#3b82f6', '#8b5cf6'] });
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#10b981', '#3b82f6', '#8b5cf6'] });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+    toast.success("Awesome work! You have completed all your tasks for today! 🎉", { className: "bg-emerald-500 text-white border-none" });
   }
 
   const filtered = myTasks.filter(t => {
-    const due = t.due_date ? new Date(t.due_date) : null
-    if (filter === "today") return due && (isToday(due))
-    if (filter === "week") return due && due <= addDays(new Date(), 7)
-    if (filter === "overdue") return due && isPast(due) && !isToday(due)
-    return true
+    if (!selectedDate) return true;
+    const due = t.due_date ? new Date(t.due_date).toISOString().split('T')[0] : null;
+    const created = t.created_at ? new Date(t.created_at).toISOString().split('T')[0] : null;
+    const updated = t.updated_at ? new Date(t.updated_at).toISOString().split('T')[0] : null;
+    
+    if (due === selectedDate) return true;
+    if (created === selectedDate) return true;
+    if ((t.status === 'done' || t.status === 'completed') && updated === selectedDate) return true;
+    
+    return false;
   })
 
   const overdueCount = myTasks.filter(t => t.due_date && isPast(new Date(t.due_date)) && !isToday(new Date(t.due_date))).length
@@ -128,12 +93,7 @@ export function MyAssignedTasksWidget() {
   const handleMarkDone = async (task: Task) => {
     setUpdatingId(task.id)
     try {
-      // If we are currently timing this task, stop the timer first
-      if (activeTimer && activeTimer.task_id === task.id) {
-        await stopTimer()
-      }
       await updateTask(task.id, { status: 'done' })
-      // Intentionally NOT refetching here so the task stays on screen with a green tick
       toast.success(`"${task.title}" completed!`)
     } catch (err: any) {
       toast.error(err.message || "Failed to complete task")
@@ -170,22 +130,37 @@ export function MyAssignedTasksWidget() {
           </Button>
         </div>
 
-        {/* Filter tabs */}
-        <Tabs value={filter} onValueChange={v => setFilter(v as Filter)} className="mt-3">
-          <TabsList className="h-7 bg-background/60">
-            <TabsTrigger value="all" className="text-[10px] h-6 px-2 font-bold uppercase">All ({myTasks.length})</TabsTrigger>
-            <TabsTrigger value="today" className="text-[10px] h-6 px-2 font-bold uppercase">Today</TabsTrigger>
-            <TabsTrigger value="week" className="text-[10px] h-6 px-2 font-bold uppercase">This Week</TabsTrigger>
-            {overdueCount > 0 && (
-              <TabsTrigger value="overdue" className="text-[10px] h-6 px-2 font-bold uppercase text-rose-500">
-                Overdue ({overdueCount})
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </Tabs>
+        {/* History Date Picker */}
+        <div className="mt-3 flex items-center gap-2">
+           <div className="relative flex-1">
+             <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+             <Input 
+               type="date" 
+               value={selectedDate}
+               onChange={(e) => setSelectedDate(e.target.value)}
+               className="h-8 pl-8 text-xs font-bold bg-background/60 border-primary/20"
+             />
+           </div>
+           {selectedDate !== new Date().toISOString().split('T')[0] && (
+             <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="h-8 text-[10px] font-bold uppercase tracking-wider">
+               Today
+             </Button>
+           )}
+        </div>
       </CardHeader>
 
-      <CardContent className="p-0 flex-1 overflow-y-auto max-h-[400px]">
+      <CardContent className="p-0 flex-1 overflow-y-auto max-h-[400px] flex flex-col relative">
+        {isDayCompleted ? (
+           <div className="flex-1 flex flex-col items-center justify-center p-6 bg-emerald-50/50 m-4 rounded-xl border border-emerald-100">
+             <div className="h-12 w-12 rounded-full bg-emerald-500 flex items-center justify-center mb-4 shadow-sm">
+               <CheckCircle2 className="h-6 w-6 text-white" />
+             </div>
+             <h3 className="text-sm font-black tracking-widest uppercase text-emerald-600 mb-1">Great Job Today!</h3>
+             <p className="text-[10px] font-bold text-emerald-600/70 uppercase text-center">You have completed your daily report.</p>
+             <Button variant="ghost" size="sm" onClick={() => { setIsDayCompleted(false); localStorage.removeItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) }} className="mt-6 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100">Undo Completion</Button>
+          </div>
+        ) : (
+          <>
         {myTasksLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -194,13 +169,8 @@ export function MyAssignedTasksWidget() {
           <div className="flex flex-col items-center justify-center py-12 gap-2 h-full">
             <CheckCircle2 className="h-10 w-10 text-emerald-300" />
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              {filter === "all" ? "No tasks assigned to you" : `No ${filter} tasks`}
+              {`No tasks found for ${selectedDate}`}
             </p>
-            {filter === "all" && (
-              <p className="text-[10px] text-muted-foreground/60 text-center max-w-[200px]">
-                Tasks assigned to you by your team lead will appear here.
-              </p>
-            )}
           </div>
         ) : (
           <div className="divide-y divide-border/10">
@@ -210,7 +180,6 @@ export function MyAssignedTasksWidget() {
                 const status = STATUS_CONFIG[task.status || "todo"]
                 const isCompleted = task.status === "completed" || task.status === "done"
                 const isUpdating = updatingId === task.id
-                const isTimerRunning = activeTimer?.task_id === task.id
                 const taskAny = task as any
 
                 return (
@@ -222,8 +191,7 @@ export function MyAssignedTasksWidget() {
                     transition={{ delay: i * 0.04 }}
                     className={cn(
                       "flex items-start justify-between gap-3 p-3.5 hover:bg-muted/30 transition-all group",
-                      isCompleted && "opacity-50",
-                      isTimerRunning && "bg-sky-500/5 border-l-2 border-sky-500"
+                      isCompleted && "opacity-50"
                     )}
                   >
                     <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -279,49 +247,13 @@ export function MyAssignedTasksWidget() {
                           <Badge variant="outline" className={cn("text-[9px] h-4 px-1.5", status.cls)}>
                             {status.label}
                           </Badge>
-
-                          {/* Live Timer Running Badge */}
-                          {isTimerRunning && activeTimer && (
-                            <span className="flex items-center gap-1 text-[9px] font-bold text-sky-500 bg-sky-500/10 px-1.5 py-0.5 rounded-full animate-pulse border border-sky-500/20">
-                              <Timer className="h-2.5 w-2.5" />
-                              {getElapsedDuration(activeTimer.start_time)}
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Right Action buttons: Timer Control & Due date */}
+                    {/* Right Action buttons */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <div className="flex items-center gap-1.5">
-                        {/* Task specific timer play/pause */}
-                        {!isCompleted && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
-                            {isTimerRunning ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-full"
-                                onClick={handleStopTaskTimer}
-                                title="Pause focus timer"
-                              >
-                                <Pause className="h-3 w-3 fill-rose-500" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-sky-500 hover:text-sky-600 hover:bg-sky-500/10 rounded-full"
-                                onClick={() => handleStartTaskTimer(task)}
-                                disabled={activeTimer !== null} // Disable if another task is timing
-                                title={activeTimer ? "Another timer is running" : "Start focus timer"}
-                              >
-                                <Play className="h-3 w-3 fill-sky-500" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
-
                         <div className="flex items-center gap-1 mt-0.5">
                           <Calendar className="h-3 w-3 text-muted-foreground" />
                           {getDueDateDisplay(task.due_date)}
@@ -334,8 +266,15 @@ export function MyAssignedTasksWidget() {
             </AnimatePresence>
           </div>
         )}
+        <div className="p-4 border-t border-border/10 shrink-0 bg-white sticky bottom-0 z-10">
+          <Button onClick={handleCompleteDay} className="w-full bg-emerald-500 hover:bg-emerald-600 font-black uppercase tracking-widest text-[10px] gap-2 text-white">
+            <CheckCircle2 className="h-4 w-4" />
+            Complete Daily Work
+          </Button>
+        </div>
+        </>
+        )}
       </CardContent>
     </Card>
   )
 }
-

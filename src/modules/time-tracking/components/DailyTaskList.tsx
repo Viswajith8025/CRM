@@ -9,7 +9,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDailyTasksStore } from "../dailyTasksStore"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuthStore } from "@/store/useAuthStore"
 import { useTheme } from "@/hooks/useTheme"
+import confetti from "canvas-confetti"
+import { toast } from "sonner"
 
 export function DailyTaskList() {
   const { theme } = useTheme()
@@ -17,6 +20,10 @@ export function DailyTaskList() {
   const [newTitle, setNewTitle] = useState("")
   const [newNotes, setNewNotes] = useState("")
   const [targetDate, setTargetDate] = useState<'today' | 'tomorrow'>('today')
+  const { profile } = useAuthStore()
+  const [isDayCompleted, setIsDayCompleted] = useState(() => {
+    return localStorage.getItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) === 'true'
+  })
 
   useEffect(() => {
     fetchTasks()
@@ -40,6 +47,49 @@ export function DailyTaskList() {
     await addTask(newTitle.trim(), newNotes.trim(), targetDate)
     setNewTitle("")
     setNewNotes("")
+  }
+
+  const handleToggle = async (taskId: string, isCompleted: boolean) => {
+    await toggleTask(taskId, isCompleted)
+    
+    if (isCompleted) {
+      const otherIncomplete = tasks.filter(t => t.id !== taskId && !t.is_completed)
+      if (otherIncomplete.length === 0 && tasks.length > 0) {
+        const duration = 3000
+        const end = Date.now() + duration
+        
+        const frame = () => {
+          confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#0ea5e9', '#10b981', '#f59e0b'] })
+          confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#0ea5e9', '#10b981', '#f59e0b'] })
+
+          if (Date.now() < end) requestAnimationFrame(frame)
+        }
+        frame()
+        
+        toast.success("Awesome work! You have completed all your daily focus tasks! 🎉", {
+          duration: 5000,
+          className: "bg-sky-500 text-white border-none",
+        })
+      }
+    }
+  }
+
+  const handleCompleteDay = () => {
+    const today = new Date().toISOString().split('T')[0]
+    setIsDayCompleted(true)
+    localStorage.setItem(`day_completed_${profile?.id}_${today}`, 'true')
+    const duration = 3000;
+    const end = Date.now() + duration;
+    const frame = () => {
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#0ea5e9', '#10b981', '#f59e0b'] });
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#0ea5e9', '#10b981', '#f59e0b'] });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+    toast.success("Awesome work! You have completed all your daily focus tasks! 🎉", {
+      duration: 5000,
+      className: "bg-sky-500 text-white border-none",
+    });
   }
 
   const pendingCount = tasks.filter(t => !t.is_completed).length
@@ -83,7 +133,18 @@ export function DailyTaskList() {
         </div>
       </CardHeader>
       
-      <CardContent className="p-0 flex-1 flex flex-col">
+      <CardContent className="p-0 flex-1 flex flex-col overflow-hidden relative">
+        {isDayCompleted ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-sky-50/50 m-4 rounded-xl border border-sky-100">
+             <div className="h-12 w-12 rounded-full bg-sky-500 flex items-center justify-center mb-4 shadow-sm">
+               <CheckCircle2 className="h-6 w-6 text-white" />
+             </div>
+             <h3 className="text-sm font-black tracking-widest uppercase text-sky-600 mb-1">Great Job Today!</h3>
+             <p className="text-[10px] font-bold text-sky-600/70 uppercase text-center">You have completed your daily focus.</p>
+             <Button variant="ghost" size="sm" onClick={() => { setIsDayCompleted(false); localStorage.removeItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) }} className="mt-6 text-[10px] font-bold uppercase text-sky-600 hover:bg-sky-100">Undo Completion</Button>
+          </div>
+        ) : (
+          <>
         <form onSubmit={handleAdd} className="p-4 flex flex-col gap-3 border-b border-border/10 bg-slate-50/50">
           <div className="flex items-start gap-2">
             <div className="flex-1 space-y-2">
@@ -134,7 +195,7 @@ export function DailyTaskList() {
               >
                 <div className="flex items-center gap-3 flex-1">
                   <button 
-                    onClick={() => toggleTask(task.id, !task.is_completed)}
+                    onClick={() => handleToggle(task.id, !task.is_completed)}
                     className={cn(
                       "transition-colors",
                       task.is_completed ? "text-sky-500" : "text-slate-300 hover:text-sky-400"
@@ -185,6 +246,14 @@ export function DailyTaskList() {
             </div>
           )}
         </div>
+            <div className="p-4 border-t border-border/10 shrink-0 bg-white sticky bottom-0 z-10">
+              <Button onClick={handleCompleteDay} className="w-full bg-sky-500 hover:bg-sky-600 font-black uppercase tracking-widest text-[10px] gap-2 text-white">
+                <CheckCircle2 className="h-4 w-4" />
+                Complete Daily Focus
+              </Button>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )

@@ -93,7 +93,7 @@ export default function TeamTimesheetsPage() {
       const { data } = await supabase
         .from('bde_daily_reports')
         .select('*')
-        .eq('employee_id', (selectedSession as any).user_id)
+        .eq('user_id', (selectedSession as any).user_id)
         .eq('report_date', sessionDate)
         .maybeSingle()
       setBdeReport(data)

@@ -34,7 +34,7 @@ import { cn } from "@/lib/utils"
 import { format, isPast, isToday } from "date-fns"
 import { toast } from "sonner"
 import TaskForm from "@/modules/tasks/components/TaskForm"
-import { useTimeStore } from "@/modules/time-tracking/timeStore"
+
 import { useTimeDeskStore } from "@/modules/time-tracking/timeDeskStore"
 
 const MODULE_COLORS = [
@@ -96,7 +96,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
   }, [members, projectDeptId])
 
   // Time Desk Integration
-  const { activeTimer, startTimer, stopTimer } = useTimeStore()
+  
   const { activeSession, checkIn } = useTimeDeskStore()
   const [timeTicker, setTimeTicker] = useState(0)
 
@@ -113,62 +113,13 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
   const projectModules = modules[projectId] || []
   const projectTasks = tasks.filter(t => t.project_id === projectId)
 
-  useEffect(() => {
-    fetchModules(projectId)
-    fetchTasks({ projectId })
-    fetchMembers()
-  }, [projectId])
+  
 
-  // Active Timer live duration ticking hook
-  useEffect(() => {
-    let interval: any
-    if (activeTimer) {
-      interval = setInterval(() => {
-        setTimeTicker(prev => prev + 1)
-      }, 1000)
-    }
-    return () => clearInterval(interval)
-  }, [activeTimer])
 
-  const getElapsedDuration = (startTime: string) => {
-    const diff = Math.floor((new Date().getTime() - new Date(startTime).getTime()) / 1000)
-    if (diff < 0) return "00:00"
-    const hrs = Math.floor(diff / 3600)
-    const mins = Math.floor((diff % 3600) / 60)
-    const secs = diff % 60
-    
-    if (hrs > 0) {
-      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-    }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
 
-  const handleStartTaskTimer = async (task: any) => {
-    try {
-      if (!activeSession) {
-        toast.info("Clocking you into shift automatically...")
-        await checkIn()
-      }
-      startTimer({
-        task_id: task.id,
-        start_time: new Date().toISOString(),
-        description: `Working on module task: ${task.title}`,
-        is_billable: true
-      })
-      toast.success(`Focus period started for: ${task.title}`)
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start timer")
-    }
-  }
+  
 
-  const handleStopTaskTimer = async () => {
-    try {
-      await stopTimer()
-      toast.success("Timer stopped and focus hours recorded!")
-    } catch (err: any) {
-      toast.error(err.message || "Failed to stop timer")
-    }
-  }
+  
 
   const handleToggleStatus = async (task: any) => {
     setUpdatingTaskId(task.id)
@@ -176,9 +127,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
     const nextStatus = isCompleted ? 'in_progress' : 'done'
 
     try {
-      if (activeTimer && activeTimer.task_id === task.id) {
-        await stopTimer()
-      }
+      
       await updateTask(task.id, { status: nextStatus })
       await fetchTasks({ projectId })
       toast.success(nextStatus === 'done' ? `Task marked complete` : `Task reopened`)
@@ -496,16 +445,14 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
                   const member = members.find(m => m.id === task.assigned_to)
                   const isCompleted = task.status === 'done'
                   const isUpdating = updatingTaskId === task.id
-                  const isTimerRunning = activeTimer?.task_id === task.id
-                  const taskAny = task as any
+                                    const taskAny = task as any
 
                   return (
                     <div
                       key={task.id}
                       className={cn(
                         "flex items-center justify-between gap-3 p-3 rounded-xl border bg-card/40 hover:bg-card hover:border-border/60 transition-all group",
-                        isCompleted && "opacity-50",
-                        isTimerRunning && "bg-sky-500/5 border-l-2 border-sky-500"
+                        isCompleted && "opacity-50"
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -552,12 +499,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
                             )}
 
                             {/* Live Timer Badge */}
-                            {isTimerRunning && activeTimer && (
-                              <span className="flex items-center gap-1 text-[9px] font-bold text-sky-500 bg-sky-500/10 px-1.5 py-0.5 rounded-full animate-pulse border border-sky-500/20">
-                                <Timer className="h-2.5 w-2.5" />
-                                {getElapsedDuration(activeTimer.start_time)}
-                              </span>
-                            )}
+                            
                           </div>
                         </div>
                       </div>
@@ -565,32 +507,7 @@ export function ModulesTab({ projectId, canManage }: ModulesTabProps) {
                       {/* Right Action side: Play/Pause controls, Due date, Assignee */}
                       <div className="flex items-center gap-3 flex-shrink-0">
                         {/* Play/Pause Timer button */}
-                        {!isCompleted && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            {isTimerRunning ? (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-full"
-                                onClick={handleStopTaskTimer}
-                                title="Pause focus timer"
-                              >
-                                <Pause className="h-3 w-3 fill-rose-500" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-6 w-6 text-sky-500 hover:text-sky-600 hover:bg-sky-500/10 rounded-full"
-                                onClick={() => handleStartTaskTimer(task)}
-                                disabled={activeTimer !== null}
-                                title={activeTimer ? "Another timer is running" : "Start focus timer"}
-                              >
-                                <Play className="h-3 w-3 fill-sky-500" />
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                        
 
                         {/* Due date */}
                         <div className="flex-shrink-0 flex items-center gap-1">

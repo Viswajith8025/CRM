@@ -12,17 +12,19 @@ import {
   Calendar,
   Filter,
   Search,
-  MessageSquare,
   Check,
   X,
   History,
-  Clock
+  Clock,
+  CheckSquare
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AttendanceLeave } from "../components/AttendanceLeave"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Dialog,
@@ -44,7 +46,7 @@ interface LeaveRequest {
   start_date: string
   end_date: string
   reason: string
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'clarification_required'
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   is_emergency: boolean
   created_at: string
   profile: {
@@ -76,7 +78,7 @@ export default function LeaveApprovalsPage() {
   
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null)
   const [isActionOpen, setIsActionOpen] = useState(false)
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'clarification'>('approve')
+  const [actionType, setActionType] = useState<'approve' | 'reject'>('approve')
   const [actionNote, setActionNote] = useState("")
 
   useEffect(() => {
@@ -161,9 +163,7 @@ export default function LeaveApprovalsPage() {
       return
     }
 
-    const newStatus = actionType === 'approve' ? 'approved' : 
-                     actionType === 'reject' ? 'rejected' : 
-                     'clarification_required'
+    const newStatus = actionType === 'approve' ? 'approved' : 'rejected'
 
     try {
       // 1. Update request status
@@ -245,7 +245,17 @@ export default function LeaveApprovalsPage() {
       title="Leave Approvals" 
       description="Review and process team leave requests with full audit trail."
     >
-      <div className="space-y-8">
+      <Tabs defaultValue="approvals" className="mt-6">
+        <TabsList className="grid grid-cols-2 max-w-md mb-6">
+          <TabsTrigger value="approvals" className="gap-2 text-xs">
+            <CheckSquare className="h-3.5 w-3.5" /> Leave Approvals
+          </TabsTrigger>
+          <TabsTrigger value="attendance" className="gap-2 text-xs">
+            <Clock className="h-3.5 w-3.5" /> Time & Attendance
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="approvals" className="m-0 space-y-8">
         {/* Statistics Bar */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-card/40 border-border/40 backdrop-blur-md">
@@ -378,18 +388,6 @@ export default function LeaveApprovalsPage() {
                               <X className="h-4 w-4" />
                             </Button>
                             <Button 
-                              variant="outline" 
-                              size="icon" 
-                              className="rounded-xl hover:bg-blue-50 hover:text-blue-600 border-blue-100"
-                              onClick={() => {
-                                setSelectedRequest(req)
-                                setActionType('clarification')
-                                setIsActionOpen(true)
-                              }}
-                            >
-                              <MessageSquare className="h-4 w-4" />
-                            </Button>
-                            <Button 
                               className="rounded-xl gap-2 h-10 px-6 font-black uppercase text-xs"
                               onClick={() => {
                                 setSelectedRequest(req)
@@ -441,8 +439,6 @@ export default function LeaveApprovalsPage() {
                           <span className="text-[10px] text-muted-foreground font-medium uppercase">{format(new Date(req.created_at), 'MMM d, h:mm a')}</span>
                           {req.status === 'approved' ? (
                             <Badge className="bg-emerald-500 uppercase text-[8px]">Approved</Badge>
-                          ) : req.status === 'clarification_required' ? (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 uppercase text-[8px]">Needs Info</Badge>
                           ) : req.status === 'cancelled' ? (
                             <Badge variant="outline" className="uppercase text-[8px]">Cancelled</Badge>
                           ) : (
@@ -450,44 +446,6 @@ export default function LeaveApprovalsPage() {
                           )}
                         </div>
                       </div>
-                      
-                      {/* Render clarification audit note log if present */}
-                      {req.status === 'clarification_required' && req.actions && req.actions.length > 0 && (
-                        <div className="ml-12 mt-2 space-y-3">
-                          <div className="p-3 bg-blue-500/10 dark:bg-blue-500/5 rounded-xl border border-blue-500/20">
-                            <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Clarification Request note:</p>
-                            <p className="text-xs italic text-foreground mt-1">
-                              "{req.actions.find(a => a.action === 'clarification')?.note || 'Please specify details.'}"
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 text-[10px] uppercase font-bold border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                              onClick={() => {
-                                setSelectedRequest(req)
-                                setActionType('approve')
-                                setIsActionOpen(true)
-                              }}
-                            >
-                              <Check className="h-3 w-3 mr-1" /> Approve Now
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 text-[10px] uppercase font-bold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                              onClick={() => {
-                                setSelectedRequest(req)
-                                setActionType('reject')
-                                setIsActionOpen(true)
-                              }}
-                            >
-                              <X className="h-3 w-3 mr-1" /> Reject
-                            </Button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ))
                 )}
@@ -501,9 +459,7 @@ export default function LeaveApprovalsPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle className="uppercase font-black tracking-widest">
-                {actionType === 'approve' ? 'Approve Request' : 
-                 actionType === 'reject' ? 'Reject Request' : 
-                 'Request Clarification'}
+                {actionType === 'approve' ? 'Approve Request' : 'Reject Request'}
               </DialogTitle>
               <DialogDescription className="sr-only">
                 Confirm your decision and add optional feedback for the leave request.
@@ -526,7 +482,6 @@ export default function LeaveApprovalsPage() {
                 <Textarea 
                   placeholder={
                     actionType === 'reject' ? "Please provide a reason for rejection..." :
-                    actionType === 'clarification' ? "What specific information do you need?" :
                     "Add an internal note or message to the employee..."
                   }
                   value={actionNote}
@@ -539,8 +494,7 @@ export default function LeaveApprovalsPage() {
               <Button 
                 className={cn(
                   "rounded-xl uppercase font-black text-xs",
-                  actionType === 'reject' ? "bg-rose-600 hover:bg-rose-700" :
-                  actionType === 'clarification' ? "bg-blue-600 hover:bg-blue-700" : ""
+                  actionType === 'reject' ? "bg-rose-600 hover:bg-rose-700" : ""
                 )}
                 onClick={handleAction}
               >
@@ -549,7 +503,12 @@ export default function LeaveApprovalsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+        </TabsContent>
+
+        <TabsContent value="attendance" className="m-0">
+          <AttendanceLeave />
+        </TabsContent>
+      </Tabs>
     </PageWrapper>
   )
 }

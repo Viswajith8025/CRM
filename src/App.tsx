@@ -22,7 +22,7 @@ import ProposalDetail from '@/modules/crm/pages/ProposalDetail'
 import ProjectsPage from '@/modules/projects/pages/ProjectsPage'
 import ProjectDetailPage from '@/modules/projects/pages/ProjectDetailPage'
 import TasksPage from '@/modules/tasks/pages/TasksPage'
-import TimeTrackingPage from '@/modules/time-tracking/pages/TimeTrackingPage'
+
 import BillingPage from '@/modules/billing/pages/BillingPage'
 import InvoiceDetail from '@/modules/billing/pages/InvoiceDetail'
 import ClientStatementsPage from '@/modules/billing/pages/ClientStatementsPage'
@@ -242,7 +242,7 @@ function App() {
             {/* Team Timesheets & Time Tracking Routes */}
             <Route element={<ProtectedRoute permission="module.team_timesheets" />}>
               <Route element={<DashboardLayout children={<Outlet />} />}>
-                <Route path="/time-tracking" element={<ErrorBoundary module="Time Tracking"><TimeTrackingPage /></ErrorBoundary>} />
+                
                 <Route path="/team-timesheets" element={<ErrorBoundary module="Team Timesheets"><TeamTimesheetsPage /></ErrorBoundary>} />
               </Route>
             </Route>

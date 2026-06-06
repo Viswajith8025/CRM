@@ -1,10 +1,13 @@
 import { useEffect, useState, useCallback } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ClipboardList, CheckCircle2, Circle, Clock, Trash2 } from "lucide-react"
+import { ClipboardList, CheckCircle2, Circle, Clock, Trash2, Calendar } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CRMTaskForm } from "@/modules/tasks/components/CRMTaskForm"
 import { useAuthStore } from "@/store/useAuthStore"
 import { toast } from "sonner"
+import confetti from "canvas-confetti"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
@@ -22,6 +25,34 @@ export function CRMWidget() {
   const { profile } = useAuthStore()
   const [loggedTasks, setLoggedTasks] = useState<LoggedTask[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [isDayCompleted, setIsDayCompleted] = useState(() => {
+    return localStorage.getItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) === 'true'
+  })
+
+  const handleCompleteDay = () => {
+    const pending = loggedTasks.filter(t => t.status !== 'done')
+    if (pending.length > 0) {
+      if (!confirm(`You have ${pending.length} incomplete tasks. Are you sure you want to finish your day?`)) return
+    }
+    const today = new Date().toISOString().split('T')[0]
+    setIsDayCompleted(true)
+    localStorage.setItem(`day_completed_${profile?.id}_${today}`, 'true')
+    
+    const duration = 3000;
+    const end = Date.now() + duration;
+    const frame = () => {
+      confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#10b981', '#3b82f6', '#8b5cf6'] });
+      confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#10b981', '#3b82f6', '#8b5cf6'] });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+    toast.success("Awesome work! You have completed all your tasks for today! 🎉", {
+      duration: 5000,
+      className: "bg-emerald-500 text-white border-none",
+    });
+  }
+
 
   const fetchLoggedTasks = useCallback(async () => {
     if (!profile?.id) return
@@ -34,6 +65,7 @@ export function CRMWidget() {
         .is('project_id', null)
         .ilike('description', 'Client:%')
         .is('deleted_at', null)
+        .eq('due_date', selectedDate)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -45,7 +77,7 @@ export function CRMWidget() {
     } finally {
       setIsLoading(false)
     }
-  }, [profile?.id])
+  }, [profile?.id, selectedDate])
 
   const updateTaskStatus = useCallback(async (taskId: string, newDisplayStatus: string) => {
     const dbStatus = newDisplayStatus === 'ongoing' ? 'in_progress' : newDisplayStatus === 'pending' ? 'todo' : 'done'
@@ -100,13 +132,40 @@ export function CRMWidget() {
               </CardDescription>
             </div>
           </div>
-          <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-full">
-            {loggedTasks.length} Logged
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="h-7 pl-7 text-[10px] font-bold uppercase w-32 border-primary/20 bg-primary/5"
+              />
+            </div>
+            {selectedDate !== new Date().toISOString().split('T')[0] && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="h-7 px-2 text-[10px] font-bold uppercase tracking-wider">
+                Today
+              </Button>
+            )}
+            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-full whitespace-nowrap hidden sm:inline-block">
+              {loggedTasks.length} Logged
+            </span>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
+        {isDayCompleted ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-6 bg-emerald-50/50 m-4 rounded-xl border border-emerald-100">
+             <div className="h-12 w-12 rounded-full bg-emerald-500 flex items-center justify-center mb-4 shadow-sm">
+               <CheckCircle2 className="h-6 w-6 text-white" />
+             </div>
+             <h3 className="text-sm font-black tracking-widest uppercase text-emerald-600 mb-1">Great Job Today!</h3>
+             <p className="text-[10px] font-bold text-emerald-600/70 uppercase">You have completed your daily report.</p>
+             <Button variant="ghost" size="sm" onClick={() => { setIsDayCompleted(false); localStorage.removeItem(`day_completed_${profile?.id}_${new Date().toISOString().split('T')[0]}`) }} className="mt-6 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100">Undo Completion</Button>
+          </div>
+        ) : (
+          <>
         {/* Input Form Section */}
         <div className="p-4 border-b border-border/10 shrink-0 bg-white">
           <CRMTaskForm onSuccess={() => fetchLoggedTasks()} />
@@ -205,6 +264,14 @@ export function CRMWidget() {
             )}
           </div>
         </div>
+                <div className="p-4 border-t border-border/10 shrink-0 bg-white">
+              <Button onClick={handleCompleteDay} className="w-full bg-emerald-500 hover:bg-emerald-600 font-black uppercase tracking-widest text-[10px] gap-2 text-white">
+                <CheckCircle2 className="h-4 w-4" />
+                Complete Daily Work
+              </Button>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )

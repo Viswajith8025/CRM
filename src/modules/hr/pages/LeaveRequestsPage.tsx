@@ -7,7 +7,7 @@ import {
   Calendar as CalendarIcon,
   Plus,
   Clock,
-  Info,
+
   Loader2,
   AlertCircle,
 } from "lucide-react"
@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { submitLeaveRequest, resubmitLeaveRequest } from "@/lib/leaveService"
+import { submitLeaveRequest } from "@/lib/leaveService"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,7 +57,7 @@ interface LeaveRequest {
   start_date: string
   end_date: string
   reason: string
-  status: "pending" | "approved" | "rejected" | "cancelled" | "clarification_required"
+  status: "pending" | "approved" | "rejected" | "cancelled"
   is_emergency: boolean
   leave_type: LeaveType
   created_at: string
@@ -96,7 +96,6 @@ export default function LeaveRequestsPage() {
   const [isLoading, setIsLoading]       = useState(true)
   const [isFormOpen, setIsFormOpen]     = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null)
   const [formData, setFormData]         = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError]       = useState<string | null>(null)
 
@@ -155,23 +154,11 @@ export default function LeaveRequestsPage() {
 
   function closeForm() {
     setIsFormOpen(false)
-    setEditingRequest(null)
     setFormData(EMPTY_FORM)
     setFormError(null)
   }
 
-  function openEditForm(req: LeaveRequest) {
-    setEditingRequest(req)
-    setFormData({
-      leave_type_id: req.leave_type.id,
-      start_date:    req.start_date,
-      end_date:      req.end_date,
-      reason:        req.reason,
-      is_emergency:  req.is_emergency,
-    })
-    setFormError(null)
-    setIsFormOpen(true)
-  }
+
 
   // ─── Validation ──────────────────────────────────────────────────────────────
 
@@ -208,26 +195,6 @@ export default function LeaveRequestsPage() {
     setIsSubmitting(true)
 
     try {
-      if (editingRequest) {
-        // ── Resubmit path ──────────────────────────────────────────────────
-        if (!profile?.id) throw new Error("Not authenticated.")
-
-        const result = await resubmitLeaveRequest({
-          requestId:     editingRequest.id,
-          actorId:       profile.id,
-          leave_type_id: formData.leave_type_id,
-          start_date:    formData.start_date,
-          end_date:      formData.end_date,
-          reason:        formData.reason,
-          is_emergency:  formData.is_emergency,
-        })
-
-        if (!result.success) {
-          setFormError(result.error ?? "Failed to resubmit.")
-          return
-        }
-        toast.success("Leave request updated and resubmitted.")
-      } else {
         // ── New submission path ────────────────────────────────────────────
         const result = await submitLeaveRequest({
           leave_type_id: formData.leave_type_id,
@@ -242,7 +209,6 @@ export default function LeaveRequestsPage() {
           return
         }
         toast.success("Leave request submitted successfully!")
-      }
 
       closeForm()
       fetchData() // Refresh the list dynamically
@@ -288,8 +254,7 @@ export default function LeaveRequestsPage() {
         return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 font-black uppercase text-[10px]">Pending</Badge>
       case "cancelled":
         return <Badge variant="outline" className="text-slate-400 border-slate-200 bg-slate-50 font-black uppercase text-[10px]">Cancelled</Badge>
-      case "clarification_required":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-700 font-black uppercase text-[10px]">Needs Info</Badge>
+
       default:
         return <Badge variant="outline" className="font-black uppercase text-[10px]">{status}</Badge>
     }
@@ -333,7 +298,7 @@ export default function LeaveRequestsPage() {
             <DialogContent className="w-[95vw] max-w-lg rounded-2xl p-5 sm:p-6 overflow-y-auto max-h-[92dvh]">
               <DialogHeader>
                 <DialogTitle className="uppercase font-black tracking-widest text-sm">
-                  {editingRequest ? "Update & Resubmit Leave" : "Apply for Leave"}
+                  Apply for Leave
                 </DialogTitle>
                 <DialogDescription className="sr-only">
                   Fill in all fields to submit a leave request.
@@ -522,7 +487,7 @@ export default function LeaveRequestsPage() {
                     {isSubmitting ? (
                       <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
                     ) : (
-                      editingRequest ? "Update & Resubmit" : "Submit Request"
+                      "Submit Request"
                     )}
                   </Button>
                 </DialogFooter>
@@ -553,7 +518,7 @@ export default function LeaveRequestsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {requests.map((req) => {
                 const days = differenceInDays(parseISO(req.end_date), parseISO(req.start_date)) + 1
-                const clarificationNote = req.actions?.find((a) => a.action === "clarification")?.note
+
 
                 return (
                   <Card
@@ -597,17 +562,7 @@ export default function LeaveRequestsPage() {
                         </p>
                       </div>
 
-                      {/* Clarification note */}
-                      {req.status === "clarification_required" && clarificationNote && (
-                        <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20 space-y-1">
-                          <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider flex items-center gap-1">
-                            <Info className="h-3.5 w-3.5" /> Clarification Required
-                          </p>
-                          <p className="text-xs text-foreground italic font-medium leading-relaxed">
-                            "{clarificationNote}"
-                          </p>
-                        </div>
-                      )}
+
 
                       {/* Actions */}
                       {req.status === "pending" && (
@@ -621,16 +576,7 @@ export default function LeaveRequestsPage() {
                         </Button>
                       )}
 
-                      {req.status === "clarification_required" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 font-black uppercase text-[10px] h-9 mt-1"
-                          onClick={() => openEditForm(req)}
-                        >
-                          Update & Resubmit
-                        </Button>
-                      )}
+
                     </CardContent>
                   </Card>
                 )

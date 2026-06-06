@@ -4,7 +4,7 @@ import { toFriendlyError, getFriendlySupabaseError } from '@/lib/supabaseError'
 import { logActivity } from '@/lib/auditLogger'
 import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
 import type { Task, Subtask as SubTask } from './types/types'
-import type { TimeLog } from '@/modules/time-tracking/types'
+
 
 interface TasksState {
   tasks: Task[]
@@ -36,7 +36,7 @@ interface TasksState {
   fetchComments: (taskId: string) => Promise<void>
   addComment: (comment: any) => Promise<void>
   
-  addTimeLog: (log: Partial<TimeLog>) => Promise<void>
+  
   subscribeToTasks: (projectId?: string) => () => void
 }
 
@@ -571,28 +571,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
     }
   },
 
-  addTimeLog: async (log) => {
-    try {
-      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      const orgId = profile?.organization_id
-      if (!orgId) throw new Error("No organization context found.")
-
-      const payload = { ...log, organization_id: orgId, user_id: profile?.id }
-      const { error } = await supabase.from('task_time_logs').insert(payload)
-      if (error) throw error
-      
-      logActivity({
-        action: 'TIME_LOG',
-        targetType: 'task',
-        targetId: log.task_id!,
-        targetName: 'Time Log',
-        description: `Logged ${(log.duration_minutes || 0) / 60} hours of work`,
-        organization_id: orgId
-      })
-    } catch (err) {
-      throw toFriendlyError(err, "Failed to log time.")
-    }
-  },
+  
 
   subscribeToTasks: (projectId) => {
     let channel: any = null;

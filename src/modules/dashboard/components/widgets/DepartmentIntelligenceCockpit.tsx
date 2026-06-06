@@ -111,47 +111,7 @@ export function DepartmentIntelligenceCockpit() {
       return
     }
 
-    const fetchMemberTimeLogs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('work_sessions')
-          .select('start_time, end_time')
-          .eq('user_id', selectedMember.id)
-          .order('start_time', { ascending: true })
-
-        if (!error && data) {
-          const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-          const hoursByDay = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0 } as Record<string, number>
-
-          data.forEach(session => {
-            if (!session.start_time) return
-            const start = new Date(session.start_time)
-            const end = session.end_time ? new Date(session.end_time) : new Date()
-            const diffMs = end.getTime() - start.getTime()
-            const diffHours = diffMs / (1000 * 60 * 60)
-
-            const dayIdx = start.getDay()
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-            const dayName = dayNames[dayIdx]
-            if (hoursByDay[dayName] !== undefined) {
-              hoursByDay[dayName] += diffHours
-            }
-          })
-
-          const chartData = daysOfWeek.map(day => ({
-            name: day,
-            hours: Number(hoursByDay[day].toFixed(1))
-          }))
-
-          setSelectedMemberLogs(chartData)
-        }
-      } catch (err) {
-        console.error("Failed to fetch member time logs", err)
-      }
-    }
-
-    fetchMemberTimeLogs()
-  }, [selectedMember])
+      }, [selectedMember])
 
   useEffect(() => {
     fetchTasks()

@@ -82,8 +82,30 @@ export const useDashboardDataStore = create<DashboardDataState>((set, get) => ({
 
       if (error) throw error
 
+      // Override active projects count to match the UI tab "Active Projects" (unarchived)
+      let activeProjectsCount = data.stats.active_projects;
+      try {
+        let query = supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', orgId)
+          .is('deleted_at', null)
+          .or('is_archived.is.null,is_archived.eq.false')
+          
+        if (startDate) query = query.gte('created_at', startDate)
+        if (endDate) query = query.lte('created_at', endDate)
+
+        const { count } = await query;
+        if (count !== null) activeProjectsCount = count;
+      } catch (e) {
+        console.error("Failed to fetch accurate active projects count", e)
+      }
+
       set({ 
-        stats: data.stats,
+        stats: {
+          ...data.stats,
+          active_projects: activeProjectsCount
+        },
         projectHealth: data.health,
         criticalDeadlines: data.deadlines,
         activities: data.activities,

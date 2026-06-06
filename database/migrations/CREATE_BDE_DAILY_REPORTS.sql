@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS public.bde_daily_reports CASCADE;
 CREATE TABLE public.bde_daily_reports (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     report_date DATE NOT NULL DEFAULT CURRENT_DATE,
     
     -- Morning Login (Plan)

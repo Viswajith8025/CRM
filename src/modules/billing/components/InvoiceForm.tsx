@@ -131,57 +131,7 @@ export function InvoiceForm({ invoice, defaultClientId, onSuccess }: InvoiceForm
     }
   }
 
-  const handleImportUnbilledTime = async () => {
-    const projectId = form.watch('project_id')
-    if (!projectId || projectId === "none") {
-      toast.error("Please select a project first to import time")
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      // Get all tasks for this project
-      const { data: tasks } = await supabase
-        .from('tasks')
-        .select('id')
-        .eq('project_id', projectId)
-
-      if (!tasks || tasks.length === 0) {
-        toast.info("No tasks found for this project")
-        return
-      }
-
-      const taskIds = tasks.map(t => t.id)
-
-      // Get unbilled time logs for these tasks
-      const { data: unbilledLogs, error } = await supabase
-        .from('time_logs')
-        .select('*')
-        .in('task_id', taskIds)
-        .eq('is_billable', true)
-        .or('is_billed.eq.false,is_billed.is.null')
-
-      if (error) throw error
-
-      if (!unbilledLogs || unbilledLogs.length === 0) {
-        toast.info("No unbilled time found for this project")
-        return
-      }
-
-      // Calculate total amount based on ₹12,000/hr flat rate
-      const totalMinutes = unbilledLogs.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0)
-      const calculatedAmount = (totalMinutes / 60) * 12000
-
-      const currentAmount = Number(form.watch('amount')) || 0
-      form.setValue('amount', currentAmount + calculatedAmount)
-      
-      toast.success(`Imported ${totalMinutes} minutes (₹${calculatedAmount.toFixed(2)})`)
-    } catch (err: any) {
-      toast.error(err.message || "Failed to import time logs")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  
 
   return (
     <Form {...form}>

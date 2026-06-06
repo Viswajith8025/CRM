@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useTeamStore } from '@/modules/admin'
 import { supabase } from '@/lib/supabase'
 import { Loader2, CheckCircle2, Clock, TrendingUp, Calendar, Target, BarChart2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   AreaChart, Area, BarChart, Bar,
+  PieChart, Pie, Cell, Legend,
   XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip,
   ResponsiveContainer
 } from 'recharts'
@@ -19,6 +21,14 @@ interface DailyStats {
 }
 
 interface PerfStats {
+  bdeStats: {
+    totalLeadsGenerated: number
+    totalLeadsConverted: number
+    leadsJustdial: number
+    leadsSocialMedia: number
+    leadsDatabase: number
+    leadsOthers: number
+  } | null
   totalTasksDone: number
   totalHoursLogged: number
   avgTasksPerDay: number
@@ -32,10 +42,22 @@ export function WorkforceAnalyticsWorkspace() {
   const [isLoading, setIsLoading] = useState(true)
   const [period, setPeriod] = useState<7 | 14 | 30>(30)
 
+  const { members, fetchMembers } = useTeamStore()
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
+  const currentUserMember = members.find(m => m.id === profile?.id)
+  const isBDEOrSales = profile?.dynamic_role?.toLowerCase() === 'sales' || 
+                       profile?.dynamic_role?.toLowerCase() === 'salesperson' || 
+                       profile?.role?.toLowerCase() === 'salesperson' ||
+                       currentUserMember?.department?.toLowerCase().includes('bde') || 
+                       currentUserMember?.department?.toLowerCase().includes('business development') ||
+                       currentUserMember?.department?.toLowerCase().includes('sales')
+
   useEffect(() => {
     if (!profile?.id) return
     fetchStats()
-  }, [profile?.id, period])
+  }, [profile?.id, period, isBDEOrSales])
 
   const fetchStats = async () => {
     if (!profile?.id) return
@@ -99,12 +121,33 @@ export function WorkforceAnalyticsWorkspace() {
       const totalTasks = tasks.length
       const completionRate = totalTasks > 0 ? (tasks.filter(t => t.status === 'done').length / totalTasks) * 100 : 0
 
+      let bdeStats = null
+      if (isBDEOrSales) {
+        const { data: bdeData } = await supabase
+          .from('bde_daily_reports')
+          .select('*')
+          .eq('user_id', profile.id)
+          .gte('report_date', startDate)
+          
+        const reports = bdeData || []
+        
+        bdeStats = {
+          totalLeadsGenerated: reports.reduce((s, r) => s + (Number(r.database_count) || 0) + (Number(r.leads_social_media) || 0) + (Number(r.leads_just_dial) || 0) + (Number(r.leads_other) || 0), 0),
+          totalLeadsConverted: reports.reduce((s, r) => s + (Number(r.meetings_scheduled) || 0), 0),
+          leadsJustdial: reports.reduce((s, r) => s + (Number(r.leads_just_dial) || 0), 0),
+          leadsSocialMedia: reports.reduce((s, r) => s + (Number(r.leads_social_media) || 0), 0),
+          leadsDatabase: reports.reduce((s, r) => s + (Number(r.database_count) || 0), 0),
+          leadsOthers: reports.reduce((s, r) => s + (Number(r.leads_other) || 0), 0)
+        }
+      }
+
       setStats({
         totalTasksDone,
         totalHoursLogged,
         avgTasksPerDay,
         completionRate,
-        trend
+        trend,
+        bdeStats
       })
     } catch (err) {
       console.error('Failed to load performance stats:', err)
@@ -153,40 +196,169 @@ export function WorkforceAnalyticsWorkspace() {
         </div>
       ) : stats ? (
         <>
-          {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard
-              icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
-              bg="bg-emerald-500/10"
-              label="Tasks Completed"
-              value={stats.totalTasksDone.toString()}
-              sub={`Last ${period} days`}
-            />
-            <KpiCard
-              icon={<Clock className="h-5 w-5 text-blue-500" />}
-              bg="bg-blue-500/10"
-              label="Hours Logged"
-              value={`${stats.totalHoursLogged.toFixed(1)}h`}
-              sub={`Last ${period} days`}
-            />
-            <KpiCard
-              icon={<Target className="h-5 w-5 text-violet-500" />}
-              bg="bg-violet-500/10"
-              label="Completion Rate"
-              value={`${stats.completionRate.toFixed(0)}%`}
-              sub="Of all assigned tasks"
-            />
-            <KpiCard
-              icon={<BarChart2 className="h-5 w-5 text-amber-500" />}
-              bg="bg-amber-500/10"
-              label="Avg Tasks / Day"
-              value={stats.avgTasksPerDay.toFixed(1)}
-              sub="On active days"
-            />
-          </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {isBDEOrSales && stats.bdeStats ? (
+            <>
+              {/* BDE KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <KpiCard
+                  icon={<Target className="h-5 w-5 text-indigo-500" />}
+                  bg="bg-indigo-500/10"
+                  label="Leads Generated"
+                  value={stats.bdeStats.totalLeadsGenerated.toString()}
+                  sub={`Last ${period} days`}
+                />
+                <KpiCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                  bg="bg-emerald-500/10"
+                  label="Leads Converted"
+                  value={stats.bdeStats.totalLeadsConverted.toString()}
+                  sub={`Last ${period} days`}
+                />
+                <KpiCard
+                  icon={<Clock className="h-5 w-5 text-blue-500" />}
+                  bg="bg-blue-500/10"
+                  label="Hours Logged"
+                  value={`${stats.totalHoursLogged.toFixed(1)}h`}
+                  sub={`Last ${period} days`}
+                />
+                <KpiCard
+                  icon={<BarChart2 className="h-5 w-5 text-amber-500" />}
+                  bg="bg-amber-500/10"
+                  label="Conversion Rate"
+                  value={`${stats.bdeStats.totalLeadsGenerated > 0 ? ((stats.bdeStats.totalLeadsConverted / stats.bdeStats.totalLeadsGenerated) * 100).toFixed(0) : 0}%`}
+                  sub="Converted / Generated"
+                />
+              </div>
+
+              {/* BDE Pie Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Conversion Ratio */}
+                <Card className="bg-card/40 border-border/40 backdrop-blur-md">
+                  <CardHeader className="border-b border-border/10 pb-4">
+                    <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <Target className="h-4 w-4 text-emerald-500" />
+                      Lead Conversion Ratio
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 min-h-[220px] flex items-center justify-center">
+                    {stats.bdeStats.totalLeadsGenerated > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Converted', value: stats.bdeStats.totalLeadsConverted, color: '#10b981' },
+                              { name: 'Not Converted', value: stats.bdeStats.totalLeadsGenerated - stats.bdeStats.totalLeadsConverted, color: '#f43f5e' }
+                            ]}
+                            cx="50%" cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {
+                              [
+                                { name: 'Converted', value: stats.bdeStats.totalLeadsConverted, color: '#10b981' },
+                                { name: 'Not Converted', value: stats.bdeStats.totalLeadsGenerated - stats.bdeStats.totalLeadsConverted, color: '#f43f5e' }
+                              ].map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))
+                            }
+                          </Pie>
+                          <ChartTooltip formatter={(value) => [`${value} Leads`, 'Count']} />
+                          <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-center text-muted-foreground text-xs font-bold uppercase tracking-widest">No Leads Data Available</div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Lead Sources */}
+                <Card className="bg-card/40 border-border/40 backdrop-blur-md">
+                  <CardHeader className="border-b border-border/10 pb-4">
+                    <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                      <BarChart2 className="h-4 w-4 text-indigo-500" />
+                      Lead Sources Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-6 min-h-[220px] flex items-center justify-center">
+                    {stats.bdeStats.totalLeadsGenerated > 0 ? (
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Justdial', value: stats.bdeStats.leadsJustdial, color: '#3b82f6' },
+                              { name: 'Social Media', value: stats.bdeStats.leadsSocialMedia, color: '#a855f7' },
+                              { name: 'Database', value: stats.bdeStats.leadsDatabase, color: '#f59e0b' },
+                              { name: 'Others', value: stats.bdeStats.leadsOthers, color: '#64748b' }
+                            ].filter(d => d.value > 0)}
+                            cx="50%" cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {
+                              [
+                                { name: 'Justdial', value: stats.bdeStats.leadsJustdial, color: '#3b82f6' },
+                                { name: 'Social Media', value: stats.bdeStats.leadsSocialMedia, color: '#a855f7' },
+                                { name: 'Database', value: stats.bdeStats.leadsDatabase, color: '#f59e0b' },
+                                { name: 'Others', value: stats.bdeStats.leadsOthers, color: '#64748b' }
+                              ].filter(d => d.value > 0).map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))
+                            }
+                          </Pie>
+                          <ChartTooltip formatter={(value) => [`${value} Leads`, 'Count']} />
+                          <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-center text-muted-foreground text-xs font-bold uppercase tracking-widest">No Lead Source Data Available</div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Regular Non-Sales KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <KpiCard
+                  icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
+                  bg="bg-emerald-500/10"
+                  label="Tasks Completed"
+                  value={stats.totalTasksDone.toString()}
+                  sub={`Last ${period} days`}
+                />
+                <KpiCard
+                  icon={<Clock className="h-5 w-5 text-blue-500" />}
+                  bg="bg-blue-500/10"
+                  label="Hours Logged"
+                  value={`${stats.totalHoursLogged.toFixed(1)}h`}
+                  sub={`Last ${period} days`}
+                />
+                <KpiCard
+                  icon={<Target className="h-5 w-5 text-violet-500" />}
+                  bg="bg-violet-500/10"
+                  label="Completion Rate"
+                  value={`${stats.completionRate.toFixed(0)}%`}
+                  sub="Of all assigned tasks"
+                />
+                <KpiCard
+                  icon={<BarChart2 className="h-5 w-5 text-amber-500" />}
+                  bg="bg-amber-500/10"
+                  label="Avg Tasks / Day"
+                  value={stats.avgTasksPerDay.toFixed(1)}
+                  sub="On active days"
+                />
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
             {/* Tasks Completed Trend */}
             <Card className="bg-card/40 border-border/40 backdrop-blur-md">
               <CardHeader className="border-b border-border/10 pb-4">
@@ -273,6 +445,8 @@ export function WorkforceAnalyticsWorkspace() {
               </CardContent>
             </Card>
           </div>
+            </>
+          )}
 
           {/* Streak / Calendar View */}
           <Card className="bg-card/40 border-border/40 backdrop-blur-md">
