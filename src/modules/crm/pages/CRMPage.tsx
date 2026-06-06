@@ -127,7 +127,7 @@ export default function CRMPage() {
       </Dialog>
 
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent className="sm:max-w-[600px] w-full">
+        <SheetContent aria-describedby={undefined} className="sm:max-w-[600px] w-full">
           <SheetHeader className="mb-6">
             <SheetTitle className="text-muted-foreground uppercase tracking-[0.2em] text-[10px] font-black">Lead Details & History</SheetTitle>
           </SheetHeader>

@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { format, parseISO, subDays, differenceInMinutes } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { BDEReportsAdminView } from '@/modules/bde/components/BDEReportsAdminView'
 
 interface DailyStats {
   date: string
@@ -321,6 +322,11 @@ export function WorkforceAnalyticsWorkspace() {
           </Card>
         </>
       ) : null}
+
+      {/* Admin specific views */}
+      {profile && ['super_admin', 'admin', 'manager'].includes(profile.role) && (
+        <BDEReportsAdminView />
+      )}
     </div>
   )
 }

@@ -78,3 +78,23 @@ export interface Client {
   updated_at: string
   isVirtual?: boolean
 }
+
+export interface BDEReport {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  report_date: string;
+  database_planned: string | null;
+  database_count: number;
+  leads_social_media: number;
+  leads_just_dial: number;
+  leads_other: number;
+  meetings_scheduled: number;
+  meetings_attended: number | null;
+  calls_connected: number | null;
+  amount_collected: number | null;
+  remarks: string | null;
+  status: 'active' | 'completed';
+  created_at: string;
+  updated_at: string;
+}

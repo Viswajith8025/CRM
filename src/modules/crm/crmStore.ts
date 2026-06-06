@@ -137,8 +137,13 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) throw new Error("No organization context found.")
       
-      // Strip known frontend-only fields (blacklist approach scales better than a hardcoded whitelist array)
-      const { job_title, department_id, team_lead_id, count, profile: _leadProfile, ...safeLead } = lead as any;
+      // Strip known frontend-only fields and newly added extended fields that might not be in the DB yet
+      const { 
+        job_title, department_id, team_lead_id, count, profile: _leadProfile, 
+        whatsapp, website, address, business_type, services_needed, target_locations,
+        has_instagram, ig_username, ig_password, li_username, li_password,
+        ...safeLead 
+      } = lead as any;
       if (safeLead.email === "") safeLead.email = null;
       if (safeLead.phone === "") safeLead.phone = null;
       if (!safeLead.brought_by_id) delete safeLead.brought_by_id;
@@ -183,12 +188,19 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
       const currentLead = get().leads.find(l => l.id === id)
       
-      // Strip known frontend-only fields using blacklist
-      const { job_title, department_id, team_lead_id, count, profile: _leadProfile, ...safeUpdates } = updates as any;
+      // Strip known frontend-only fields and newly added extended fields
+      const { 
+        job_title, department_id, team_lead_id, count, profile: _leadProfile, 
+        whatsapp, website, address, business_type, services_needed, target_locations,
+        has_instagram, ig_username, ig_password, li_username, li_password,
+        ...safeUpdates 
+      } = updates as any;
       
       if (safeUpdates.created_at) {
         safeUpdates.created_at = new Date(safeUpdates.created_at).toISOString()
       }
+
+      console.log("EXACT PAYLOAD GOING TO SUPABASE:", safeUpdates);
 
       let query = supabase
         .from('leads')
@@ -215,10 +227,10 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         leads: state.leads.map((l) => (l.id === id ? (data as Lead) : l)),
         error: null,
       }))
-    } catch (err) {
+    } catch (err: any) {
       const friendlyError = toFriendlyError(err, "Failed to update lead.")
-      set({ error: friendlyError.message })
-      throw friendlyError
+      set({ error: err?.message || friendlyError.message })
+      throw err // Throw the raw error so the UI can display exact Postgrest details for debugging
     }
   },
 

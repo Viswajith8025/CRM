@@ -61,6 +61,7 @@ import { useTeamStore } from "@/modules/admin"
 import { useTheme } from "@/hooks/useTheme"
 import Grainient from "@/components/ui/Grainient"
 import { WorkforceAnalyticsWorkspace } from "@/modules/workforce"
+import { BDEReportsAdminView } from "@/modules/bde/components/BDEReportsAdminView"
 
 export default function Dashboard() {
   const chartContainerRef = useRef<HTMLDivElement>(null)
@@ -473,6 +474,10 @@ export default function Dashboard() {
                   </div>
                 </CardContent>
               </Card>
+
+              <div className="mt-8">
+                <BDEReportsAdminView />
+              </div>
             </div>
           )}
 

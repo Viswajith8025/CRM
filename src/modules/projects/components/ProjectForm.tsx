@@ -28,6 +28,7 @@ import { useCRMStore } from "@/modules/crm"
 import type { Project } from "../types"
 import { sanitizeObject } from "@/lib/security"
 import { useDepartmentStore } from "@/modules/dashboard/useDepartmentStore"
+import { getDepartmentForService } from "@/lib/serviceMappings"
 
 const formSchema = z.object({
   name: z.string().min(2, "Project name is required").max(100),
@@ -228,7 +229,28 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Assigned Client</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value || ""}>
+                      <Select 
+                        onValueChange={(val) => {
+                          field.onChange(val)
+                          
+                          // Auto-select department based on client's service!
+                          if (val && val !== 'none') {
+                            const selectedClient = clients.find(c => c.id === val)
+                            if (selectedClient && selectedClient.service) {
+                              const deptName = getDepartmentForService(selectedClient.service)
+                              const matchedDept = activeDepartments.find(
+                                d => d.name.toLowerCase() === deptName.toLowerCase() || 
+                                     d.name.toLowerCase().includes(deptName.toLowerCase())
+                              )
+                              if (matchedDept) {
+                                form.setValue("department_id", matchedDept.id, { shouldValidate: true, shouldDirty: true })
+                                toast.success(`Auto-assigned to ${matchedDept.name}`)
+                              }
+                            }
+                          }
+                        }} 
+                        defaultValue={field.value || ""}
+                      >
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder={realClients.length > 0 ? "Select a client" : "No clients found (Run recovery script)"} />
@@ -238,7 +260,7 @@ export default function ProjectForm({ project, onSuccess }: ProjectFormProps) {
                           <SelectItem value="none">Internal / No Client</SelectItem>
                           {realClients.map(client => (
                             <SelectItem key={client.id} value={client.id}>
-                              {client.name}
+                              {client.name} {client.service ? `(${client.service})` : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>

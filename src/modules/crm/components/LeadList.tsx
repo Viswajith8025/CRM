@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye, Calendar, CalendarPlus, Mail, PhoneCall } from "lucide-react"
+import { Edit2, Trash2, Search, Filter, MoreHorizontal, Eye, Calendar, CalendarPlus, Mail, PhoneCall, MessageCircle } from "lucide-react"
 import { useCRMStore } from "../crmStore"
 import { useTeamStore } from "@/modules/admin/teamStore"
 import { format } from "date-fns"
@@ -254,16 +254,18 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
               <TableHead>Name</TableHead>
               <TableHead>Number</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Service</TableHead>
               <TableHead>BDE</TableHead>
               <TableHead>Value</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Remarks</TableHead>
+              <TableHead>Connect</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">
+                <TableCell colSpan={9} className="text-center h-24">
                   <div className="flex flex-col items-center gap-2">
                     <MoreHorizontal className="h-4 w-4 animate-pulse" />
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Fetching Lead Matrix...</p>
@@ -272,7 +274,7 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
               </TableRow>
             ) : leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center h-24">
+                <TableCell colSpan={9} className="text-center h-24">
                   <p className="text-sm font-bold text-muted-foreground italic">No leads found for this criteria.</p>
                 </TableCell>
               </TableRow>
@@ -321,6 +323,13 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell className="font-medium text-[11px] max-w-[120px] truncate" title={lead.requirement || ''}>
+                    {lead.requirement ? (
+                      <span className="text-muted-foreground">{lead.requirement}</span>
+                    ) : (
+                      <span className="text-muted-foreground italic opacity-70">N/A</span>
+                    )}
+                  </TableCell>
                   <TableCell className="font-bold text-[10px] uppercase">
                     {(() => {
                       const bde = (members || []).find(m => m.id === lead.brought_by_id)
@@ -328,15 +337,34 @@ export function LeadList({ onEdit, onViewDetails }: LeadListProps) {
                     })()}
                   </TableCell>
                   <TableCell className="font-black text-sm text-foreground">${Number(lead.value || 0).toLocaleString()}</TableCell>
-                  <TableCell className="font-medium text-[11px]">
-                    {lead.email ? (
-                      <a href={`mailto:${lead.email}`} onClick={e => e.stopPropagation()} className="hover:underline flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
-                        <Mail className="h-3 w-3" />
-                        {lead.email}
-                      </a>
+                  <TableCell className="font-medium text-[11px] max-w-[150px] truncate" title={lead.remarks || ''}>
+                    {lead.remarks ? (
+                      <span className="text-muted-foreground">{lead.remarks}</span>
                     ) : (
-                      <span className="text-muted-foreground italic opacity-70">N/A</span>
+                      <span className="text-muted-foreground italic opacity-70">No remarks</span>
                     )}
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
+                      {lead.phone && (
+                        <>
+                          <a href={`tel:${lead.phone}`} onClick={e => e.stopPropagation()} className="p-1.5 bg-blue-50 text-blue-500 rounded hover:bg-blue-100 transition-colors" title="Call">
+                            <PhoneCall className="h-3.5 w-3.5" />
+                          </a>
+                          <a href={`https://wa.me/${lead.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="p-1.5 bg-emerald-50 text-emerald-500 rounded hover:bg-emerald-100 transition-colors" title="WhatsApp">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                          </a>
+                        </>
+                      )}
+                      {lead.email && (
+                        <a href={`mailto:${lead.email}`} onClick={e => e.stopPropagation()} className="p-1.5 bg-purple-50 text-purple-500 rounded hover:bg-purple-100 transition-colors" title="Email">
+                          <Mail className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {!lead.phone && !lead.email && (
+                        <span className="text-[10px] italic text-muted-foreground opacity-50">N/A</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>

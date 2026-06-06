@@ -2,7 +2,9 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { AVAILABLE_SERVICES } from "@/lib/serviceMappings"
+import { Loader2, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input"
 import "react-phone-number-input/style.css"
@@ -35,7 +37,7 @@ const formSchema = z.object({
     if (!val) return true
     return isValidPhoneNumber(val)
   }, "Must be a valid phone number (including country code)").or(z.literal("")),
-  service: z.string().min(2, "Service description is required"),
+  services: z.string().min(1, "At least one service is required"),
   contract_value: z.coerce.number().min(0, "Contract value must be positive"),
   address: z.string().optional(),
   website: z.string().url("Invalid URL").optional().or(z.literal("")),
@@ -64,8 +66,8 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
     defaultValues: {
       name: client?.name || "",
       email: client?.email || "",
-      phone: client?.phone || "",
-      service: client?.service || "",
+      phone: client?.phone ? (client.phone.startsWith('+') ? client.phone : (client.phone.replace(/\D/g, '').length === 10 ? `+91${client.phone.replace(/\D/g, '')}` : `+${client.phone.replace(/\D/g, '')}`)) : "",
+      services: client?.service || "",
       contract_value: client?.contract_value || 0,
       address: client?.address || "",
       website: client?.website || "",
@@ -79,6 +81,7 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
     try {
       const sanitizedValues = {
         ...values,
+        service: values.services,
         department_id: values.department_id === "none_assigned" ? "" : values.department_id,
         team_lead_id: values.team_lead_id === "none_assigned" ? "" : values.team_lead_id,
       }
@@ -153,19 +156,83 @@ export function ClientForm({ client, onSuccess }: ClientFormProps) {
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="service"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Service Provided</FormLabel>
-                <FormControl>
-                  <Input placeholder="Cloud Consulting" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <FormField
+                  control={form.control}
+                  name="services"
+                  render={({ field }) => {
+                    const selectedServices = field.value ? field.value.split(',').map(s => s.trim()).filter(Boolean) : []
+                    return (
+                      <FormItem className="col-span-1 md:col-span-2">
+                        <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Services Provided</FormLabel>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {selectedServices.map(service => (
+                            <Badge key={service} variant="secondary" className="flex items-center gap-1 pr-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
+                              {service}
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                className="h-4 w-4 rounded-full flex items-center justify-center hover:bg-primary/20 cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  field.onChange(selectedServices.filter(s => s !== service).join(', '));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') field.onChange(selectedServices.filter(s => s !== service).join(', '));
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </div>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Select
+                            onValueChange={(val) => {
+                              if (val && !selectedServices.includes(val)) {
+                                field.onChange([...selectedServices, val].join(', '))
+                              }
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-muted/20 flex-1">
+                                <SelectValue placeholder="Add a standard service..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {AVAILABLE_SERVICES.filter(s => !selectedServices.includes(s)).map((service) => (
+                                <SelectItem key={service} value={service}>{service}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Input 
+                            placeholder="Or type custom service..." 
+                            className="bg-muted/20 flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val && !selectedServices.includes(val)) {
+                                  field.onChange([...selectedServices, val].join(', '));
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              if (val && !selectedServices.includes(val)) {
+                                field.onChange([...selectedServices, val].join(', '));
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Select from dropdown or type custom service and press Enter.</p>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
+                />
           <FormField
             control={form.control}
             name="contract_value"

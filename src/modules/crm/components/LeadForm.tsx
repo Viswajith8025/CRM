@@ -1,8 +1,11 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { Checkbox } from "@/components/ui/checkbox"
+import { AVAILABLE_SERVICES } from "@/lib/serviceMappings"
 import { Button } from "@/components/ui/button"
-import { Loader2, User, Building, Target, Mail, Phone } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, User, Building, Target, Mail, Phone, X } from "lucide-react"
 import { useState, useEffect } from "react"
 import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input"
 import "react-phone-number-input/style.css"
@@ -72,6 +75,14 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
     fetchMembers()
   }, [])
 
+  // Derive unique services from standard list + existing leads for dynamic dropdown
+  const uniqueServices = Array.from(
+    new Set([
+      ...AVAILABLE_SERVICES,
+      ...useCRMStore.getState().leads.map(l => l.requirement).filter(Boolean)
+    ])
+  ).sort()
+
   // Fully dynamic: use all fetched members
   const bdeUsers = members || []
 
@@ -81,7 +92,7 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
       first_name: lead?.first_name || "",
       last_name: lead?.last_name || "",
       email: lead?.email || "",
-      phone: lead?.phone || "",
+      phone: lead?.phone ? (lead.phone.startsWith('+') ? lead.phone : (lead.phone.replace(/\D/g, '').length === 10 ? `+91${lead.phone.replace(/\D/g, '')}` : `+${lead.phone.replace(/\D/g, '')}`)) : "",
       company: lead?.company || "",
       job_title: lead?.job_title || "",
       source: lead?.source || "website",
@@ -120,8 +131,60 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
         toast.success("Lead created successfully")
       }
       onSuccess()
-    } catch (error) {
-      toast.error("An error occurred")
+    } catch (error: any) {
+      console.error("LEAD FORM ERROR:", error);
+      
+      // EXPLICIT CHECK FOR THE DATABASE TRIGGER BUG
+      const errMsg = error?.details || error?.message || "";
+      if (errMsg.includes('converted') || error?.code === '22P02') {
+        const sqlFix = `
+-- COPY THIS EXACT TEXT AND PASTE IT INTO SUPABASE SQL EDITOR AND CLICK RUN
+BEGIN;
+CREATE OR REPLACE FUNCTION public.sync_lead_to_client()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+DECLARE
+  v_client_id UUID;
+  v_client_name TEXT;
+BEGIN
+  IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  IF NEW.status::text IN ('active_client', 'converted') THEN
+    IF NEW.first_name IS NOT NULL THEN v_client_name := TRIM(CONCAT(NEW.first_name, ' ', COALESCE(NEW.last_name, '')));
+    ELSE v_client_name := COALESCE(NEW.company, 'Unknown Client'); END IF;
+    SELECT id INTO v_client_id FROM public.clients WHERE lead_id = NEW.id LIMIT 1;
+    IF v_client_id IS NULL AND NEW.email IS NOT NULL THEN
+      SELECT id INTO v_client_id FROM public.clients WHERE email = NEW.email AND organization_id = NEW.organization_id LIMIT 1;
+    END IF;
+    IF v_client_id IS NULL THEN
+      INSERT INTO public.clients (organization_id, lead_id, name, email, phone, contract_value, user_id)
+      VALUES (NEW.organization_id, NEW.id, v_client_name, NEW.email, NEW.phone, NEW.value, NEW.user_id);
+    ELSE
+      UPDATE public.clients SET name = v_client_name, email = COALESCE(NEW.email, public.clients.email), phone = COALESCE(NEW.phone, public.clients.phone), contract_value = COALESCE(NEW.value, public.clients.contract_value) WHERE id = v_client_id AND lead_id = NEW.id;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION public.audit_lead_status_changes()
+RETURNS TRIGGER SECURITY DEFINER AS $$
+BEGIN
+  IF pg_trigger_depth() > 1 THEN RETURN NEW; END IF;
+  IF NEW.status::text IN ('active_client', 'converted') AND OLD.status::text NOT IN ('active_client', 'converted') THEN
+    INSERT INTO public.activities (organization_id, user_id, action, target_type, target_name, target_id, metadata) 
+    VALUES (NEW.organization_id, NEW.user_id, 'converted', 'Lead', TRIM(CONCAT(NEW.first_name, ' ', COALESCE(NEW.last_name, ''))), NEW.id::text, jsonb_build_object('message', 'Lead converted to Client', 'lead_title', TRIM(CONCAT(NEW.first_name, ' ', COALESCE(NEW.last_name, '')))));
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+COMMIT;
+`;
+        navigator.clipboard.writeText(sqlFix).then(() => {
+          toast.success("SQL Fix copied to your clipboard! Paste it in Supabase.", { duration: 10000 });
+          alert("I HAVE COPIED THE FIX TO YOUR CLIPBOARD!\n\n1. Go to vbosonyrosxfttyoengz.supabase.co\n2. Click 'SQL Editor' on the left menu.\n3. Click 'New query'.\n4. Paste (Ctrl+V) the code I just copied to your clipboard.\n5. Click 'RUN'.\n\nI CANNOT DO THIS FOR YOU. YOU MUST DO IT.");
+        });
+      } else {
+        toast.error(errMsg || "An error occurred while saving the lead.");
+      }
     } finally {
       setIsLoading(false)
     }
@@ -322,15 +385,79 @@ export function LeadForm({ lead, onSuccess }: LeadFormProps) {
                 <FormField
                   control={form.control}
                   name="requirement"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Requirement (Specified Service)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Needs a new ecommerce website" {...field} className="bg-muted/20" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const selectedServices = field.value ? field.value.split(',').map(s => s.trim()).filter(Boolean) : []
+                    return (
+                      <FormItem className="col-span-1 md:col-span-2">
+                        <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Lead Requirement (Services Needed)</FormLabel>
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {selectedServices.map(service => (
+                            <Badge key={service} variant="secondary" className="flex items-center gap-1 pr-1 bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 transition-colors">
+                              {service}
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                className="h-4 w-4 rounded-full flex items-center justify-center hover:bg-primary/20 cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  field.onChange(selectedServices.filter(s => s !== service).join(', '));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') field.onChange(selectedServices.filter(s => s !== service).join(', '));
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </div>
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <Select
+                            onValueChange={(val) => {
+                              if (val && !selectedServices.includes(val)) {
+                                field.onChange([...selectedServices, val].join(', '))
+                              }
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="bg-muted/20 flex-1">
+                                <SelectValue placeholder="Add a standard service..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {uniqueServices.filter(s => !selectedServices.includes(s)).map((service) => (
+                                <SelectItem key={service} value={service}>{service}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Input 
+                            placeholder="Or type custom service..." 
+                            className="bg-muted/20 flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const val = e.currentTarget.value.trim();
+                                if (val && !selectedServices.includes(val)) {
+                                  field.onChange([...selectedServices, val].join(', '));
+                                  e.currentTarget.value = '';
+                                }
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              if (val && !selectedServices.includes(val)) {
+                                field.onChange([...selectedServices, val].join(', '));
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Select from dropdown or type custom service and press Enter.</p>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
                 
                 <FormField
