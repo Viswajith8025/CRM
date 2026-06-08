@@ -1,0 +1,699 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://tempuri.org/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" targetNamespace="http://tempuri.org/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://tempuri.org/">
+      <s:element name="AddEmployee">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddEmployeeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddEmployeeResult" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteUser">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteUserResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="DeleteUserResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BlockUnblockUser">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="IsBlock" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="BlockUnblockUserResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="BlockUnblockUserResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetCommandStatus">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetCommandStatusResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetCommandStatusResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandId" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetTransactionsLog">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="FromDateTime" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ToDateTime" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="strDataList" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="GetTransactionsLogResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="GetTransactionsLogResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="strDataList" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddEmployeeByCompanyShortName">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CardNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="GroupId" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CompanyCode" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddEmployeeByCompanyShortNameResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddEmployeeByCompanyShortNameResult" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleEmployees">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeesDataInJsonFormat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandIds" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleEmployeesResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddMultipleEmployeesResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandIds" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteMultipleEmployees">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeesDataInJsonFormat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandIds" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DeleteMultipleEmployeesResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="DeleteMultipleEmployeesResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="CommandIds" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFP">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="FingerIndexNumber" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="isOverWrite" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFPResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EnrollUserFPResult" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFace">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="isOverWrite" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFaceResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EnrollUserFaceResult" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFaceEx">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKey" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeeCode" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="isOverWrite" type="s:boolean" />
+            <s:element minOccurs="0" maxOccurs="1" name="SerialNumber" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EnrollUserFaceExResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EnrollUserFaceExResult" type="s:string" />
+            <s:element minOccurs="1" maxOccurs="1" name="CommandId" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleEmployeesToDB">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EmployeesDataInJsonFormat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleEmployeesToDBResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddMultipleEmployeesToDBResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleLeaveEntries">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="LeaveEntryDataInJsonFormat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddMultipleLeaveEntriesResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddMultipleLeaveEntriesResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddOrDeleteMultipleHolidays">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="HolidaysDataInJsonFormat" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserName" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="UserPassword" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="OperationType" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="AddOrDeleteMultipleHolidaysResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="AddOrDeleteMultipleHolidaysResult" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ErrorStatus" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="AddEmployeeSoapIn">
+    <wsdl:part name="parameters" element="tns:AddEmployee" />
+  </wsdl:message>
+  <wsdl:message name="AddEmployeeSoapOut">
+    <wsdl:part name="parameters" element="tns:AddEmployeeResponse" />
+  </wsdl:message>
+  <wsdl:message name="DeleteUserSoapIn">
+    <wsdl:part name="parameters" element="tns:DeleteUser" />
+  </wsdl:message>
+  <wsdl:message name="DeleteUserSoapOut">
+    <wsdl:part name="parameters" element="tns:DeleteUserResponse" />
+  </wsdl:message>
+  <wsdl:message name="BlockUnblockUserSoapIn">
+    <wsdl:part name="parameters" element="tns:BlockUnblockUser" />
+  </wsdl:message>
+  <wsdl:message name="BlockUnblockUserSoapOut">
+    <wsdl:part name="parameters" element="tns:BlockUnblockUserResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetCommandStatusSoapIn">
+    <wsdl:part name="parameters" element="tns:GetCommandStatus" />
+  </wsdl:message>
+  <wsdl:message name="GetCommandStatusSoapOut">
+    <wsdl:part name="parameters" element="tns:GetCommandStatusResponse" />
+  </wsdl:message>
+  <wsdl:message name="GetTransactionsLogSoapIn">
+    <wsdl:part name="parameters" element="tns:GetTransactionsLog" />
+  </wsdl:message>
+  <wsdl:message name="GetTransactionsLogSoapOut">
+    <wsdl:part name="parameters" element="tns:GetTransactionsLogResponse" />
+  </wsdl:message>
+  <wsdl:message name="AddEmployeeByCompanyShortNameSoapIn">
+    <wsdl:part name="parameters" element="tns:AddEmployeeByCompanyShortName" />
+  </wsdl:message>
+  <wsdl:message name="AddEmployeeByCompanyShortNameSoapOut">
+    <wsdl:part name="parameters" element="tns:AddEmployeeByCompanyShortNameResponse" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleEmployeesSoapIn">
+    <wsdl:part name="parameters" element="tns:AddMultipleEmployees" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleEmployeesSoapOut">
+    <wsdl:part name="parameters" element="tns:AddMultipleEmployeesResponse" />
+  </wsdl:message>
+  <wsdl:message name="DeleteMultipleEmployeesSoapIn">
+    <wsdl:part name="parameters" element="tns:DeleteMultipleEmployees" />
+  </wsdl:message>
+  <wsdl:message name="DeleteMultipleEmployeesSoapOut">
+    <wsdl:part name="parameters" element="tns:DeleteMultipleEmployeesResponse" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFPSoapIn">
+    <wsdl:part name="parameters" element="tns:EnrollUserFP" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFPSoapOut">
+    <wsdl:part name="parameters" element="tns:EnrollUserFPResponse" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFaceSoapIn">
+    <wsdl:part name="parameters" element="tns:EnrollUserFace" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFaceSoapOut">
+    <wsdl:part name="parameters" element="tns:EnrollUserFaceResponse" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFaceExSoapIn">
+    <wsdl:part name="parameters" element="tns:EnrollUserFaceEx" />
+  </wsdl:message>
+  <wsdl:message name="EnrollUserFaceExSoapOut">
+    <wsdl:part name="parameters" element="tns:EnrollUserFaceExResponse" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleEmployeesToDBSoapIn">
+    <wsdl:part name="parameters" element="tns:AddMultipleEmployeesToDB" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleEmployeesToDBSoapOut">
+    <wsdl:part name="parameters" element="tns:AddMultipleEmployeesToDBResponse" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleLeaveEntriesSoapIn">
+    <wsdl:part name="parameters" element="tns:AddMultipleLeaveEntries" />
+  </wsdl:message>
+  <wsdl:message name="AddMultipleLeaveEntriesSoapOut">
+    <wsdl:part name="parameters" element="tns:AddMultipleLeaveEntriesResponse" />
+  </wsdl:message>
+  <wsdl:message name="AddOrDeleteMultipleHolidaysSoapIn">
+    <wsdl:part name="parameters" element="tns:AddOrDeleteMultipleHolidays" />
+  </wsdl:message>
+  <wsdl:message name="AddOrDeleteMultipleHolidaysSoapOut">
+    <wsdl:part name="parameters" element="tns:AddOrDeleteMultipleHolidaysResponse" />
+  </wsdl:message>
+  <wsdl:portType name="WebAPIServiceSoap">
+    <wsdl:operation name="AddEmployee">
+      <wsdl:input message="tns:AddEmployeeSoapIn" />
+      <wsdl:output message="tns:AddEmployeeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="DeleteUser">
+      <wsdl:input message="tns:DeleteUserSoapIn" />
+      <wsdl:output message="tns:DeleteUserSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="BlockUnblockUser">
+      <wsdl:input message="tns:BlockUnblockUserSoapIn" />
+      <wsdl:output message="tns:BlockUnblockUserSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetCommandStatus">
+      <wsdl:input message="tns:GetCommandStatusSoapIn" />
+      <wsdl:output message="tns:GetCommandStatusSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="GetTransactionsLog">
+      <wsdl:input message="tns:GetTransactionsLogSoapIn" />
+      <wsdl:output message="tns:GetTransactionsLogSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="AddEmployeeByCompanyShortName">
+      <wsdl:input message="tns:AddEmployeeByCompanyShortNameSoapIn" />
+      <wsdl:output message="tns:AddEmployeeByCompanyShortNameSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployees">
+      <wsdl:input message="tns:AddMultipleEmployeesSoapIn" />
+      <wsdl:output message="tns:AddMultipleEmployeesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="DeleteMultipleEmployees">
+      <wsdl:input message="tns:DeleteMultipleEmployeesSoapIn" />
+      <wsdl:output message="tns:DeleteMultipleEmployeesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFP">
+      <wsdl:input message="tns:EnrollUserFPSoapIn" />
+      <wsdl:output message="tns:EnrollUserFPSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFace">
+      <wsdl:input message="tns:EnrollUserFaceSoapIn" />
+      <wsdl:output message="tns:EnrollUserFaceSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFaceEx">
+      <wsdl:input message="tns:EnrollUserFaceExSoapIn" />
+      <wsdl:output message="tns:EnrollUserFaceExSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployeesToDB">
+      <wsdl:input message="tns:AddMultipleEmployeesToDBSoapIn" />
+      <wsdl:output message="tns:AddMultipleEmployeesToDBSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleLeaveEntries">
+      <wsdl:input message="tns:AddMultipleLeaveEntriesSoapIn" />
+      <wsdl:output message="tns:AddMultipleLeaveEntriesSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="AddOrDeleteMultipleHolidays">
+      <wsdl:input message="tns:AddOrDeleteMultipleHolidaysSoapIn" />
+      <wsdl:output message="tns:AddOrDeleteMultipleHolidaysSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="WebAPIServiceSoap" type="tns:WebAPIServiceSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="AddEmployee">
+      <soap:operation soapAction="http://tempuri.org/AddEmployee" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteUser">
+      <soap:operation soapAction="http://tempuri.org/DeleteUser" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BlockUnblockUser">
+      <soap:operation soapAction="http://tempuri.org/BlockUnblockUser" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetCommandStatus">
+      <soap:operation soapAction="http://tempuri.org/GetCommandStatus" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetTransactionsLog">
+      <soap:operation soapAction="http://tempuri.org/GetTransactionsLog" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddEmployeeByCompanyShortName">
+      <soap:operation soapAction="http://tempuri.org/AddEmployeeByCompanyShortName" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployees">
+      <soap:operation soapAction="http://tempuri.org/AddMultipleEmployees" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteMultipleEmployees">
+      <soap:operation soapAction="http://tempuri.org/DeleteMultipleEmployees" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFP">
+      <soap:operation soapAction="http://tempuri.org/EnrollUserFP" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFace">
+      <soap:operation soapAction="http://tempuri.org/EnrollUserFace" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFaceEx">
+      <soap:operation soapAction="http://tempuri.org/EnrollUserFaceEx" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployeesToDB">
+      <soap:operation soapAction="http://tempuri.org/AddMultipleEmployeesToDB" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleLeaveEntries">
+      <soap:operation soapAction="http://tempuri.org/AddMultipleLeaveEntries" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddOrDeleteMultipleHolidays">
+      <soap:operation soapAction="http://tempuri.org/AddOrDeleteMultipleHolidays" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="WebAPIServiceSoap12" type="tns:WebAPIServiceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="AddEmployee">
+      <soap12:operation soapAction="http://tempuri.org/AddEmployee" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteUser">
+      <soap12:operation soapAction="http://tempuri.org/DeleteUser" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="BlockUnblockUser">
+      <soap12:operation soapAction="http://tempuri.org/BlockUnblockUser" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetCommandStatus">
+      <soap12:operation soapAction="http://tempuri.org/GetCommandStatus" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetTransactionsLog">
+      <soap12:operation soapAction="http://tempuri.org/GetTransactionsLog" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddEmployeeByCompanyShortName">
+      <soap12:operation soapAction="http://tempuri.org/AddEmployeeByCompanyShortName" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployees">
+      <soap12:operation soapAction="http://tempuri.org/AddMultipleEmployees" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="DeleteMultipleEmployees">
+      <soap12:operation soapAction="http://tempuri.org/DeleteMultipleEmployees" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFP">
+      <soap12:operation soapAction="http://tempuri.org/EnrollUserFP" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFace">
+      <soap12:operation soapAction="http://tempuri.org/EnrollUserFace" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EnrollUserFaceEx">
+      <soap12:operation soapAction="http://tempuri.org/EnrollUserFaceEx" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleEmployeesToDB">
+      <soap12:operation soapAction="http://tempuri.org/AddMultipleEmployeesToDB" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddMultipleLeaveEntries">
+      <soap12:operation soapAction="http://tempuri.org/AddMultipleLeaveEntries" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="AddOrDeleteMultipleHolidays">
+      <soap12:operation soapAction="http://tempuri.org/AddOrDeleteMultipleHolidays" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="WebAPIService">
+    <wsdl:port name="WebAPIServiceSoap" binding="tns:WebAPIServiceSoap">
+      <soap:address location="http://192.168.1.34:85/iclock/WebAPIService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="WebAPIServiceSoap12" binding="tns:WebAPIServiceSoap12">
+      <soap12:address location="http://192.168.1.34:85/iclock/WebAPIService.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

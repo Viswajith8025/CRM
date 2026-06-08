@@ -61,6 +61,7 @@ import TeamTimesheetsPage from '@/modules/time-tracking/pages/TeamTimesheetsPage
 import LeaveRequestsPage from '@/modules/hr/pages/LeaveRequestsPage'
 import LeaveApprovalsPage from '@/modules/hr/pages/LeaveApprovalsPage'
 import { FormManagerDashboard, FormBuilder, PremiumOnboardingPortal, SubmissionReview } from '@/modules/forms'
+import AttendanceDevicePage from '@/modules/attendance/pages/AttendanceDevicePage'
 
 function App() {
   useRealtimeSync()
@@ -244,6 +245,13 @@ function App() {
               <Route element={<DashboardLayout children={<Outlet />} />}>
                 
                 <Route path="/team-timesheets" element={<ErrorBoundary module="Team Timesheets"><TeamTimesheetsPage /></ErrorBoundary>} />
+              </Route>
+            </Route>
+
+            {/* Attendance Module Routes */}
+            <Route element={<ProtectedRoute permission="module.attendance" />}>
+              <Route element={<DashboardLayout children={<Outlet />} />}>
+                <Route path="/attendance" element={<ErrorBoundary module="Attendance"><AttendanceDevicePage /></ErrorBoundary>} />
               </Route>
             </Route>
 
