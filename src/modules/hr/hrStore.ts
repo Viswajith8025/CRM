@@ -79,6 +79,7 @@ export const useHRStore = create<HRState>((set, get) => ({
         .select('*, profile:profiles!leave_requests_user_profile_fk_v2(full_name, avatar_url, status), leave_type:leave_types(name)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
+        .limit(200)
 
       if (error) {
         console.error("fetchLeaves Supabase Error:", error)
@@ -376,6 +377,7 @@ export const useHRStore = create<HRState>((set, get) => ({
         .select('*, profile:profiles(full_name, status, avatar_url)')
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
+        .limit(200)
 
       if (error) throw error
       set({ payroll: data as PayrollRecord[] })

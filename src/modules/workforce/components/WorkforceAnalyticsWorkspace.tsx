@@ -4,6 +4,7 @@ import { useTeamStore } from '@/modules/admin'
 import { supabase } from '@/lib/supabase'
 import { Loader2, CheckCircle2, Clock, TrendingUp, Calendar, Target, BarChart2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import {
   AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell, Legend,
@@ -24,6 +25,7 @@ interface PerfStats {
   bdeStats: {
     totalLeadsGenerated: number
     totalLeadsConverted: number
+    totalCallsConnected: number
     leadsJustdial: number
     leadsSocialMedia: number
     leadsDatabase: number
@@ -40,7 +42,9 @@ export function WorkforceAnalyticsWorkspace() {
   const { profile } = useAuthStore()
   const [stats, setStats] = useState<PerfStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [period, setPeriod] = useState<7 | 14 | 30>(30)
+  const [period, setPeriod] = useState<number | 'custom'>(30)
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
 
   const { members, fetchMembers } = useTeamStore()
   useEffect(() => {
@@ -57,14 +61,24 @@ export function WorkforceAnalyticsWorkspace() {
   useEffect(() => {
     if (!profile?.id) return
     fetchStats()
-  }, [profile?.id, period, isBDEOrSales])
+  }, [profile?.id, period, customStart, customEnd, isBDEOrSales])
 
   const fetchStats = async () => {
     if (!profile?.id) return
     setIsLoading(true)
     try {
-      const startDate = subDays(new Date(), period).toISOString().split('T')[0]
-      const endDate = new Date().toISOString().split('T')[0]
+      let startDate = ''
+      let endDate = ''
+      
+      if (period === 'custom' && customStart) {
+        startDate = customStart
+        endDate = customEnd || customStart
+      } else if (period !== 'custom') {
+        startDate = subDays(new Date(), period as number).toISOString().split('T')[0]
+        endDate = new Date().toISOString().split('T')[0]
+      } else {
+        return // Wait for dates
+      }
 
       // Fetch tasks (non-deleted) assigned to this user in the period
       const { data: taskData } = await supabase
@@ -73,6 +87,7 @@ export function WorkforceAnalyticsWorkspace() {
         .eq('assigned_to', profile.id)
         .is('deleted_at', null)
         .gte('created_at', `${startDate}T00:00:00`)
+        .lte('created_at', `${endDate}T23:59:59.999`)
 
       // Fetch work sessions in the period
       const { data: sessionData } = await supabase
@@ -80,16 +95,27 @@ export function WorkforceAnalyticsWorkspace() {
         .select('id, start_time, end_time, status')
         .eq('user_id', profile.id)
         .gte('start_time', `${startDate}T00:00:00`)
+        .lte('start_time', `${endDate}T23:59:59.999`)
         .order('start_time', { ascending: true })
 
       const tasks = taskData || []
       const sessions = sessionData || []
 
-      // Build daily map for the last N days
+      // Build daily map
       const dailyMap: Record<string, DailyStats> = {}
-      for (let i = period - 1; i >= 0; i--) {
-        const d = subDays(new Date(), i).toISOString().split('T')[0]
-        dailyMap[d] = { date: d, tasks_completed: 0, hours_logged: 0 }
+      if (period !== 'custom') {
+        for (let i = (period as number) - 1; i >= 0; i--) {
+          const d = subDays(new Date(), i).toISOString().split('T')[0]
+          dailyMap[d] = { date: d, tasks_completed: 0, hours_logged: 0 }
+        }
+      } else {
+        let current = new Date(startDate)
+        const endD = new Date(endDate)
+        while(current <= endD) {
+          const d = current.toISOString().split('T')[0]
+          dailyMap[d] = { date: d, tasks_completed: 0, hours_logged: 0 }
+          current.setDate(current.getDate() + 1)
+        }
       }
 
       // Tasks completed by date (use updated_at for done tasks)
@@ -128,12 +154,14 @@ export function WorkforceAnalyticsWorkspace() {
           .select('*')
           .eq('user_id', profile.id)
           .gte('report_date', startDate)
+          .lte('report_date', endDate)
           
         const reports = bdeData || []
         
         bdeStats = {
           totalLeadsGenerated: reports.reduce((s, r) => s + (Number(r.database_count) || 0) + (Number(r.leads_social_media) || 0) + (Number(r.leads_just_dial) || 0) + (Number(r.leads_other) || 0), 0),
-          totalLeadsConverted: reports.reduce((s, r) => s + (Number(r.meetings_scheduled) || 0), 0),
+          totalLeadsConverted: reports.reduce((s, r) => s + (Number(r.leads_converted_today) || 0), 0),
+          totalCallsConnected: reports.reduce((s, r) => s + (Number(r.calls_connected) || 0), 0),
           leadsJustdial: reports.reduce((s, r) => s + (Number(r.leads_just_dial) || 0), 0),
           leadsSocialMedia: reports.reduce((s, r) => s + (Number(r.leads_social_media) || 0), 0),
           leadsDatabase: reports.reduce((s, r) => s + (Number(r.database_count) || 0), 0),
@@ -169,21 +197,39 @@ export function WorkforceAnalyticsWorkspace() {
             Real-time personal productivity analytics
           </p>
         </div>
-        <div className="flex gap-2">
-          {([7, 14, 30] as const).map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
-                period === p
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-background text-muted-foreground hover:bg-muted border border-border"
-              )}
-            >
-              {p}D
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+          <div className="flex gap-2">
+            {([7, 14, 30] as const).map(p => (
+              <button
+                key={p}
+                onClick={() => { setPeriod(p); setCustomStart(''); setCustomEnd(''); }}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all",
+                  period === p
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-background text-muted-foreground hover:bg-muted border border-border"
+                )}
+              >
+                {p}D
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2 items-center">
+            <span className="text-[10px] text-muted-foreground mx-1">OR</span>
+            <Input 
+              type="date" 
+              className="h-8 text-[10px] w-[115px]" 
+              value={customStart}
+              onChange={(e) => { setPeriod('custom'); setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value) }}
+            />
+            <span className="text-[10px] text-muted-foreground">to</span>
+            <Input 
+              type="date" 
+              className="h-8 text-[10px] w-[115px]" 
+              value={customEnd}
+              onChange={(e) => { setPeriod('custom'); setCustomEnd(e.target.value); }}
+            />
+          </div>
         </div>
       </div>
 
@@ -226,8 +272,8 @@ export function WorkforceAnalyticsWorkspace() {
                   icon={<BarChart2 className="h-5 w-5 text-amber-500" />}
                   bg="bg-amber-500/10"
                   label="Conversion Rate"
-                  value={`${stats.bdeStats.totalLeadsGenerated > 0 ? ((stats.bdeStats.totalLeadsConverted / stats.bdeStats.totalLeadsGenerated) * 100).toFixed(0) : 0}%`}
-                  sub="Converted / Generated"
+                  value={`${stats.bdeStats.totalCallsConnected > 0 ? ((stats.bdeStats.totalLeadsConverted / stats.bdeStats.totalCallsConnected) * 100).toFixed(0) : 0}%`}
+                  sub="Converted / Contacted"
                 />
               </div>
 
@@ -242,13 +288,13 @@ export function WorkforceAnalyticsWorkspace() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6 min-h-[220px] flex items-center justify-center">
-                    {stats.bdeStats.totalLeadsGenerated > 0 ? (
+                    {stats.bdeStats.totalCallsConnected > 0 ? (
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
                           <Pie
                             data={[
                               { name: 'Converted', value: stats.bdeStats.totalLeadsConverted, color: '#10b981' },
-                              { name: 'Not Converted', value: stats.bdeStats.totalLeadsGenerated - stats.bdeStats.totalLeadsConverted, color: '#f43f5e' }
+                              { name: 'Not Converted', value: Math.max(0, stats.bdeStats.totalCallsConnected - stats.bdeStats.totalLeadsConverted), color: '#f43f5e' }
                             ]}
                             cx="50%" cy="50%"
                             innerRadius={60}
@@ -259,7 +305,7 @@ export function WorkforceAnalyticsWorkspace() {
                             {
                               [
                                 { name: 'Converted', value: stats.bdeStats.totalLeadsConverted, color: '#10b981' },
-                                { name: 'Not Converted', value: stats.bdeStats.totalLeadsGenerated - stats.bdeStats.totalLeadsConverted, color: '#f43f5e' }
+                                { name: 'Not Converted', value: Math.max(0, stats.bdeStats.totalCallsConnected - stats.bdeStats.totalLeadsConverted), color: '#f43f5e' }
                               ].map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))
@@ -270,7 +316,7 @@ export function WorkforceAnalyticsWorkspace() {
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="text-center text-muted-foreground text-xs font-bold uppercase tracking-widest">No Leads Data Available</div>
+                      <div className="text-center text-muted-foreground text-xs font-bold uppercase tracking-widest">No Call Data Available</div>
                     )}
                   </CardContent>
                 </Card>

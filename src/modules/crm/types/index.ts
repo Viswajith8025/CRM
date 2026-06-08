@@ -92,6 +92,7 @@ export interface BDEReport {
   meetings_scheduled: number;
   meetings_attended: number | null;
   calls_connected: number | null;
+  leads_converted_today: number | null;
   amount_collected: number | null;
   remarks: string | null;
   status: 'active' | 'completed';

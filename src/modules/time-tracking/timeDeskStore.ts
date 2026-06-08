@@ -51,11 +51,11 @@ interface TimeDeskState {
 }
 
 let heartbeatInterval: any = null;
-let lastActivityTime = Date.now();
+let lastActivityTime = performance.now();
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
 const resetActivity = () => {
-  lastActivityTime = Date.now();
+  lastActivityTime = performance.now();
 };
 
 const activityEvents = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
@@ -430,13 +430,13 @@ export const useTimeDeskStore = create<TimeDeskState>((set, get) => ({
     get().stopHeartbeatSync()
     
     // Attach activity listeners for idle detection
-    lastActivityTime = Date.now()
+    lastActivityTime = performance.now()
     activityEvents.forEach(e => window.addEventListener(e, resetActivity))
 
     // Send one immediately, then every 5 minutes (300,000 ms)
     get().sendHeartbeat()
     heartbeatInterval = setInterval(async () => {
-      const idleTime = Date.now() - lastActivityTime;
+      const idleTime = performance.now() - lastActivityTime;
       
       // Respect organization settings for auto-break
       const { useTimeDeskSettingsStore } = await import('./timeDeskSettingsStore');

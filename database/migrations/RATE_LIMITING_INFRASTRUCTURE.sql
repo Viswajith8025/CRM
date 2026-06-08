@@ -135,6 +135,8 @@ CREATE TABLE IF NOT EXISTS public.security_logs (
 -- RLS for security logs (Only super_admins can see them)
 ALTER TABLE public.security_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Super admins can view security logs" ON public.security_logs;
+
 CREATE POLICY "Super admins can view security logs"
     ON public.security_logs
     FOR SELECT

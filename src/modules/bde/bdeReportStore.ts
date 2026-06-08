@@ -62,6 +62,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
 
       if (startDate) query = query.gte('report_date', startDate)
       if (endDate) query = query.lte('report_date', endDate)
+      if (!startDate && !endDate) query = query.limit(100)
 
       const { data, error } = await query
 
@@ -88,6 +89,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
 
       if (startDate) query = query.gte('report_date', startDate)
       if (endDate) query = query.lte('report_date', endDate)
+      if (!startDate && !endDate) query = query.limit(100)
 
       const { data, error } = await query
 

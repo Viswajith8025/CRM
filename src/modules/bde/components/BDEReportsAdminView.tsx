@@ -4,18 +4,27 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Loader2, Users, Calendar, Download } from "lucide-react"
 import { format } from "date-fns"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 export function BDEReportsAdminView() {
   const { reports, fetchAllReports, isLoading } = useBDEReportStore()
-  const [days, setDays] = useState(7)
+  const [days, setDays] = useState<number | 'custom'>(7)
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
 
   useEffect(() => {
-    const start = new Date()
-    start.setDate(start.getDate() - days)
-    fetchAllReports(start.toISOString().split('T')[0], new Date().toISOString().split('T')[0])
-  }, [days])
+    if (days !== 'custom') {
+      const start = new Date()
+      start.setDate(start.getDate() - days)
+      fetchAllReports(start.toISOString().split('T')[0], new Date().toISOString().split('T')[0])
+    } else if (customStart && customEnd) {
+      fetchAllReports(customStart, customEnd)
+    } else if (customStart && !customEnd) {
+      fetchAllReports(customStart, customStart)
+    }
+  }, [days, customStart, customEnd])
 
   return (
     <Card className="mt-8 border-border/50 bg-card/40 backdrop-blur-md">
@@ -28,10 +37,28 @@ export function BDEReportsAdminView() {
           <CardDescription className="text-[10px] uppercase font-bold mt-1">Monitor all Business Development Executives</CardDescription>
         </div>
         
-        <div className="flex gap-2">
-          <Button variant={days === 0 ? "default" : "outline"} size="sm" onClick={() => setDays(0)} className="h-7 text-[10px]">Today</Button>
-          <Button variant={days === 7 ? "default" : "outline"} size="sm" onClick={() => setDays(7)} className="h-7 text-[10px]">Last 7 Days</Button>
-          <Button variant={days === 30 ? "default" : "outline"} size="sm" onClick={() => setDays(30)} className="h-7 text-[10px]">Last 30 Days</Button>
+        <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:mt-0 sm:items-center">
+          <div className="flex gap-2">
+            <Button variant={days === 0 ? "default" : "outline"} size="sm" onClick={() => { setDays(0); setCustomStart(''); setCustomEnd(''); }} className="h-7 text-[10px]">Today</Button>
+            <Button variant={days === 7 ? "default" : "outline"} size="sm" onClick={() => { setDays(7); setCustomStart(''); setCustomEnd(''); }} className="h-7 text-[10px]">Last 7 Days</Button>
+            <Button variant={days === 30 ? "default" : "outline"} size="sm" onClick={() => { setDays(30); setCustomStart(''); setCustomEnd(''); }} className="h-7 text-[10px]">Last 30 Days</Button>
+          </div>
+          <div className="flex gap-2 items-center mt-2 sm:mt-0">
+            <span className="text-[10px] text-muted-foreground mx-1">OR</span>
+            <Input 
+              type="date" 
+              className="h-7 text-[10px] w-[110px]" 
+              value={customStart}
+              onChange={(e) => { setDays('custom'); setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value) }}
+            />
+            <span className="text-[10px] text-muted-foreground">to</span>
+            <Input 
+              type="date" 
+              className="h-7 text-[10px] w-[110px]" 
+              value={customEnd}
+              onChange={(e) => { setDays('custom'); setCustomEnd(e.target.value); }}
+            />
+          </div>
         </div>
       </CardHeader>
       

@@ -68,7 +68,16 @@ export default function TasksPage() {
     sortBy,
     sortOrder
   )
-  const tasks = data?.pages.flat() || []
+  const rawTasks = data?.pages.flat() || []
+  // Deduplicate tasks by ID to prevent Dnd-kit freezes from pagination overlaps
+  const tasks = useMemo(() => {
+    const seen = new Set()
+    return rawTasks.filter(t => {
+      if (seen.has(t.id)) return false
+      seen.add(t.id)
+      return true
+    })
+  }, [rawTasks])
 
   useEffect(() => {
     // Update local search if URL changes

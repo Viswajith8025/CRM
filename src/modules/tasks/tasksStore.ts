@@ -131,6 +131,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
         .is('deleted_at', null)
         .or('is_archived.is.null,is_archived.eq.false')
         .order('due_date', { ascending: true, nullsFirst: false })
+        .limit(200)
 
       if (error) throw error
       set({ myTasks: (data || []) as Task[] })
@@ -285,12 +286,21 @@ export const useTasksStore = create<TasksState>((set, get) => ({
       }
 
       // B. Update core task properties
-      const { error } = await supabase
+      let query = supabase
         .from('tasks')
         .update(taskDetails)
         .eq('id', id)
 
+      if (currentTask?.updated_at) {
+        query = query.eq('updated_at', currentTask.updated_at)
+      }
+
+      const { data: updatedData, error } = await query.select().single()
+
       if (error) {
+        if (error.code === 'PGRST116') {
+           throw new Error("Conflict: This task was modified by another user. Please refresh and try again.")
+        }
         console.error('[updateTask] Supabase error:', error.code, error.message, error.details)
         throw error
       }

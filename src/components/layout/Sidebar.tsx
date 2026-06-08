@@ -21,11 +21,16 @@ import {
   HelpCircle,
   Clock,
   ClipboardList,
-  Building2
+  Building2,
+  Folder
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { useModuleRegistry } from "@/hooks/useModuleRegistry"
+import { useAuthStore } from "@/store/useAuthStore"
+import { useTasksStore } from "@/modules/tasks/tasksStore"
+import { useProjectsStore } from "@/modules/projects"
+import { useMemo, useEffect } from "react"
 
 const IconRegistry: Record<string, any> = {
   LayoutDashboard,
@@ -53,7 +58,38 @@ const IconRegistry: Record<string, any> = {
 }
 
 export function Sidebar() {
-  const { top, bottom, isLoading } = useModuleRegistry()
+  const { top, bottom, isLoading: isModulesLoading } = useModuleRegistry()
+  const { profile } = useAuthStore()
+  const { tasks, fetchTasks } = useTasksStore()
+  const { projects, fetchProjects } = useProjectsStore()
+
+  useEffect(() => {
+    if (profile?.role === 'employee') {
+      fetchTasks()
+      fetchProjects()
+    }
+  }, [profile?.role])
+
+  // Dynamically resolve active projects for the employee
+  const activeEmployeeProjects = useMemo(() => {
+    if (profile?.role !== 'employee') return []
+    
+    // Find all active tasks assigned to this employee
+    const employeeActiveTasks = tasks.filter(t => 
+      t.assigned_to === profile.id && 
+      t.status !== 'done' && 
+      t.status !== 'completed' &&
+      t.project_id
+    )
+    
+    // Get unique project IDs
+    const activeProjectIds = [...new Set(employeeActiveTasks.map(t => t.project_id))]
+    
+    // Return the project objects
+    return projects.filter(p => activeProjectIds.includes(p.id))
+  }, [profile, tasks, projects])
+
+  const isLoading = isModulesLoading
 
   return (
     <div className="flex h-full flex-col gap-y-5 overflow-y-auto border-r border-border/40 bg-card pb-4">
@@ -115,6 +151,48 @@ export function Sidebar() {
                           </li>
                         )
                       })}
+                    </ul>
+                  </li>
+                )}
+
+                {/* Dynamic Active Projects for Employees */}
+                {activeEmployeeProjects.length > 0 && (
+                  <li className="mt-4">
+                    <div className="px-3 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50">
+                        Active Workspace
+                      </span>
+                    </div>
+                    <ul role="list" className="-mx-2 space-y-1.5">
+                      {activeEmployeeProjects.map((project) => (
+                        <li key={project.id}>
+                          <NavLink
+                            to={`/projects/${project.id}`}
+                            className={({ isActive }) => cn(
+                              isActive
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                              'group relative flex gap-x-3 rounded-xl p-3 text-sm font-bold leading-6 transition-all duration-200'
+                            )}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <Folder className={cn(
+                                  "h-5 w-5 shrink-0 transition-colors",
+                                  isActive ? "text-primary" : "group-hover:text-foreground"
+                                )} aria-hidden="true" />
+                                <span className="truncate max-w-[180px]">{project.name}</span>
+                                {isActive && (
+                                  <motion.div
+                                    layoutId="active-nav"
+                                    className="absolute left-0 w-1 h-6 bg-primary rounded-r-full top-1/2 -translate-y-1/2"
+                                  />
+                                )}
+                              </>
+                            )}
+                          </NavLink>
+                        </li>
+                      ))}
                     </ul>
                   </li>
                 )}

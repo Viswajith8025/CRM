@@ -28,6 +28,7 @@ export function BDEDailyReportWidget() {
   const [logoutData, setLogoutData] = useState<any>({
     meetings_attended: "",
     calls_connected: "",
+    leads_converted_today: "",
     amount_collected: "",
     remarks: "",
   })
@@ -61,6 +62,7 @@ export function BDEDailyReportWidget() {
         ...logoutData,
         meetings_attended: Number(logoutData.meetings_attended) || 0,
         calls_connected: Number(logoutData.calls_connected) || 0,
+        leads_converted_today: Number(logoutData.leads_converted_today) || 0,
         amount_collected: Number(logoutData.amount_collected) || 0,
       }
       await submitLogoutForm(payload)
@@ -155,7 +157,7 @@ export function BDEDailyReportWidget() {
               Morning plan active. Please submit your Evening Report before logging out.
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Meetings Attended</Label>
                 <Input type="number" min="0" placeholder="0" required value={logoutData.meetings_attended} onChange={e => setLogoutData({ ...logoutData, meetings_attended: e.target.value })} className="bg-muted/20" />
@@ -163,6 +165,10 @@ export function BDEDailyReportWidget() {
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Calls Connected</Label>
                 <Input type="number" min="0" placeholder="0" required value={logoutData.calls_connected} onChange={e => setLogoutData({ ...logoutData, calls_connected: e.target.value })} className="bg-muted/20" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Leads Converted Today</Label>
+                <Input type="number" min="0" placeholder="0" required value={logoutData.leads_converted_today} onChange={e => setLogoutData({ ...logoutData, leads_converted_today: e.target.value })} className="bg-muted/20" />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Amount Collected ($)</Label>
@@ -196,16 +202,23 @@ function BDEHistoryModal() {
   const { reports, fetchMyReports, isLoading } = useBDEReportStore()
   const [isOpen, setIsOpen] = useState(false)
 
-  // Basic date range filter
-  const [days, setDays] = useState(7)
+  const [days, setDays] = useState<number | 'custom'>(7)
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
 
   useEffect(() => {
     if (isOpen) {
-      const start = new Date()
-      start.setDate(start.getDate() - days)
-      fetchMyReports(start.toISOString().split('T')[0], new Date().toISOString().split('T')[0])
+      if (days !== 'custom') {
+        const start = new Date()
+        start.setDate(start.getDate() - days)
+        fetchMyReports(start.toISOString().split('T')[0], new Date().toISOString().split('T')[0])
+      } else if (customStart && customEnd) {
+        fetchMyReports(customStart, customEnd)
+      } else if (customStart && !customEnd) {
+        fetchMyReports(customStart, customStart)
+      }
     }
-  }, [isOpen, days])
+  }, [isOpen, days, customStart, customEnd])
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -223,10 +236,28 @@ function BDEHistoryModal() {
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex gap-2 mb-4 mt-2">
-          <Button variant={days === 7 ? "default" : "outline"} size="sm" onClick={() => setDays(7)}>Last 7 Days</Button>
-          <Button variant={days === 30 ? "default" : "outline"} size="sm" onClick={() => setDays(30)}>Last 30 Days</Button>
-          <Button variant={days === 90 ? "default" : "outline"} size="sm" onClick={() => setDays(90)}>Last 90 Days</Button>
+        <div className="flex flex-col sm:flex-row gap-2 mb-4 mt-2 sm:items-center">
+          <div className="flex gap-2">
+            <Button variant={days === 7 ? "default" : "outline"} size="sm" onClick={() => { setDays(7); setCustomStart(''); setCustomEnd(''); }}>Last 7 Days</Button>
+            <Button variant={days === 30 ? "default" : "outline"} size="sm" onClick={() => { setDays(30); setCustomStart(''); setCustomEnd(''); }}>Last 30 Days</Button>
+            <Button variant={days === 90 ? "default" : "outline"} size="sm" onClick={() => { setDays(90); setCustomStart(''); setCustomEnd(''); }}>Last 90 Days</Button>
+          </div>
+          <div className="flex gap-2 items-center">
+            <span className="text-xs text-muted-foreground mx-2">OR</span>
+            <Input 
+              type="date" 
+              className="h-8 text-xs w-[130px]" 
+              value={customStart}
+              onChange={(e) => { setDays('custom'); setCustomStart(e.target.value); if(!customEnd) setCustomEnd(e.target.value) }}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input 
+              type="date" 
+              className="h-8 text-xs w-[130px]" 
+              value={customEnd}
+              onChange={(e) => { setDays('custom'); setCustomEnd(e.target.value); }}
+            />
+          </div>
         </div>
 
         {isLoading ? (

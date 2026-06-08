@@ -40,9 +40,9 @@ export const rateLimiter = {
 
       if (error) {
         console.error('[RateLimiter] RPC Check failed:', error)
-        // Fail open if the rate limiter is down to avoid blocking legitimate users,
-        // but log the failure for security auditing.
-        return { allowed: true, remaining: 1, limit: maxHits, resetAfter: 0 }
+        // SECURITY AUDIT: Fail closed. If the rate limiter is unreachable or failing,
+        // we must block access to prevent security bypasses.
+        return { allowed: false, remaining: 0, limit: maxHits, resetAfter: windowSeconds, message: "Security service unavailable. Please try again later." }
       }
 
       return {
@@ -54,7 +54,7 @@ export const rateLimiter = {
       }
     } catch (err) {
       console.error('[RateLimiter] Critical error:', err)
-      return { allowed: true, remaining: 1, limit: maxHits, resetAfter: 0 }
+      return { allowed: false, remaining: 0, limit: maxHits, resetAfter: windowSeconds, message: "Internal security error." }
     }
   },
 

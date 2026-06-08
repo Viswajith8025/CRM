@@ -14,8 +14,9 @@ export const useCalendarStore = create<CalendarState>((set) => ({
   fetchEvents: async () => {
     set({ isLoading: true })
     try {
-      const { user } = (await import('@/store/useAuthStore')).useAuthStore.getState()
-      if (!user) return
+      const { user, profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!user || !orgId) return
 
       // Helper to fetch and handle errors (e.g. table not found)
       const safeFetch = async (query: any) => {
@@ -33,6 +34,7 @@ export const useCalendarStore = create<CalendarState>((set) => ({
         safeFetch(
           supabase.from('projects')
             .select('*')
+            .eq('organization_id', orgId)
             // Use .not() to exclude terminal statuses — avoids double .or() conflict
             .not('status', 'eq', 'completed')
             .not('status', 'eq', 'cancelled')
@@ -42,13 +44,14 @@ export const useCalendarStore = create<CalendarState>((set) => ({
         safeFetch(
           supabase.from('tasks')
             .select('*')
+            .eq('organization_id', orgId)
             // Exclude done/overdue — keeps active tasks without double-or conflict
             .not('status', 'eq', 'done')
             .is('deleted_at', null)
             .or('is_archived.eq.false,is_archived.is.null')
         ),
-        safeFetch(supabase.from('project_milestones').select('*').eq('is_completed', false)),
-        safeFetch(supabase.from('hr_leaves').select('*, profiles:user_id(full_name)').eq('status', 'approved'))
+        safeFetch(supabase.from('project_milestones').select('*').eq('organization_id', orgId).eq('is_completed', false)),
+        safeFetch(supabase.from('hr_leaves').select('*, profiles:user_id(full_name)').eq('organization_id', orgId).eq('status', 'approved'))
       ])
 
       const allEvents: CalendarEvent[] = []

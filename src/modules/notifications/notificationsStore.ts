@@ -45,6 +45,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         .eq('user_id', profile.id)
         .eq('organization_id', orgId)
         .order('created_at', { ascending: false })
+        .limit(100)
 
       if (error) throw error
 
@@ -180,7 +181,34 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   subscribeToNotifications: () => {
-    // DISABLED TEMPORARILY TO STOP LOOP
-    return () => {}
+    let channel: any = null;
+    let isUnsubscribed = false;
+
+    import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
+      const profile = useAuthStore.getState().profile
+      if (!profile?.organization_id || !profile?.id) return
+
+      channel = supabase
+        .channel(`notifications_${profile.id}_${Math.random()}`)
+        .on(
+          'postgres_changes',
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'notifications', 
+            filter: `user_id=eq.${profile.id}` 
+          },
+          () => {
+            get().fetchNotifications()
+          }
+        )
+        .subscribe()
+    })
+
+    return () => {
+      isUnsubscribed = true;
+      if (channel) supabase.removeChannel(channel)
+    }
   }
 }))

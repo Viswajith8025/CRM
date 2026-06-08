@@ -73,17 +73,28 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
     },
   })
 
-  const eligibleAssignees = useMemo(() => {
-    const selectedProjId = form.watch("project_id")
-    const activeProject = projects.find(p => p.id === selectedProjId)
-    const projectDeptId = activeProject?.department_id
+  const selectedProjId = form.watch("project_id")
+  const activeProject = projects.find(p => p.id === selectedProjId)
+  const isProjectOwner = activeProject?.user_id === profile?.id
 
+  const currentUserMember = useMemo(() => members.find(m => m.id === profile?.id), [members, profile?.id])
+
+  const eligibleAssignees = useMemo(() => {
     const activeEmployees = members.filter(m => (!m.status || m.status === 'active') && m.role === 'employee')
-    if (!projectDeptId) {
+    
+    // Fetch the currently selected project to determine the target department
+    const targetDeptId = activeProject?.department_id || currentUserMember?.department_id
+
+    if (!targetDeptId) {
       return activeEmployees
     }
-    return activeEmployees.filter(m => m.department_id === projectDeptId)
-  }, [members, projects, form.watch("project_id")])
+    
+    const filteredByDept = activeEmployees.filter(m => 
+      m.department_id === targetDeptId || 
+      m.department?.toLowerCase().includes('web')
+    )
+    return filteredByDept.length > 0 ? filteredByDept : activeEmployees
+  }, [members, projects, form.watch("project_id"), currentUserMember])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true)
@@ -95,6 +106,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
         project_id: sanitizedValues.project_id === "none" ? null : sanitizedValues.project_id,
         assigned_to: sanitizedValues.assigned_to === "none" ? null : sanitizedValues.assigned_to,
         module_id: sanitizedValues.module_id || null,
+        due_date: sanitizedValues.due_date ? sanitizedValues.due_date : null,
       }
 
       if (task?.id) {
@@ -219,7 +231,7 @@ export default function TaskForm({ task, onSuccess }: TaskFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Owner</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={profile?.role === 'employee'}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger className="bg-muted/20">
                             <SelectValue placeholder="Assign someone" />

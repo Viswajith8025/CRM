@@ -66,6 +66,10 @@ export function useModuleRegistry() {
         if (m.route === '/audit-trail') {
           return false
         }
+        // Temporarily hide Super Admin from sidebar
+        if (m.route === '/super-admin') {
+          return false
+        }
         return isSuperAdmin || hasPermission(m.permission)
       })
 

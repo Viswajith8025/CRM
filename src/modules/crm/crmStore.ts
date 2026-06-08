@@ -138,10 +138,9 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       if (!orgId) throw new Error("No organization context found.")
       
       // Strip known frontend-only fields and newly added extended fields that might not be in the DB yet
+      // Keep extended fields since they are now supported by the schema and encrypted
       const { 
         job_title, department_id, team_lead_id, count, profile: _leadProfile, 
-        whatsapp, website, address, business_type, services_needed, target_locations,
-        has_instagram, ig_username, ig_password, li_username, li_password,
         ...safeLead 
       } = lead as any;
       if (safeLead.email === "") safeLead.email = null;
@@ -189,10 +188,9 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       const currentLead = get().leads.find(l => l.id === id)
       
       // Strip known frontend-only fields and newly added extended fields
+      // Keep extended fields since they are now supported by the schema and encrypted
       const { 
         job_title, department_id, team_lead_id, count, profile: _leadProfile, 
-        whatsapp, website, address, business_type, services_needed, target_locations,
-        has_instagram, ig_username, ig_password, li_username, li_password,
         ...safeUpdates 
       } = updates as any;
       
@@ -208,9 +206,16 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .eq('id', id)
         .eq('organization_id', orgId)
 
+      if (currentLead?.updated_at) {
+        query = query.eq('updated_at', currentLead.updated_at)
+      }
+
       const { data, error } = await query.select().single()
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error("Conflict: This lead was modified by another user. Please refresh and try again.")
+        }
         throw error
       }
 
@@ -380,9 +385,16 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         .eq('id', id)
         .eq('organization_id', orgId)
 
+      if (currentClient?.updated_at) {
+        query = query.eq('updated_at', currentClient.updated_at)
+      }
+
       const { data, error } = await query.select().single()
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error("Conflict: This client was modified by another user. Please refresh and try again.")
+        }
         throw error
       }
 

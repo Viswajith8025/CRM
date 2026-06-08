@@ -60,6 +60,7 @@ export function useTasksQuery(
 
       const { data, error } = await baseQuery
         .order(sortBy, { ascending: sortOrder === 'asc' })
+        .order('id', { ascending: true }) // Deterministic sort for pagination
         .range(pageParam, pageParam + limit - 1)
 
       if (error) throw error

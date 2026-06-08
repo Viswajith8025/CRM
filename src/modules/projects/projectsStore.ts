@@ -107,6 +107,8 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
       const canManageProjects = useRBACStore.getState().hasPermission('projects.manage')
 
       let userDeptId: string | null = null
+      let explicitProjectIds = new Set<string>()
+      
       if (!canManageProjects) {
         const { data: deptData } = await supabase
           .from('department_members')
@@ -115,9 +117,24 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           .limit(1)
         if (deptData && deptData.length > 0) {
           userDeptId = deptData[0].department_id
-        } else {
-          userDeptId = '00000000-0000-0000-0000-000000000000' // dummy uuid to prevent loading all
         }
+
+        // Fetch projects where user has a task
+        const { data: userTasks } = await supabase
+          .from('tasks')
+          .select('project_id')
+          .eq('assigned_to', profile.id)
+          .not('project_id', 'is', null)
+          
+        userTasks?.forEach(t => t.project_id && explicitProjectIds.add(t.project_id))
+
+        // Fetch projects where user is explicitly a member (e.g. Team Lead)
+        const { data: userMemberships } = await supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', profile.id)
+          
+        userMemberships?.forEach(m => m.project_id && explicitProjectIds.add(m.project_id))
       }
 
       let baseQuery = supabase
@@ -136,9 +153,22 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         baseQuery = baseQuery.or('is_archived.is.null,is_archived.eq.false')
       }
 
-      // Enforce department scoping for employees at the query level
-      if (!canManageProjects && userDeptId) {
-        baseQuery = baseQuery.eq('department_id', userDeptId)
+      // Enforce access scoping for employees at the query level
+      if (!canManageProjects) {
+        let orStrings = []
+        if (userDeptId) {
+          orStrings.push(`department_id.eq.${userDeptId}`)
+        }
+        if (explicitProjectIds.size > 0) {
+          orStrings.push(`id.in.(${Array.from(explicitProjectIds).join(',')})`)
+        }
+        
+        if (orStrings.length > 0) {
+          baseQuery = baseQuery.or(orStrings.join(','))
+        } else {
+          // If no department and no assigned tasks/memberships, return nothing
+          baseQuery = baseQuery.eq('id', '00000000-0000-0000-0000-000000000000')
+        }
       }
 
       const result = await fetchPaginatedData<any>(baseQuery, {
@@ -149,18 +179,29 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         filters
       })
 
-      // Fetch pre-calculated health stats from the materialized view
+      // Aggregate health stats dynamically from tasks table to avoid 404 on missing view
       const projectIds = result.data.map(p => p.id)
       let statsMap = new Map()
       
       if (projectIds.length > 0) {
-        const { data: statsData } = await supabase
-          .from('v_project_health_stats')
-          .select('*')
+        const { data: rawTasks } = await supabase
+          .from('tasks')
+          .select('project_id, status, due_date')
           .in('project_id', projectIds)
-          
-        if (statsData) {
-          statsData.forEach(s => statsMap.set(s.project_id, s))
+          .is('deleted_at', null)
+        
+        if (rawTasks) {
+          const today = new Date()
+          rawTasks.forEach(t => {
+            const st = statsMap.get(t.project_id) || { total_tasks: 0, completed_tasks: 0, overdue_tasks: 0, missed_milestones: 0, revenue: 0, labor_cost: 0, expense_total: 0, profit: 0, budget_burn: 0 }
+            st.total_tasks++
+            if (t.status === 'done' || t.status === 'completed') {
+              st.completed_tasks++
+            } else if (t.due_date && new Date(t.due_date) < today) {
+              st.overdue_tasks++
+            }
+            statsMap.set(t.project_id, st)
+          })
         }
       }
 
@@ -396,9 +437,16 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .eq('id', id)
         .eq('organization_id', orgId)
 
+      if (currentProject?.updated_at) {
+        query = query.eq('updated_at', currentProject.updated_at)
+      }
+
       const { data, error } = await query.select().single()
 
       if (error) {
+        if (error.code === 'PGRST116') {
+           throw new Error("Conflict: This project was modified by another user. Please refresh and try again.")
+        }
         throw error
       }
 
@@ -614,7 +662,9 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
   subscribeToProjects: () => {
     let channel: any = null;
+    let isUnsubscribed = false;
     import('@/store/useAuthStore').then(({ useAuthStore }) => {
+      if (isUnsubscribed) return;
       const orgId = useAuthStore.getState().profile?.organization_id
       if (!orgId) return
       
@@ -634,6 +684,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
     })
 
     return () => {
+      isUnsubscribed = true;
       if (channel) supabase.removeChannel(channel)
     }
   },
