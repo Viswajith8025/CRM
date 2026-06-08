@@ -14,6 +14,15 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      '/iclock': {
+        target: 'http://192.168.1.34:85',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  },
   build: {
     rollupOptions: {
       output: {
