@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table"
 import { toast } from "sonner"
 
-import { ProfessionalInvoice } from "../components/ProfessionalInvoice"
+import { AccountingInvoiceTemplate } from "../components/AccountingInvoiceTemplate"
 import { PaymentVerificationList } from "../components/PaymentVerificationList"
 import { VersionHistoryTimeline } from "@/components/shared/VersionHistoryTimeline"
 
@@ -116,29 +116,59 @@ export default function InvoiceDetail() {
   }
 
   const invoiceData = {
+    document_type: invoice.document_type || 'Tax Invoice',
     invoice_number: invoice.invoice_number,
-    issued_at: (invoice.date || invoice.created_at),
+    date: (invoice.date || invoice.created_at || invoice.issued_at),
     due_date: invoice.due_date,
     status: invoice.status as any,
     currency: 'INR',
-    items: [
+    items: (invoice as any).items?.length ? (invoice as any).items : [
       {
         id: '1',
-        description: invoice.project?.name || "IT Services & Consulting",
+        item_name: invoice.project?.name || "IT Services & Consulting",
         quantity: 1,
-        rate: invoice.grand_total,
-        taxRate: invoice.tax_rate || 0
+        unit_price: invoice.amount || invoice.grand_total || 0,
+        gst_rate: invoice.tax_rate || 0,
+        cgst_amount: invoice.tax_amount ? invoice.tax_amount / 2 : 0,
+        sgst_amount: invoice.tax_amount ? invoice.tax_amount / 2 : 0,
       }
     ],
+    subtotal: invoice.subtotal || invoice.amount,
+    total_tax: invoice.total_tax || invoice.tax_amount,
+    grand_total: invoice.grand_total || (invoice.amount + (invoice.tax_amount || 0)),
+    notes: invoice.notes,
+    terms: invoice.terms,
     client: {
       name: invoice.client?.name || 'Unknown Client',
       email: invoice.client?.email || '',
-      address: invoice.client?.address
+      address: invoice.client?.address,
+      state: (invoice as any).client?.state,
+      gstin: (invoice as any).client?.gstin,
     },
-    project: {
-      name: invoice.project?.name || 'General Project',
-      service_type: 'Software Development',
-      billing_type: invoice.is_recurring ? 'Subscription' : 'Fixed Rate'
+    company: {
+      name: "ECRAFTZ ERP",
+      address: "Business Park",
+      city: "Kozhikode",
+      state: "Kerala",
+      pincode: "673003",
+      country: "India",
+      gstin: "32XXXXX0000X1Z5",
+      phone: "+91 8000000000",
+      email: "billing@ecraftz.com",
+      website: "www.ecraftz.com"
+    },
+    bank_details: {
+      account_name: "ECRAFTZ SOLUTIONS",
+      bank_name: "HDFC Bank",
+      branch: "Kozhikode",
+      account_number: "50200000000000",
+      ifsc: "HDFC0000000",
+      swift: "HDFCINBXXXX",
+      pan: "ABCDE1234F"
+    },
+    signatures: {
+      prepared_by: "Admin",
+      authorized_sign: invoice.signature_data ? undefined : "/signature-placeholder.png", // Demo fallback
     },
     paid_amount: invoice.paid_amount
   };
@@ -190,7 +220,7 @@ export default function InvoiceDetail() {
         </div>
       }
     >
-      <ProfessionalInvoice data={invoiceData} />
+      <AccountingInvoiceTemplate data={invoiceData} />
 
       {invoice.signature_data && (
         <div className="mt-8 p-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 backdrop-blur-xl flex items-center justify-between">

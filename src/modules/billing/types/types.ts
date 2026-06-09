@@ -6,6 +6,7 @@ export interface Invoice {
   client_id: string
   project_id: string | null
   proposal_id: string | null
+  document_type?: string
   invoice_number: string
   amount: number
   tax_rate: number

@@ -37,6 +37,7 @@ const lineItemSchema = z.object({
 
 const schema = z.object({
   invoice_number: z.string().min(1),
+  document_type:  z.enum(["Estimate", "Proforma Invoice", "Tax Invoice", "GST Invoice", "Credit Note"]).default("Tax Invoice"),
   client_id:      z.string().uuid("Select a client"),
   project_id:     z.string().optional(),
   date:           z.string().min(1),
@@ -97,6 +98,7 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      document_type: "Tax Invoice",
       invoice_number: `INV-${Math.floor(Math.random() * 90000) + 10000}`,
       client_id: defaultClientId || "",
       project_id: "",
@@ -160,6 +162,7 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
         .from("invoices")
         .insert({
           organization_id: profile.organization_id,
+          document_type:   values.document_type,
           client_id:       values.client_id,
           project_id:      values.project_id || null,
           invoice_number:  values.invoice_number,
@@ -249,10 +252,24 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
             )}
 
             {/* Header Fields */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <FormField control={form.control} name="document_type" render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Doc Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger className="bg-muted/20"><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {["Estimate", "Proforma Invoice", "Tax Invoice", "GST Invoice", "Credit Note"].map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
               <FormField control={form.control} name="invoice_number" render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Invoice No.</FormLabel>
+                  <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Document No.</FormLabel>
                   <FormControl><Input className="bg-muted/20 font-mono" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -460,7 +477,7 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
 
         <Button type="submit" size="lg" className="w-full font-black uppercase tracking-widest" disabled={isLoading}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-          Generate GST Invoice · {fmt(breakdown.grandTotal)}
+          Generate Document · {fmt(breakdown.grandTotal)}
         </Button>
       </form>
     </Form>
