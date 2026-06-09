@@ -1,13 +1,23 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { toWords } from 'number-to-words'; // We'll assume or mock this. If not, we'll write a small converter.
-
-// A simple utility to convert numbers to Indian Rupee words (fallback if library missing)
+// Custom utility to convert numbers to Indian Rupee words without external dependencies
 const numToWords = (num: number): string => {
+  if (num === 0) return 'Zero Only';
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  const inWords = (n: number): string => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : ' ');
+    if (n < 1000) return a[Math.floor(n / 100)] + 'Hundred ' + (n % 100 !== 0 ? 'and ' + inWords(n % 100) : '');
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + 'Thousand ' + (n % 1000 !== 0 ? inWords(n % 1000) : '');
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + 'Lakh ' + (n % 100000 !== 0 ? inWords(n % 100000) : '');
+    return inWords(Math.floor(n / 10000000)) + 'Crore ' + (n % 10000000 !== 0 ? inWords(n % 10000000) : '');
+  };
+  
   try {
-    const { toWords } = require('number-to-words');
-    return toWords(num).replace(/-/g, ' ') + ' Only';
+    return inWords(Math.floor(num)).trim() + ' Only';
   } catch {
     return 'Amount in words not available';
   }
@@ -361,6 +371,7 @@ export const AccountingInvoiceTemplate: React.FC<AccountingInvoiceProps> = ({ da
                 <img 
                   src={data.signatures.authorized_sign} 
                   alt="Signature" 
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
                   className="h-12 w-32 object-contain absolute bottom-12 right-4 opacity-80 mix-blend-multiply" 
                 />
               )}
@@ -368,6 +379,7 @@ export const AccountingInvoiceTemplate: React.FC<AccountingInvoiceProps> = ({ da
                 <img 
                   src={data.signatures.stamp} 
                   alt="Stamp" 
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
                   className="h-16 w-16 object-contain absolute bottom-10 right-32 opacity-50 mix-blend-multiply" 
                 />
               )}

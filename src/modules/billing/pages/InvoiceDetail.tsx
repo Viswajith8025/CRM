@@ -2,7 +2,8 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { PageWrapper } from "@/components/shared/PageWrapper"
 import { Button } from "@/components/ui/button"
-import { Printer, Download, ArrowLeft, Mail, Paperclip } from "lucide-react"
+import { Printer, Download, ArrowLeft, Mail, Paperclip, Edit } from "lucide-react"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useBillingStore } from "../billingStore"
 import type { Invoice } from "../types"
 import { LoadingState } from "@/components/shared/LoadingState"
@@ -23,6 +24,7 @@ import {
 import { toast } from "sonner"
 
 import { AccountingInvoiceTemplate } from "../components/AccountingInvoiceTemplate"
+import { GSTInvoiceForm } from "../components/GSTInvoiceForm"
 import { PaymentVerificationList } from "../components/PaymentVerificationList"
 import { VersionHistoryTimeline } from "@/components/shared/VersionHistoryTimeline"
 
@@ -34,6 +36,7 @@ export default function InvoiceDetail() {
   const [loading, setLoading] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [isSignatureOpen, setIsSignatureOpen] = useState(false)
+  const [isEditOpen, setIsEditOpen] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -169,7 +172,7 @@ export default function InvoiceDetail() {
     },
     signatures: {
       prepared_by: "Admin",
-      authorized_sign: invoice.signature_data ? undefined : "/signature-placeholder.png", // Demo fallback
+      authorized_sign: invoice.signature_data ? invoice.signature_data : undefined,
     },
     paid_amount: invoice.paid_amount
   };
@@ -184,6 +187,10 @@ export default function InvoiceDetail() {
           <Button variant="outline" onClick={() => navigate('/billing')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
+          </Button>
+          <Button variant="outline" onClick={() => setIsEditOpen(true)}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
           </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
@@ -297,6 +304,26 @@ export default function InvoiceDetail() {
           }
         }}
       />
+
+      <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <SheetContent className="min-w-[60vw] sm:max-w-4xl w-full border-l border-white/10 bg-background/95 backdrop-blur-2xl overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="text-xl font-black uppercase tracking-widest text-primary">
+              Edit Document {invoice.invoice_number}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="h-full pb-20">
+            <GSTInvoiceForm 
+              initialData={invoice}
+              onSuccess={async () => {
+                setIsEditOpen(false)
+                const updated = await getInvoiceById(invoice.id)
+                setInvoice(updated)
+              }} 
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </PageWrapper>
   )
 }

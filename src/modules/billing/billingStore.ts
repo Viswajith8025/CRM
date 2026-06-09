@@ -446,7 +446,7 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
       const { data, error } = await supabase
         .from('invoices')
-        .select('*, items:invoice_items(*), client:clients(name, email, address, state_code, state), project:projects(name)')
+        .select('*, items:invoice_items(*), client:clients(name, email, address), project:projects(name)')
         .eq('id', id)
         .eq('organization_id', orgId)
         .is('deleted_at', null)

@@ -65,6 +65,7 @@ interface TaxBreakdown {
 interface Props {
   onSuccess: () => void
   defaultClientId?: string
+  initialData?: any
 }
 
 function calcGST(items: FormValues["items"], sellerState: string, buyerState: string): TaxBreakdown {
@@ -87,7 +88,7 @@ function calcGST(items: FormValues["items"], sellerState: string, buyerState: st
   return { taxable, cgst, sgst, igst, totalTax, grandTotal: taxable + totalTax, isInterState }
 }
 
-export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
+export function GSTInvoiceForm({ onSuccess, defaultClientId, initialData }: Props) {
   const { profile } = useAuthStore()
   const { clients, fetchClients } = useCRMStore()
   const { projects, fetchProjects } = useProjectsStore()
@@ -97,7 +98,26 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      document_type: initialData.document_type || "Tax Invoice",
+      invoice_number: initialData.invoice_number,
+      client_id: initialData.client_id,
+      project_id: initialData.project_id || "",
+      date: initialData.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+      due_date: initialData.due_date?.split("T")[0] || new Date(Date.now() + 15 * 86400000).toISOString().split("T")[0],
+      status: initialData.status,
+      place_of_supply: initialData.place_of_supply || "",
+      notes: initialData.notes || "",
+      terms: initialData.terms || "Payment due within 15 days of invoice date.",
+      items: initialData.items?.length ? initialData.items.map((i:any) => ({
+        item_name: i.item_name || i.description, 
+        description: i.description || "", 
+        hsn_sac: i.hsn_sac || "",
+        quantity: i.quantity || 1, 
+        unit_price: i.unit_price || i.rate || 0, 
+        gst_rate: i.gst_rate || i.taxRate || 18
+      })) : [{ item_name: "", description: "", hsn_sac: "", quantity: 1, unit_price: 0, gst_rate: 18 }],
+    } : {
       document_type: "Tax Invoice",
       invoice_number: `INV-${Math.floor(Math.random() * 90000) + 10000}`,
       client_id: defaultClientId || "",
@@ -157,40 +177,72 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
     try {
       const { isInterState, taxable, cgst, sgst, igst, totalTax, grandTotal } = breakdown
 
-      // 1. Create invoice
-      const { data: inv, error: invErr } = await supabase
-        .from("invoices")
-        .insert({
-          organization_id: profile.organization_id,
-          document_type:   values.document_type,
-          client_id:       values.client_id,
-          project_id:      values.project_id || null,
-          invoice_number:  values.invoice_number,
-          date:            values.date,
-          due_date:        values.due_date,
-          status:          values.status,
-          place_of_supply: values.place_of_supply,
-          tax_type:        isInterState ? "inter_state" : "intra_state",
-          subtotal:        taxable,
-          total_tax:       totalTax,
-          grand_total:     grandTotal,
-          amount_due:      grandTotal,
-          notes:           values.notes,
-          terms:           values.terms,
-          created_by:      profile.id,
-          deleted_at:      null,
-        })
-        .select("id")
-        .single()
+      let invId = initialData?.id;
 
-      if (invErr) throw invErr
+      if (initialData?.id) {
+        // Update existing invoice
+        const { error: updateErr } = await supabase
+          .from("invoices")
+          .update({
+            client_id:       values.client_id,
+            project_id:      values.project_id || null,
+            invoice_number:  values.invoice_number,
+            date:            values.date,
+            due_date:        values.due_date,
+            status:          values.status,
+            place_of_supply: values.place_of_supply,
+            tax_type:        isInterState ? "inter_state" : "intra_state",
+            subtotal:        taxable,
+            total_tax:       totalTax,
+            grand_total:     grandTotal,
+            amount_due:      grandTotal,
+            notes:           values.notes,
+            terms:           values.terms,
+          })
+          .eq("id", invId)
+        
+        if (updateErr) throw updateErr;
+
+        // Clear existing items and taxes
+        await supabase.from("invoice_items").delete().eq("invoice_id", invId);
+        await supabase.from("invoice_taxes").delete().eq("invoice_id", invId);
+
+      } else {
+        // Create invoice
+        const { data: inv, error: invErr } = await supabase
+          .from("invoices")
+          .insert({
+            organization_id: profile.organization_id,
+            client_id:       values.client_id,
+            project_id:      values.project_id || null,
+            invoice_number:  values.invoice_number,
+            date:            values.date,
+            due_date:        values.due_date,
+            status:          values.status,
+            place_of_supply: values.place_of_supply,
+            tax_type:        isInterState ? "inter_state" : "intra_state",
+            subtotal:        taxable,
+            total_tax:       totalTax,
+            grand_total:     grandTotal,
+            amount_due:      grandTotal,
+            notes:           values.notes,
+            terms:           values.terms,
+            created_by:      profile.id,
+            deleted_at:      null,
+          })
+          .select("id")
+          .single()
+
+        if (invErr) throw invErr
+        invId = inv.id;
+      }
 
       // 2. Create line items
       const itemRows = values.items.map(item => {
         const lineTotal = item.quantity * item.unit_price
         const rate = item.gst_rate
         return {
-          invoice_id:    inv.id,
+          invoice_id:    invId,
           item_name:     item.item_name,
           description:   item.description || null,
           hsn_sac:       item.hsn_sac || null,
@@ -201,6 +253,7 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
           sgst_amount:   isInterState ? 0 : (lineTotal * rate / 2) / 100,
           igst_amount:   isInterState ? (lineTotal * rate) / 100 : 0,
           total_amount:  lineTotal + (isInterState ? (lineTotal * rate) / 100 : (lineTotal * rate) / 100),
+          gst_rate:      rate,
         }
       })
       await supabase.from("invoice_items").insert(itemRows)
@@ -208,14 +261,14 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
       // 3. Create tax summary rows
       const taxRows: any[] = []
       if (!isInterState && cgst > 0) {
-        taxRows.push({ invoice_id: inv.id, tax_name: "CGST", taxable_amount: taxable, tax_amount: cgst })
-        taxRows.push({ invoice_id: inv.id, tax_name: "SGST", taxable_amount: taxable, tax_amount: sgst })
+        taxRows.push({ invoice_id: invId, tax_name: "CGST", taxable_amount: taxable, tax_amount: cgst })
+        taxRows.push({ invoice_id: invId, tax_name: "SGST", taxable_amount: taxable, tax_amount: sgst })
       } else if (igst > 0) {
-        taxRows.push({ invoice_id: inv.id, tax_name: "IGST", taxable_amount: taxable, tax_amount: igst })
+        taxRows.push({ invoice_id: invId, tax_name: "IGST", taxable_amount: taxable, tax_amount: igst })
       }
       if (taxRows.length) await supabase.from("invoice_taxes").insert(taxRows)
 
-      toast.success("GST Invoice created successfully!")
+      toast.success(initialData?.id ? "Document updated successfully!" : "GST Invoice created successfully!")
       onSuccess()
     } catch (err: any) {
       toast.error(err.message || "Failed to create invoice")
@@ -229,10 +282,9 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-        <ScrollArea className="flex-1 max-h-[70vh] pr-3">
-          <div className="space-y-6">
+        <div className="flex-1 space-y-6 pb-4">
 
-            {/* GST Profile Banner */}
+          {/* GST Profile Banner */}
             {gstProfile ? (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
                 <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -473,11 +525,10 @@ export function GSTInvoiceForm({ onSuccess, defaultClientId }: Props) {
               )} />
             </div>
           </div>
-        </ScrollArea>
 
         <Button type="submit" size="lg" className="w-full font-black uppercase tracking-widest" disabled={isLoading}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-          Generate Document · {fmt(breakdown.grandTotal)}
+          {initialData?.id ? "Update Document" : "Generate Document"} · {fmt(breakdown.grandTotal)}
         </Button>
       </form>
     </Form>
