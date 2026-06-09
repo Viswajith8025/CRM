@@ -146,6 +146,7 @@ export default function InvoiceDetail() {
       gstin: (invoice as any).client?.gstin,
     },
     company: {
+      logo: "/ecraftzlogo.png",
       name: "ECRAFTZ ERP",
       address: "Business Park",
       city: "Kozhikode",
