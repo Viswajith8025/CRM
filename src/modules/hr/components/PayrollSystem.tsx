@@ -11,13 +11,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, DollarSign, Download, Filter } from "lucide-react"
+import { Search, DollarSign, Download, Filter, Edit2 } from "lucide-react"
 import { useHRStore } from "../hrStore"
 import { format } from "date-fns"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { PayrollForm } from "./PayrollForm"
 
 export function PayrollSystem() {
   const { payroll, fetchPayroll, generatePayroll, isLoading, employees, fetchEmployees } = useHRStore()
   const [search, setSearch] = useState("")
+  const [selectedPayroll, setSelectedPayroll] = useState<any>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   useEffect(() => {
     fetchPayroll()
@@ -88,7 +92,7 @@ export function PayrollSystem() {
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Deductions</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Net Pay</TableHead>
               <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-center">Status</TableHead>
-              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Payslip</TableHead>
+              <TableHead className="font-black uppercase tracking-widest text-[10px] text-muted-foreground py-4 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -146,9 +150,22 @@ export function PayrollSystem() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10">
-                      <Download className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setSelectedPayroll(slip)
+                          setIsFormOpen(true)
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -156,6 +173,18 @@ export function PayrollSystem() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent>
+          <PayrollForm 
+            payrollRecord={selectedPayroll}
+            onSuccess={() => {
+              setIsFormOpen(false)
+              fetchPayroll()
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

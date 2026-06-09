@@ -136,7 +136,7 @@ export default function EmployeeReport() {
       label: 'Total Workforce',
       value: totalCount,
       icon: Users,
-      description: 'Total active profiles'
+      description: 'All registered profiles'
     },
     {
       label: 'Active Operators',

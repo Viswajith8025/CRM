@@ -41,8 +41,8 @@ export function EmployeeDirectory() {
       emp.department?.toLowerCase().includes(search.toLowerCase()) ||
       emp.designation?.toLowerCase().includes(search.toLowerCase()) ||
       emp.email?.toLowerCase().includes(search.toLowerCase())
-    const isNotDenied = emp.status !== 'denied' && emp.status !== 'archived'
-    return matchesSearch && isNotDenied
+    const isActive = emp.status === 'active'
+    return matchesSearch && isActive
   })
 
   return (

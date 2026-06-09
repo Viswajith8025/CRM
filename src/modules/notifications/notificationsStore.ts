@@ -14,6 +14,8 @@ export interface Notification {
   link?: string
 }
 
+let _notificationsChannel: any = null
+
 interface NotificationsState {
   notifications: Notification[]
   isLoading: boolean
@@ -181,16 +183,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   subscribeToNotifications: () => {
-    let channel: any = null;
-    let isUnsubscribed = false;
-
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
-      const profile = useAuthStore.getState().profile
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
       if (!profile?.organization_id || !profile?.id) return
 
-      channel = supabase
-        .channel(`notifications_${profile.id}_${Math.random()}`)
+      if (_notificationsChannel) return
+
+      _notificationsChannel = supabase
+        .channel(`notifications_${profile.id}`)
         .on(
           'postgres_changes',
           { 
@@ -204,11 +204,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
           }
         )
         .subscribe()
-    })
+    }
+    setup()
 
     return () => {
-      isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (_notificationsChannel) {
+        supabase.removeChannel(_notificationsChannel)
+        _notificationsChannel = null
+      }
     }
   }
 }))

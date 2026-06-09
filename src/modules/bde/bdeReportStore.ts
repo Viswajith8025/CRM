@@ -8,6 +8,7 @@ interface BDEReportState {
   reports: BDEReport[]
   currentReport: BDEReport | null
   isLoading: boolean
+  isHistoryLoading: boolean
   error: string | null
   
   fetchMyReportForToday: () => Promise<void>
@@ -21,6 +22,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
   reports: [],
   currentReport: null,
   isLoading: false,
+  isHistoryLoading: false,
   error: null,
 
   fetchMyReportForToday: async () => {
@@ -49,7 +51,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
   },
 
   fetchMyReports: async (startDate, endDate) => {
-    set({ isLoading: true, error: null })
+    set({ isHistoryLoading: true, error: null })
     try {
       const { profile } = useAuthStore.getState()
       if (!profile) return
@@ -71,12 +73,12 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
     } catch (err) {
       set({ error: getFriendlySupabaseError(err, "Failed to load history.") })
     } finally {
-      set({ isLoading: false })
+      set({ isHistoryLoading: false })
     }
   },
 
   fetchAllReports: async (startDate, endDate) => {
-    set({ isLoading: true, error: null })
+    set({ isHistoryLoading: true, error: null })
     try {
       const { profile } = useAuthStore.getState()
       if (!profile || !['super_admin', 'admin', 'manager'].includes(profile.role)) return
@@ -98,7 +100,7 @@ export const useBDEReportStore = create<BDEReportState>((set, get) => ({
     } catch (err) {
       set({ error: getFriendlySupabaseError(err, "Failed to load all reports.") })
     } finally {
-      set({ isLoading: false })
+      set({ isHistoryLoading: false })
     }
   },
 

@@ -6,6 +6,8 @@ import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
 import type { Task, Subtask as SubTask } from './types/types'
 
 
+const _taskChannels = new Map<string, { channel: any; count: number }>()
+
 interface TasksState {
   tasks: Task[]
   myTasks: Task[]
@@ -529,7 +531,7 @@ export const useTasksStore = create<TasksState>((set, get) => ({
 
       let query = supabase
         .from('task_subtasks')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
       const { error } = await query
@@ -584,22 +586,28 @@ export const useTasksStore = create<TasksState>((set, get) => ({
   
 
   subscribeToTasks: (projectId) => {
-    let channel: any = null;
     let isUnsubscribed = false;
+    let channelKey = '';
 
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId || isUnsubscribed) return
 
-      const orgId = useAuthStore.getState().profile?.organization_id
-      if (!orgId) return
+      channelKey = projectId ? `tasks_sync_${projectId}_${orgId}` : `tasks_sync_global_${orgId}`
+      
+      const existing = _taskChannels.get(channelKey)
+      if (existing) {
+        existing.count++
+        return
+      }
 
-      const channelName = projectId ? `tasks_sync_${projectId}_${orgId}_${Math.random()}` : `tasks_sync_global_${orgId}_${Math.random()}`
       const filterConfig = projectId 
         ? `project_id=eq.${projectId}` 
         : `organization_id=eq.${orgId}`
       
-      channel = supabase
-        .channel(channelName)
+      const channel = supabase
+        .channel(channelKey)
         .on(
           'postgres_changes',
           { 
@@ -624,17 +632,28 @@ export const useTasksStore = create<TasksState>((set, get) => ({
                 myTasks: currentMyTasks.filter(t => t.id !== oldRecord.id)
               });
             } else if (eventType === 'INSERT') {
-              // For inserts, we need the join data (assignee, project), so we refetch.
               get().fetchTasks({ projectId } as any)
             }
           }
         )
         .subscribe()
-    })
+        
+      _taskChannels.set(channelKey, { channel, count: 1 })
+    }
+    setup()
 
     return () => {
       isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (!channelKey) return;
+      
+      const existing = _taskChannels.get(channelKey)
+      if (existing) {
+        existing.count--
+        if (existing.count <= 0) {
+          supabase.removeChannel(existing.channel)
+          _taskChannels.delete(channelKey)
+        }
+      }
     }
   }
 }))

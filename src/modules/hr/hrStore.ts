@@ -30,6 +30,7 @@ interface HRState {
   
   fetchPayroll: () => Promise<void>
   generatePayroll: (payload: any) => Promise<void>
+  updatePayroll: (id: string, updates: any) => Promise<void>
 }
 
 export const useHRStore = create<HRState>((set, get) => ({
@@ -402,6 +403,29 @@ export const useHRStore = create<HRState>((set, get) => ({
       set({ payroll: [data as PayrollRecord, ...get().payroll] })
     } catch (err) {
       console.error("Failed to generate payroll:", err)
+    }
+  },
+
+  updatePayroll: async (id: string, updates: any) => {
+    try {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
+      if (!orgId) throw new Error("No organization context found.")
+
+      const { data, error } = await supabase
+        .from('payroll')
+        .update(updates)
+        .eq('id', id)
+        .eq('organization_id', orgId)
+        .select('*, profile:profiles(full_name, status, avatar_url)')
+        .single()
+
+      if (error) throw error
+      set({
+        payroll: get().payroll.map(p => p.id === id ? data as PayrollRecord : p)
+      })
+    } catch (err) {
+      throw toFriendlyError(err, "Failed to update payroll record.")
     }
   }
 }))

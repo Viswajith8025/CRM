@@ -240,9 +240,16 @@ export const useAuthStore = zustand.create<AuthState>((set, get) => ({
         is_org_suspended 
       } as UserProfile
       
-      // DEEP EQUALITY CHECK to prevent reference-based re-render loops
+      // OPTIMIZATION: Replaced expensive JSON.stringify with focused structural equality check
       const currentProfile = get().profile
-      const hasChanged = JSON.stringify(currentProfile) !== JSON.stringify(newProfileState)
+      const hasChanged = !currentProfile || 
+        currentProfile.id !== newProfileState.id ||
+        currentProfile.role !== newProfileState.role ||
+        currentProfile.dynamic_role !== newProfileState.dynamic_role ||
+        currentProfile.status !== newProfileState.status ||
+        currentProfile.is_org_suspended !== newProfileState.is_org_suspended ||
+        currentProfile.permissions?.length !== newProfileState.permissions?.length ||
+        (currentProfile.permissions || []).some((p, i) => p !== newProfileState.permissions[i]);
       
       set({ 
         profile: hasChanged ? newProfileState : currentProfile, 

@@ -59,11 +59,11 @@ export default function AttendanceReport() {
     setFilters, 
     setSearch 
   } = useReport<any>({
-    tableName: 'attendance',
-    select: '*, profile:profiles!user_id(full_name)',
+    tableName: 'work_sessions',
+    select: '*, profile:profiles(full_name)',
     pageSize: 20,
-    defaultSortBy: 'date',
-    searchFields: ['notes']
+    defaultSortBy: 'start_time',
+    searchFields: []
   })
 
   const filterOptions: FilterOption[] = [
@@ -72,15 +72,14 @@ export default function AttendanceReport() {
       value: 'status',
       type: 'select',
       options: [
-        { label: 'Present', value: 'present' },
-        { label: 'Late', value: 'late' },
-        { label: 'Absent', value: 'absent' },
-        { label: 'On Leave', value: 'on_leave' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Active', value: 'active' },
+        { label: 'Paused', value: 'paused' }
       ]
     },
     {
       label: 'Date',
-      value: 'date',
+      value: 'start_time',
       type: 'date'
     }
   ]
@@ -92,25 +91,25 @@ export default function AttendanceReport() {
       cell: (item) => (
         <div className="flex flex-col">
           <span className="font-bold">{item.profile?.full_name || 'System User'}</span>
-          <span className="text-[10px] text-muted-foreground uppercase font-medium">{item.date}</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-medium">{item.start_time ? format(new Date(item.start_time), 'MMM d, yyyy') : '---'}</span>
         </div>
       )
     },
     { 
       header: 'Clock In', 
-      accessorKey: 'clock_in',
+      accessorKey: 'start_time',
       cell: (item) => (
         <div className="text-[11px] font-bold">
-          {item.clock_in ? format(new Date(item.clock_in), 'hh:mm a') : '---'}
+          {item.start_time ? format(new Date(item.start_time), 'hh:mm a') : '---'}
         </div>
       )
     },
     { 
       header: 'Clock Out', 
-      accessorKey: 'clock_out',
+      accessorKey: 'end_time',
       cell: (item) => (
         <div className="text-[11px] font-bold">
-          {item.clock_out ? format(new Date(item.clock_out), 'hh:mm a') : '---'}
+          {item.end_time ? format(new Date(item.end_time), 'hh:mm a') : '---'}
         </div>
       )
     },
@@ -118,8 +117,8 @@ export default function AttendanceReport() {
       header: 'Duration', 
       accessorKey: 'duration',
       cell: (item) => {
-        if (!item.clock_in || !item.clock_out) return '---'
-        const mins = differenceInMinutes(new Date(item.clock_out), new Date(item.clock_in))
+        if (!item.start_time || !item.end_time) return '---'
+        const mins = differenceInMinutes(new Date(item.end_time), new Date(item.start_time))
         const hours = Math.floor(mins / 60)
         const remMins = mins % 60
         return <span className="font-black text-xs">{hours}h {remMins}m</span>
@@ -130,7 +129,7 @@ export default function AttendanceReport() {
       accessorKey: 'status',
       cell: (item) => (
         <Badge 
-          variant={item.status === 'present' ? 'default' : item.status === 'late' ? 'destructive' : 'secondary'} 
+          variant={item.status === 'completed' ? 'default' : item.status === 'active' ? 'secondary' : 'destructive'} 
           className="text-[10px] uppercase font-black"
         >
           {item.status}
@@ -140,8 +139,8 @@ export default function AttendanceReport() {
   ]
 
   const summaryMetrics = useMemo(() => {
-    const presentCount = logs.filter(l => l.status === 'present').length
-    const lateCount = logs.filter(l => l.status === 'late').length
+    const completedCount = logs.filter(l => l.status === 'completed').length
+    const activeCount = logs.filter(l => l.status === 'active').length
     
     return [
       {
@@ -151,16 +150,16 @@ export default function AttendanceReport() {
         description: 'Aggregate attendance entries'
       },
       {
-        label: 'On-Time Rate',
-        value: `${totalCount > 0 ? Math.round(((totalCount - lateCount) / totalCount) * 100) : 0}%`,
+        label: 'Completed Shifts',
+        value: completedCount,
         icon: UserCheck,
-        description: 'Punctuality efficiency'
+        description: 'Successfully checked out'
       },
       {
-        label: 'Late Arrivals',
-        value: lateCount,
+        label: 'Active Operators',
+        value: activeCount,
         icon: AlertCircle,
-        description: 'Schedule deviations'
+        description: 'Currently clocked in'
       },
       {
         label: 'Break Compliance',
@@ -178,16 +177,15 @@ export default function AttendanceReport() {
       organizationName: profile?.organization_name || "ECRAFTZ ERP",
       columns: [
         { header: 'Employee', dataKey: 'profile' },
-        { header: 'Date', dataKey: 'date' },
-        { header: 'Clock In', dataKey: 'clock_in' },
-        { header: 'Clock Out', dataKey: 'clock_out' },
+        { header: 'Clock In', dataKey: 'start_time' },
+        { header: 'Clock Out', dataKey: 'end_time' },
         { header: 'Status', dataKey: 'status' },
       ],
       data: logs,
       summary: {
         'Total Sessions': totalCount,
-        'Late Arrivals': summaryMetrics[2].value,
-        'On-Time Rate': summaryMetrics[1].value
+        'Active Operators': summaryMetrics[2].value,
+        'Completed Shifts': summaryMetrics[1].value
       },
       filters
     })

@@ -9,6 +9,9 @@ import { parseClientMetadata, serializeClientMetadata } from '@/lib/metadataFall
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 
+let _leadsChannel: any = null
+let _clientsChannel: any = null
+
 interface CRMState {
   leads: Lead[]
   clients: Client[]
@@ -616,52 +619,56 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   subscribeToLeads: () => {
-    let channel: any = null;
-    let isUnsubscribed = false;
-
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
-
-      const orgId = useAuthStore.getState().profile?.organization_id
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel = supabase
-        .channel(`crm_leads_sync_${orgId}_${Math.random()}`)
+      if (_leadsChannel) return
+
+      _leadsChannel = supabase
+        .channel(`crm_leads_sync_${orgId}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'leads', filter: `organization_id=eq.${orgId}` },
           () => get().fetchLeads({ force: true })
         )
         .subscribe()
-    })
+    }
+    setup()
+    
     return () => {
-      isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (_leadsChannel) {
+        supabase.removeChannel(_leadsChannel)
+        _leadsChannel = null
+      }
     }
   },
 
   subscribeToClients: () => {
-    let channel: any = null;
-    let isUnsubscribed = false;
-
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
-
-      const orgId = useAuthStore.getState().profile?.organization_id
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel = supabase
-        .channel(`crm_clients_sync_${orgId}_${Math.random()}`)
+      if (_clientsChannel) return
+
+      _clientsChannel = supabase
+        .channel(`crm_clients_sync_${orgId}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'clients', filter: `organization_id=eq.${orgId}` },
           () => get().fetchClients({ force: true })
         )
         .subscribe()
-    })
+    }
+    setup()
+    
     return () => {
-      isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (_clientsChannel) {
+        supabase.removeChannel(_clientsChannel)
+        _clientsChannel = null
+      }
     }
   }
 }))

@@ -15,6 +15,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Eye, Edit, Download, Trash2, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -54,6 +63,8 @@ export function ReportTable<T>({
   const totalPages = Math.ceil(totalCount / limit)
   const startRange = (page - 1) * limit + 1
   const endRange = Math.min(page * limit, totalCount)
+
+  const [viewDetailsItem, setViewDetailsItem] = useState<T | null>(null)
 
   return (
     <div className="border border-border/50 rounded-2xl bg-card/30 overflow-hidden">
@@ -106,7 +117,7 @@ export function ReportTable<T>({
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest opacity-60">Record Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onRowAction?.('view', item)} className="gap-2 cursor-pointer">
+                        <DropdownMenuItem onClick={() => setViewDetailsItem(item)} className="gap-2 cursor-pointer">
                           <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-bold text-xs uppercase tracking-tight">View Details</span>
                         </DropdownMenuItem>
@@ -117,10 +128,6 @@ export function ReportTable<T>({
                         <DropdownMenuItem onClick={() => onRowAction?.('summary', item)} className="gap-2 cursor-pointer">
                           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="font-bold text-xs uppercase tracking-tight">Individual Report</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onRowAction?.('download', item)} className="gap-2 cursor-pointer">
-                          <Download className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="font-bold text-xs uppercase tracking-tight">Export Row</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => onRowAction?.('delete', item)} className="gap-2 cursor-pointer text-rose-500 focus:text-rose-500">
@@ -170,6 +177,38 @@ export function ReportTable<T>({
           </Button>
         </div>
       </div>
+
+      <Dialog open={!!viewDetailsItem} onOpenChange={(open) => !open && setViewDetailsItem(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase tracking-widest text-lg">Detailed Record View</DialogTitle>
+            <DialogDescription>
+              Raw audit details for the selected record.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 mt-4 border rounded-lg bg-muted/10 p-4">
+            <div className="space-y-4">
+              {viewDetailsItem && Object.entries(viewDetailsItem).map(([key, value]) => {
+                if (key === 'organization_id' || key === 'user_id' || key === 'client_id' || key === 'project_id' || key === 'deleted_at' || key === 'deleted_by') return null
+                let displayValue = value
+                if (typeof value === 'object' && value !== null) {
+                  displayValue = JSON.stringify(value, null, 2)
+                }
+                return (
+                  <div key={key} className="grid grid-cols-3 gap-4 border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                    <div className="text-xs font-bold uppercase tracking-tight text-muted-foreground col-span-1">
+                      {key.replace(/_/g, ' ')}
+                    </div>
+                    <div className="text-sm font-medium col-span-2 break-words whitespace-pre-wrap text-foreground">
+                      {displayValue !== null && displayValue !== undefined && displayValue !== '' ? String(displayValue) : <span className="text-muted-foreground/50 italic">N/A</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

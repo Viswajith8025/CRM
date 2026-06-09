@@ -229,7 +229,33 @@ export default function PremiumOnboardingPortal() {
     }
   }
 
+  const validateCurrentStep = (): boolean => {
+    if (!activeSection?.fields) return true
+    
+    // Check all visible required fields
+    const missingFields = activeSection.fields
+      .filter(shouldShowField)
+      .filter(f => f.is_required)
+      .filter(f => {
+        if (f.field_type === 'dynamic_repeater') {
+          return !repeaterRows[f.code] || repeaterRows[f.code].length === 0
+        }
+        if (f.field_type === 'file' || f.field_type === 'image') {
+          return !attachments[f.code] || attachments[f.code].length === 0
+        }
+        return !formData[f.code] || formData[f.code].trim() === ''
+      })
+
+    if (missingFields.length > 0) {
+      alert(`Please fill out the following required fields:\n${missingFields.map(f => '- ' + f.label).join('\n')}`)
+      return false
+    }
+    return true
+  }
+
   const handleNextStep = () => {
+    if (!validateCurrentStep()) return
+    
     if (activeStep < sections.length - 1) {
       setActiveStep(prev => prev + 1)
       if (submissionId) {
@@ -250,6 +276,7 @@ export default function PremiumOnboardingPortal() {
   }
 
   const handleSubmit = async () => {
+    if (!validateCurrentStep()) return
     if (!submissionId) return
     setIsSubmitting(true)
     try {

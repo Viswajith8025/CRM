@@ -35,6 +35,8 @@ export interface Sprint {
   created_at: string
 }
 
+let _projectsChannel: any = null
+
 interface ProjectsState {
   projects: Project[]
   archivedProjects: Project[]
@@ -661,15 +663,15 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
   },
 
   subscribeToProjects: () => {
-    let channel: any = null;
-    let isUnsubscribed = false;
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
-      const orgId = useAuthStore.getState().profile?.organization_id
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
       if (!orgId) return
-      
-      channel = supabase
-        .channel(`projects_sync_${orgId}_${Math.random()}`)
+
+      if (_projectsChannel) return
+
+      _projectsChannel = supabase
+        .channel(`projects_sync_${orgId}`)
         .on(
           'postgres_changes',
           { 
@@ -681,11 +683,14 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
           () => get().fetchProjects({ force: true })
         )
         .subscribe()
-    })
+    }
+    setup()
 
     return () => {
-      isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (_projectsChannel) {
+        supabase.removeChannel(_projectsChannel)
+        _projectsChannel = null
+      }
     }
   },
 
@@ -779,6 +784,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
         .select('*')
         .eq('project_id', projectId)
         .eq('organization_id', orgId)
+        .is('deleted_at', null)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
 
@@ -893,7 +899,7 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
       const { error } = await supabase
         .from('project_modules')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', id)
 
       if (error) throw error

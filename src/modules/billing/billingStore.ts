@@ -6,6 +6,8 @@ import { notificationService } from '@/lib/notificationService'
 import { fetchPaginatedData, type PaginationParams } from '@/lib/pagination'
 import type { Invoice, Payment } from './types'
 
+let _invoicesChannel: any = null
+
 interface BillingState {
   invoices: Invoice[]
   payments: Payment[]
@@ -543,26 +545,29 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   },
 
   subscribeToInvoices: () => {
-    let channel: any = null;
-    let isUnsubscribed = false;
-    
-    import('@/store/useAuthStore').then(({ useAuthStore }) => {
-      if (isUnsubscribed) return;
-      const orgId = useAuthStore.getState().profile?.organization_id
+    const setup = async () => {
+      const { profile } = (await import('@/store/useAuthStore')).useAuthStore.getState()
+      const orgId = profile?.organization_id
       if (!orgId) return
 
-      channel = supabase
-        .channel(`billing_invoices_sync_${orgId}_${Math.random()}`)
+      if (_invoicesChannel) return
+
+      _invoicesChannel = supabase
+        .channel(`billing_invoices_sync_${orgId}`)
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'invoices', filter: `organization_id=eq.${orgId}` },
           () => get().fetchInvoices({ force: true })
         )
         .subscribe()
-    })
+    }
+    setup()
+
     return () => {
-      isUnsubscribed = true;
-      if (channel) supabase.removeChannel(channel)
+      if (_invoicesChannel) {
+        supabase.removeChannel(_invoicesChannel)
+        _invoicesChannel = null
+      }
     }
   }
 }))

@@ -199,7 +199,7 @@ export function BDEDailyReportWidget() {
 }
 
 function BDEHistoryModal() {
-  const { reports, fetchMyReports, isLoading } = useBDEReportStore()
+  const { reports, fetchMyReports, isHistoryLoading } = useBDEReportStore()
   const [isOpen, setIsOpen] = useState(false)
 
   const [days, setDays] = useState<number | 'custom'>(7)
@@ -260,7 +260,7 @@ function BDEHistoryModal() {
           </div>
         </div>
 
-        {isLoading ? (
+        {isHistoryLoading ? (
           <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
         ) : reports.length === 0 ? (
           <div className="text-center p-8 text-muted-foreground border rounded-lg bg-muted/10 border-dashed">No reports found for this period.</div>

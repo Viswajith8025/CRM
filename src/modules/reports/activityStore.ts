@@ -24,6 +24,8 @@ interface ActivityState {
   subscribeToActivities: () => () => void
 }
 
+let _activitiesChannel: any = null
+
 export const useActivityStore = create<ActivityState>((set, get) => ({
   activities: [],
   isLoading: false,
@@ -73,8 +75,10 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
       const orgId = profile?.organization_id
       if (!orgId) return
 
-      const channel = supabase
-        .channel(`activities-${orgId}-${Date.now()}`)
+      if (_activitiesChannel) return
+
+      _activitiesChannel = supabase
+        .channel(`activities-${orgId}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'activities', filter: `organization_id=eq.${orgId}` },
@@ -83,14 +87,14 @@ export const useActivityStore = create<ActivityState>((set, get) => ({
           }
         )
         .subscribe()
+    }
+    setup()
 
-      return () => {
-        supabase.removeChannel(channel)
+    return () => {
+      if (_activitiesChannel) {
+        supabase.removeChannel(_activitiesChannel)
+        _activitiesChannel = null
       }
     }
-    
-    let cleanup: (() => void) | undefined;
-    setup().then(fn => { if(fn) cleanup = fn });
-    return () => { if(cleanup) cleanup() }
   }
 }))
