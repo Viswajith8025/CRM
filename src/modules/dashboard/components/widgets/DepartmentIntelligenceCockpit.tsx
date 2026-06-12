@@ -52,6 +52,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { supabase } from "@/lib/supabase"
 
 // Standard Dynamic Department Layout Definitions
 export interface Department {
@@ -110,7 +111,63 @@ export function DepartmentIntelligenceCockpit() {
       return
     }
 
-      }, [selectedMember])
+    const fetchMemberLogs = async () => {
+      try {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const today = new Date()
+        const last7DaysDate = new Date(today)
+        last7DaysDate.setDate(today.getDate() - 7)
+        const isoLimit = last7DaysDate.toISOString()
+
+        const { data: sessions, error } = await supabase
+          .from('work_sessions')
+          .select('*, break_sessions(*)')
+          .eq('user_id', selectedMember.id)
+          .gte('start_time', isoLimit)
+          
+        if (error) throw error
+
+        const logs = [
+          { name: 'Mon', hours: 0 },
+          { name: 'Tue', hours: 0 },
+          { name: 'Wed', hours: 0 },
+          { name: 'Thu', hours: 0 },
+          { name: 'Fri', hours: 0 },
+        ]
+
+        if (sessions) {
+          sessions.forEach((sess: any) => {
+            const d = new Date(sess.start_time)
+            const dayName = days[d.getDay()]
+            
+            const logEntry = logs.find(l => l.name === dayName)
+            if (logEntry) {
+              const end = sess.end_time ? new Date(sess.end_time) : new Date()
+              const totalMs = end.getTime() - d.getTime()
+              let breakMs = 0
+              if (sess.break_sessions) {
+                sess.break_sessions.forEach((b: any) => {
+                  if (b.type === 'meeting') return
+                  const bStart = new Date(b.start_time)
+                  const bEnd = b.end_time ? new Date(b.end_time) : new Date()
+                  breakMs += (bEnd.getTime() - bStart.getTime())
+                })
+              }
+              const netMs = Math.max(0, totalMs - breakMs)
+              // Add to existing hours for that day (in case of multiple sessions)
+              logEntry.hours += Number((netMs / (1000 * 60 * 60)).toFixed(2))
+            }
+          })
+        }
+        
+        setSelectedMemberLogs([...logs])
+      } catch (err) {
+        console.error("Failed to fetch member time logs", err)
+      }
+    }
+    
+    fetchMemberLogs()
+  }, [selectedMember])
 
   useEffect(() => {
     fetchTasks()
