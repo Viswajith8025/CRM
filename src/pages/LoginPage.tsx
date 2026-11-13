@@ -63,9 +63,16 @@ export default function LoginPage() {
       })
 
       if (error) {
-        // 2. Log security failure
+        // Log failure to security system
         await rateLimiter.logSecurityEvent('LOGIN_FAILURE', { email, error: error.message })
         
+        // Write a clean login failure record to our dedicated table
+        await supabase.from('user_logins').insert({
+          email: email,
+          success: false,
+          error_message: error.message,
+        })
+
         // Re-check status to see if this attempt triggered a new lockout
         const newStatus = await rateLimiter.check(email, 'login', 5, 60)
         if (!newStatus.allowed) {
@@ -75,8 +82,14 @@ export default function LoginPage() {
         throw error
       }
 
-      // 3. Log security success
+      // Log success to security system
       await rateLimiter.logSecurityEvent('LOGIN_SUCCESS', { email })
+
+      // Write a clean login success record to our dedicated table
+      await supabase.from('user_logins').insert({
+        email: email,
+        success: true,
+      })
 
       toast.success("Welcome back!")
       navigate("/")

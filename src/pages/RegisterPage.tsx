@@ -103,6 +103,12 @@ export default function RegisterPage() {
 
       if (error) throw error
 
+      // Write a clean registration record to our dedicated tracking table
+      await supabase.from('user_registrations').insert({
+        full_name: fullName,
+        email: email,
+      })
+
       if (data.session) {
         toast.success("Account created successfully!")
         navigate("/")
